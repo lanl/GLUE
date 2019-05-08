@@ -1,0 +1,45 @@
+/*
+* Solver side code: Probably C with iso-c bindings as needed
+*/
+
+int file_is_modified(const char *path, time_t oldMTime) {
+    struct stat file_stat;
+    int err = stat(path, &file_stat);
+    if (err != 0) {
+        perror(" [file_is_modified] stat");
+        exit(errno);
+    }
+    return file_stat.st_mtime > oldMTime;
+}
+
+ResultStruct_t reqFineGrainSim(ARGS, int mpiRank)
+{
+	//Static variables are dirty but this is an okay use
+	static int reqNumber = 0;
+
+	///COMMENT: Should probably just use redis or something that can better support parallelism
+	/// Assuming that for now we don't mind ranks being serialized. If we can provide asynchrony in lookups
+	///   then we can better aggregate them and detect redundant calls before we hammer the file system
+
+	//Open file for writing in format fgsReq_RANK_reqNumber
+	//Write tab delimited string of arguments
+	//Close file
+
+	bool haveResult = false;
+	while(!haveResult)
+	{
+		//Check if fgsAck_RANK_reqNumber exists
+		//Open if it does
+		//Read results
+		if(results good)
+		{
+			haveResult = true;
+			ResultStruct_t retVal = STUFF;
+		}
+		//Close file
+	}
+
+	return retVal;
+}
+
+
