@@ -43,3 +43,13 @@ ResultStruct_t reqFineGrainSim(ARGS, int mpiRank)
 }
 
 
+/*
+* ALer code: Python until otherwise
+*/
+
+// Read config file to determine what ranks this ALer is responsible for
+// Make array of ints to keep track of req count for each rank
+for each rank:
+	check if we have a new req
+	process req as either LAMMPs or Mystic
+	write result to file
