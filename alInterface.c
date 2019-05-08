@@ -45,6 +45,10 @@ ResultStruct_t reqFineGrainSim(double density, int mpiRank)
 			//Close file
 			fclose(ackHandle);
 		}
+		else
+		{
+			//Some form of wait so we don't completley destroy the file system
+		}
 	}
 
 	//Increment request number
