@@ -39,7 +39,7 @@ ResultStruct_t reqFineGrainSim(double density, int mpiRank)
 			//Read results
 			///TODO: Solve situation of a partial write
 			double outDensity;
-			fscanf(ackHandle, "%f", outDensity);
+			fscanf(ackHandle, "%lf", &outDensity);
 			haveResult = 1;
 			retVal.density = outDensity;
 			//Close file
