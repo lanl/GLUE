@@ -1,4 +1,5 @@
 from enum import Enum
+import sqlite3 as lite
 
 class FineGrainProvider(Enum):
     LAMMPS = 0
@@ -31,7 +32,7 @@ def pollAndProcessFGSRequests(rankArr, mode):
                     result = 1.1
                 elif mode == FineGrainProvider.FAKE:
                     # Do nothing? Or find a reasonable analytic solution
-                    result - 2.2
+                    result = 2.2
                 # Now write the result
                 ackName = "fgsAck_" + str(rank) + "_" + str(req)
                 ackFid = open(ackName, 'w')
