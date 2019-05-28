@@ -23,11 +23,10 @@ void buildTables(sqlite3 * dbHandle)
 	return;
 }
 
-
 void writeRequest(double density, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum)
 {
 	char sqlBuf[2048];
-	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f", tag, mpiRank, reqNum, density);
+	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f)", tag, mpiRank, reqNum, density);
 	int sqlRet;
 	char *zErrMsg;
 	sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
@@ -36,6 +35,11 @@ void writeRequest(double density, int mpiRank, char * tag, sqlite3 * dbHandle, i
 		fprintf(stderr, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
+	return;
+}
+
+void readRequest(int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, <TODO: Pointer to resultStruct>)
+{
 	return;
 }
 
@@ -53,42 +57,15 @@ ResultStruct_t reqFineGrainSim(double density, int mpiRank, char * tag, sqlite3 
 	///  Evidently the rest of the world has been right for 30-ish(?) years!
 	///TABLE: (tag TEXT, rank INT, req INT, <inputs> REAL)
 
-	char reqName_buffer[64];
-	//Generate fName
-	sprintf(reqName_buffer, "fgsReq_%d_%d", mpiRank, reqNumber);
-	//Open file for writing in format fgsReq_RANK_reqNumber
-	FILE *reqHandle = fopen(reqName_buffer, "w");
-	//Write tab delimited string of arguments
-	///TODO: Verify max precision, possibly by writing as hex
-	fprintf(reqHandle, "%f\n", density);
-	//Close file
-	fclose(reqHandle);
-
-	//Generate new fName
-	char ackName_buffer[64];
-	sprintf(reqName_buffer, "fgsAck_%d_%d", mpiRank, reqNumber);
+	//Send request
+	writeRequest(density, mpiRank, tag, dbHandle, reqNumber);
 
 	//Spin on file until result is available
 	int haveResult = 0;
 	while(!haveResult)
 	{
-		//Check if fgsAck_RANK_reqNumber exists and open if it does
-		FILE *ackHandle = fopen(ackName_buffer, "r");
-		if(ackHandle != NULL)
-		{
-			//Read results
-			///TODO: Solve situation of a partial write
-			double outDensity;
-			fscanf(ackHandle, "%lf", &outDensity);
-			haveResult = 1;
-			retVal.density = outDensity;
-			//Close file
-			fclose(ackHandle);
-		}
-		else
-		{
-			//Some form of wait so we don't completley destroy the file system
-		}
+		///TODO: Add in readRequest and spin on lock
+		///COMMENT: CHanging to CXX in the hopes of a more portable thread/STL interface
 	}
 
 	//Increment request number
