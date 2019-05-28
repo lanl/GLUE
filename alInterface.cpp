@@ -1,8 +1,10 @@
-#include "alInterface.h"
+#include "alInterface.hpp"
 
 #include <stdio.h>
 #include <sqlite3.h> 
 
+///TODO: Verify this is correct
+AsyncSelectTable_t nastyGlobalSelectTable;
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName) {
 	return 0;

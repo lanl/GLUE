@@ -15,6 +15,7 @@ extern "C"
 {
 #endif
 	ResultStruct_t reqFineGrainSim(double density, int mpiRank, char * tag, sqlite3 *dbHandle);
+	void writeSelectResult(double density, int reqNum);
 #ifdef __cplusplus
 }
 #endif
