@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <sqlite3.h> 
 
-///TODO: Verify this is correct
+///TODO: Verify this is the correct way to do a global variable
 AsyncSelectTable_t nastyGlobalSelectTable;
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName) {

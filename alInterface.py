@@ -16,6 +16,7 @@ def pollAndProcessFGSRequests(rankArr, mode):
             rank = rankArr[i]
             req = reqNumArr[i]
             # TODO: Again, asynchrony and parallelism are goals
+            # TODO: Rewrite logic to use SQL database 
             reqName = "fgsReq_" + str(rank) + "_" + str(req)
             try:
                 reqFid = open(reqName, 'r')
@@ -28,8 +29,17 @@ def pollAndProcessFGSRequests(rankArr, mode):
                     # call lammps with args
                     result = 0.0
                 elif mode == FineGrainProvider.MYSTIC:
-                    # call mystic, that might call lammps, with args
+                    # call mystic: I think Mystic will handle most of our logic?
                     result = 1.1
+                elif mode == FineGrainProvider.ACTIVELEARNER:
+                    # This is probably more for the Nick stuff
+                    #  Ask Learner
+                    #     We good? Return value
+                    #  Check LUT
+                    #     We good? Return value
+                    #  Call LAMMPS
+                    #     Go get a coffee, then return value. And add to LUT (?)
+                    result = 3.3
                 elif mode == FineGrainProvider.FAKE:
                     # Do nothing? Or find a reasonable analytic solution
                     result = 2.2

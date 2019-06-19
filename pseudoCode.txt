@@ -43,3 +43,15 @@ for each rank:
 	check if we have a new req
 	process req as either LAMMPs or Mystic
 	write result to file
+
+
+
+
+INTERFACE
+	LAMMPS: x
+		Temperature, densities
+			objective.py
+				Find this in one of our respos
+					grep "demo_update1/in.MARBLE"
+	
+	
