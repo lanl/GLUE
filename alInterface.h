@@ -14,7 +14,7 @@ typedef struct ResultStruct_s ResultStruct_t;
 extern "C"
 {
 #endif
-	ResultStruct_t reqFineGrainSim(double density, int mpiRank, char * tag, sqlite3 *dbHandle);
+	ResultStruct_t reqFineGrainSim_single(double density, int mpiRank, char * tag, sqlite3 *dbHandle);
 	void writeSelectResult(double density, int reqNum);
 #ifdef __cplusplus
 }

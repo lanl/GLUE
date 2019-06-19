@@ -2,7 +2,7 @@
 #define __alInterface_hpp
 
 #include "alInterface.h"
-#include <vector>
+#include <map>
 #include <mutex>
 
 const char * defaultTag = "THIS_IS_A_POC";
@@ -11,7 +11,7 @@ typedef ResultStruct_t SelectResult_t;
 
 struct AsyncSelectTable_s
 {
-	std::vector<SelectResult_t> resultTable;
+	std::map<int, SelectResult_t> resultTable;
 	std::mutex tableMutex;
 };
 

@@ -40,17 +40,20 @@ void writeRequest(double density, int mpiRank, char * tag, sqlite3 * dbHandle, i
 	return;
 }
 
-void readRequest(int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, <TODO: Pointer to resultStruct>)
+void readRequest_single(int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, <TODO: Pointer to resultStruct>)
 {
 	return;
 }
 
-ResultStruct_t reqFineGrainSim(double density, int mpiRank, char * tag, sqlite3 *dbHandle)
+ResultStruct_t reqFineGrainSim_single(double density, int mpiRank, char * tag, sqlite3 *dbHandle)
 {
 	//Static variables are dirty but this is an okay use
 	static int reqNumber = 0;
 
 	ResultStruct_t retVal;
+
+	char sqlBuf[2048];
+	char *err = nullptr;
 
 	///COMMENT: Changing to SQLite
 	///  It provides a file-based DB. It has C, Python, and Klepto interfaces. As of sqlite3 it is probably somewhat
@@ -63,11 +66,34 @@ ResultStruct_t reqFineGrainSim(double density, int mpiRank, char * tag, sqlite3 
 	writeRequest(density, mpiRank, tag, dbHandle, reqNumber);
 
 	//Spin on file until result is available
-	int haveResult = 0;
+	bool haveResult = false;
 	while(!haveResult)
 	{
-		///TODO: Add in readRequest and spin on lock
-		///COMMENT: CHanging to CXX in the hopes of a more portable thread/STL interface
+		//Send SELECT with sqlite3_exec. Blocking?
+		sprintf(sqlBuf, "SELECT * FROM REQS WHERE REQ=%d;", reqNumber);
+		int rc = sqlite3_exec(dbHandle, sqlBuf, readRequest_single, 0, &err);
+		if (rc != SQLITE_OK)
+		{
+			fprintf(stderr, "Error in reqFineGrainSim_single\n");
+			fprintf(stderr, "SQL error: %s\n", err);
+
+			sqlite3_free(err);
+			sqlite3_close(dbHandle);
+			exit(1);
+		}
+
+		//Get lock
+		nastyGlobalSelectTable.tableMutex.lock();
+		//Check if result in table
+		auto res = nastyGlobalSelectTable.resultTable.find(reqNumber);
+		if (res != nastyGlobalSelectTable.resultTable.end())
+		{
+			///TODO: Process results
+			haveResult = true;
+		}
+
+		//Relase lock
+		nastyGlobalSelectTable.tableMutex.unlock();	
 	}
 
 	//Increment request number
