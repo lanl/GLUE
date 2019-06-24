@@ -1,25 +1,55 @@
 #include "alInterface.hpp"
 
-#include <stdio.h>
+#include <cstdio>
+#include <cstdlib>
 #include <sqlite3.h> 
 
 ///TODO: Verify this is the correct way to do a global variable
 AsyncSelectTable_t nastyGlobalSelectTable;
 
-static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName) {
+static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
+{
+	//Do nothing. We don't need a result from this op
+	return 0;
+}
+
+static int readCallback_single(void *NotUsed, int argc, char **argv, char **azColName)
+{
+	///TABLE: (tag TEXT, rank INT, req INT, <outputs> REAL)
+	//Process row: Ignore 0 (tag) and 1 (rank)
+	int reqID = atoi(argv[2]);
+	SelectResult_t result;
+
+	//Add results
+	result.density = atof(argv[3]);
+
+	nastyGlobalSelectTable.tableMutex.lock();
+	nastyGlobalSelectTable.resultTable[reqID] = result;
+	nastyGlobalSelectTable.tableMutex.unlock();	
+
 	return 0;
 }
 
 void buildTables(sqlite3 * dbHandle)
 {
-	char * createTable = "CREATE TABLE REQS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, DENSITY REAL);";
+	char * reqTable = "CREATE TABLE REQS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, DENSITY REAL);";
 	int sqlRet;
 	char *zErrMsg;
-	sqlRet = sqlite3_exec(dbHandle, createTable, dummyCallback, 0, &zErrMsg);
+	sqlRet = sqlite3_exec(dbHandle, reqTable, dummyCallback, 0, &zErrMsg);
 	if( sqlRet != SQLITE_OK )
 	{
 		fprintf(stderr, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
+		exit(1);
+	}
+
+	char * resTable = "CREATE TABLE RESULTS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, DENSITY REAL);";
+	sqlRet = sqlite3_exec(dbHandle, resTable, dummyCallback, 0, &zErrMsg);
+	if( sqlRet != SQLITE_OK )
+	{
+		fprintf(stderr, "SQL error: %s\n", zErrMsg);
+		sqlite3_free(zErrMsg);
+		exit(1);
 	}
 
 	return;
@@ -36,16 +66,12 @@ void writeRequest(double density, int mpiRank, char * tag, sqlite3 * dbHandle, i
 	{
 		fprintf(stderr, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
+		exit(1);
 	}
 	return;
 }
 
-void readRequest_single(int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, <TODO: Pointer to resultStruct>)
-{
-	return;
-}
-
-ResultStruct_t reqFineGrainSim_single(double density, int mpiRank, char * tag, sqlite3 *dbHandle)
+ResultStruct_t reqFineGrainSim_single(InputStruct_s input, int mpiRank, char * tag, sqlite3 *dbHandle)
 {
 	//Static variables are dirty but this is an okay use
 	static int reqNumber = 0;
@@ -63,15 +89,15 @@ ResultStruct_t reqFineGrainSim_single(double density, int mpiRank, char * tag, s
 	///TABLE: (tag TEXT, rank INT, req INT, <inputs> REAL)
 
 	//Send request
-	writeRequest(density, mpiRank, tag, dbHandle, reqNumber);
+	writeRequest(input.density, mpiRank, tag, dbHandle, reqNumber);
 
 	//Spin on file until result is available
 	bool haveResult = false;
 	while(!haveResult)
 	{
 		//Send SELECT with sqlite3_exec. Blocking?
-		sprintf(sqlBuf, "SELECT * FROM REQS WHERE REQ=%d;", reqNumber);
-		int rc = sqlite3_exec(dbHandle, sqlBuf, readRequest_single, 0, &err);
+		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ=%d AND TAG=%s AND RANK=%d;", reqNumber, tag, mpiRank);
+		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
 		if (rc != SQLITE_OK)
 		{
 			fprintf(stderr, "Error in reqFineGrainSim_single\n");
@@ -88,10 +114,10 @@ ResultStruct_t reqFineGrainSim_single(double density, int mpiRank, char * tag, s
 		auto res = nastyGlobalSelectTable.resultTable.find(reqNumber);
 		if (res != nastyGlobalSelectTable.resultTable.end())
 		{
-			///TODO: Process results
+			//It exists, so this is the final iteration of the loop
 			haveResult = true;
+			retVal = res->second;
 		}
-
 		//Relase lock
 		nastyGlobalSelectTable.tableMutex.unlock();	
 	}

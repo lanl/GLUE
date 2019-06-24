@@ -3,6 +3,11 @@
 
 #include <sqlite3.h>
 
+struct InputStruct_s
+{
+	double density;
+};
+
 struct ResultStruct_s
 {
 	double density;
@@ -14,7 +19,7 @@ typedef struct ResultStruct_s ResultStruct_t;
 extern "C"
 {
 #endif
-	ResultStruct_t reqFineGrainSim_single(double density, int mpiRank, char * tag, sqlite3 *dbHandle);
+	ResultStruct_t reqFineGrainSim_single(InputStruct_s input, int mpiRank, char * tag, sqlite3 *dbHandle);
 	void writeSelectResult(double density, int reqNum);
 #ifdef __cplusplus
 }
