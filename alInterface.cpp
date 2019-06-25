@@ -55,10 +55,10 @@ void buildTables(sqlite3 * dbHandle)
 	return;
 }
 
-void writeRequest(double density, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum)
+void writeRequest(InputStruct_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum)
 {
 	char sqlBuf[2048];
-	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f)", tag, mpiRank, reqNum, density);
+	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f)", tag, mpiRank, reqNum, input.density);
 	int sqlRet;
 	char *zErrMsg;
 	sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
@@ -71,7 +71,7 @@ void writeRequest(double density, int mpiRank, char * tag, sqlite3 * dbHandle, i
 	return;
 }
 
-ResultStruct_t reqFineGrainSim_single(InputStruct_s input, int mpiRank, char * tag, sqlite3 *dbHandle)
+ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
 {
 	//Static variables are dirty but this is an okay use
 	static int reqNumber = 0;
@@ -89,7 +89,7 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_s input, int mpiRank, char * t
 	///TABLE: (tag TEXT, rank INT, req INT, <inputs> REAL)
 
 	//Send request
-	writeRequest(input.density, mpiRank, tag, dbHandle, reqNumber);
+	writeRequest(input, mpiRank, tag, dbHandle, reqNumber);
 
 	//Spin on file until result is available
 	bool haveResult = false;
@@ -124,6 +124,27 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_s input, int mpiRank, char * t
 
 	//Increment request number
 	reqNumber++;
+
+	return retVal;
+}
+
+ResultStruct_t* reqFineGrainSim_batch(InputStruct_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
+{
+	//Static variables are dirty but this is an okay use
+	static int reqNumber = 0;
+
+	ResultStruct_t * retVal = (ResultStruct_t *)malloc(sizeof(ResultStruct_t) * numInputs);
+
+	//Send requests
+	int blockStart = reqNumber;
+	for(int i = 0; i < numInputs; i++)
+	{
+		writeRequest(input[i], mpiRank, tag, dbHandle, reqNumber);
+		reqNumber++;
+	}
+
+	//Get results
+	///TODO
 
 	return retVal;
 }

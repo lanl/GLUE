@@ -14,13 +14,14 @@ struct ResultStruct_s
 };
 
 typedef struct ResultStruct_s ResultStruct_t;
+typedef struct InputStruct_s InputStruct_t;
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 	ResultStruct_t reqFineGrainSim_single(InputStruct_s input, int mpiRank, char * tag, sqlite3 *dbHandle);
-	void writeSelectResult(double density, int reqNum);
+	ResultStruct_t* reqFineGrainSim_batch(InputStruct_s *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
 #ifdef __cplusplus
 }
 #endif
