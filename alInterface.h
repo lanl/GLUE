@@ -5,12 +5,13 @@
 
 struct InputStruct_s
 {
-	double density;
+	double temperature;
+	double density[4];
 };
 
 struct ResultStruct_s
 {
-	double density;
+	double transportCoeff;
 };
 
 typedef struct ResultStruct_s ResultStruct_t;
