@@ -4,6 +4,7 @@
 
 const unsigned int dimX = 8;
 const unsigned int nSteps = 2;
+const char * fName = "testDB.db"
 const char * tag = "DUMMY_TAG_42";
 
 struct GridPoint_s
@@ -18,8 +19,7 @@ int main(int argc, char ** argv)
 {
 
 	//Initialize DB
-	sqlite3 *dbHandle;
-	///TODO
+	sqlite3 *dbHandle = initDB(0, fName);
 
 	//Set up grid
 	GridPoint_t grid[dimX];
@@ -63,10 +63,10 @@ int main(int argc, char ** argv)
 			InputStruct_t input;
 			input.temperature = grid[i].val;
 			input.density[0] = grid[i].left;
-			input.density[3] = grid[i].right;
+			input.charges[3] = grid[i].right;
 			ResultStruct_t result = reqFineGrainSim_single(input, 0, tag, dbHandle);
 
-			grid[i].val = transportCoeff;
+			grid[i].diffusionCoefficient[7] = transportCoeff;
 		}
 	}
 

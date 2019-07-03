@@ -21,6 +21,7 @@ static int readCallback_single(void *NotUsed, int argc, char **argv, char **azCo
 	SelectResult_t result;
 
 	//Add results
+	///TODO: Handle current results
 	result.transportCoeff = atof(argv[3]);
 
 	nastyGlobalSelectTable.tableMutex.lock();
@@ -32,6 +33,7 @@ static int readCallback_single(void *NotUsed, int argc, char **argv, char **azCo
 
 void buildTables(sqlite3 * dbHandle)
 {
+	///TODO: Fix request to match current inputs
 	char const * reqTable = "CREATE TABLE REQS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, TEMPERATURE REAL, DENSITY_0 REAL, DENSITY_1 REAL, DENSITY_2 REAL, DENSITY_3 REAL);";
 	int sqlRet;
 	char *zErrMsg;
@@ -58,7 +60,7 @@ void buildTables(sqlite3 * dbHandle)
 void writeRequest(InputStruct_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum)
 {
 	char sqlBuf[2048];
-	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f, %f, %f, %f, %f)", tag, mpiRank, reqNum, input.temperature, input.density[0], input.density[1], input.density[2], input.density[3]);
+	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f, %f, %f)", tag, mpiRank, reqNum, input.temperature, input.density[0], input.density[1]);
 	int sqlRet;
 	char *zErrMsg;
 	sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
@@ -96,7 +98,7 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * t
 	while(!haveResult)
 	{
 		//Send SELECT with sqlite3_exec. Blocking?
-		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ=%d AND TAG=%s AND RANK=%d;", reqNumber, tag, mpiRank);
+		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ=%d AND TAG=\'%s\' AND RANK=%d;", reqNumber, tag, mpiRank);
 		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
 		if (rc != SQLITE_OK)
 		{
@@ -147,4 +149,11 @@ ResultStruct_t* reqFineGrainSim_batch(InputStruct_t *input, int numInputs, int m
 	///TODO
 
 	return retVal;
+}
+
+sqlite3* initDB(int mpiRank, char * fName)
+{
+	sqlite3 *dbHandle;
+	sqlite3_open(fName, &dbhandle);
+	reutrn dbHandle;
 }
