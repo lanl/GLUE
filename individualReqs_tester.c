@@ -1,10 +1,10 @@
-#include <iostream>
+#include <stdio.h>
 
 #include "alInterface.h"
 
 const unsigned int dimX = 8;
 const unsigned int nSteps = 2;
-const char * fName = "testDB.db"
+const char * fName = "testDB.db";
 const char * tag = "DUMMY_TAG_42";
 
 struct GridPoint_s
@@ -57,7 +57,7 @@ int main(int argc, char ** argv)
 		}
 
 		//Update state
-		for(int = 0; i < dimX; i++)
+		for(int i = 0; i < dimX; i++)
 		{
 			//ResultStruct_t reqFineGrainSim_single(InputStruct_s input, int mpiRank, char * tag, sqlite3 *dbHandle);
 			InputStruct_t input;
@@ -66,20 +66,20 @@ int main(int argc, char ** argv)
 			input.charges[3] = grid[i].right;
 			ResultStruct_t result = reqFineGrainSim_single(input, 0, tag, dbHandle);
 
-			grid[i].diffusionCoefficient[7] = transportCoeff;
+			grid[i].val =  result.diffusionCoefficient[7];
 		}
 	}
 
-	std::cout << "Results:" << std::endl << "[";
+	fprintf(stdout, "Results:\n[");
 	for(int i = 0; i < dimX; i++)
 	{
-		std::cout << grid[i];
+		fprintf(stdout, "%d", grid[i].val);
 		if(i != dimX - 1)
 		{
-			std::cout << ", ";
+			fprintf(stdout,", ");
 		}
 	}
-	std::cout << "]" << std::endl;
+	fprintf(stdout, "]\n");
 
 	return 0;
 }

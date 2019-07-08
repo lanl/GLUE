@@ -26,8 +26,8 @@ typedef struct InputStruct_s InputStruct_t;
 extern "C"
 {
 #endif
-	ResultStruct_t reqFineGrainSim_single(InputStruct_s input, int mpiRank, char * tag, sqlite3 *dbHandle);
-	ResultStruct_t* reqFineGrainSim_batch(InputStruct_s *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
+	ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * tag, sqlite3 *dbHandle);
+	ResultStruct_t* reqFineGrainSim_batch(InputStruct_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
 	sqlite3 * initDB(int mpiRank, char * fName);
 #ifdef __cplusplus
 }
