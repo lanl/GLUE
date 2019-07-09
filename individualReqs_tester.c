@@ -1,11 +1,12 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "alInterface.h"
 
 const unsigned int dimX = 8;
 const unsigned int nSteps = 2;
-const char * fName = "testDB.db";
-const char * tag = "DUMMY_TAG_42";
+const char * defaultFName = "testDB.db";
+const char * defaultTag = "DUMMY_TAG_42";
 
 struct GridPoint_s
 {
@@ -17,6 +18,18 @@ typedef struct GridPoint_s GridPoint_t;
 
 int main(int argc, char ** argv)
 {
+	char fName[128];
+	char tag[128];
+
+	if(argc >1)
+		strcpy(tag, argv[1]);
+	else
+		strcpy(tag, defaultTag);
+
+	if(argc > 2)
+		strcpy(fName, argv[2]);
+	else
+		strcpy(fName, defaultFName);
 
 	//Initialize DB
 	sqlite3 *dbHandle = initDB(0, fName);

@@ -1,5 +1,9 @@
 from enum import Enum
+import sys
 import sqlite3
+
+defaultFName = "testDB.db"
+defaultTag = "DUMMY_TAG_42"
 
 class FineGrainProvider(Enum):
     LAMMPS = 0
@@ -62,4 +66,14 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag):
 
 
 if __name__ == "__main__":
-    pollAndProcessFGSRequests([0, 1], FineGrainProvider.FAKE, "testDB.db", "DUMMY_TAG_42")
+    fName = ""
+    tag = ""
+    if len(sys.argv > 1):
+        tag = argv[1]
+    else:
+        tag = defaultTag
+    if len(sys.argv > 2):
+        fName = argv[2]
+    else:
+        fName = defaultFName
+    pollAndProcessFGSRequests([0, 1], FineGrainProvider.FAKE, fName, tag)
