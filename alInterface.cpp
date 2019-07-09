@@ -35,31 +35,6 @@ static int readCallback_single(void *NotUsed, int argc, char **argv, char **azCo
 	return 0;
 }
 
-void buildTables(sqlite3 * dbHandle)
-{
-	char const * reqTable = "CREATE TABLE REQS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, TEMPERATURE REAL, DENSITY_0 REAL, DENSITY_1 REAL, DENSITY_2 REAL, DENSITY_3 REAL, CHARGES_0 REAL, CHARGES_1 REAL, CHARGES_2 REAL, CHARGES_3 REAL);";
-	int sqlRet;
-	char *zErrMsg;
-	sqlRet = sqlite3_exec(dbHandle, reqTable, dummyCallback, 0, &zErrMsg);
-	if( sqlRet != SQLITE_OK )
-	{
-		fprintf(stderr, "SQL error: %s\n", zErrMsg);
-		sqlite3_free(zErrMsg);
-		exit(1);
-	}
-
-	char const * resTable = "CREATE TABLE RESULTS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, VISCOSITY REAL, THERMAL_CONDUCT REAL, DIFFCOEFF_0 REAL, DIFFCOEFF_1 REAL, DIFFCOEFF_2 REAL, DIFFCOEFF_3 REAL, DIFFCOEFF_4 REAL, DIFFCOEFF_5 REAL, DIFFCOEFF_6 REAL, DIFFCOEFF_7 REAL, DIFFCOEFF_8 REAL, DIFFCOEFF_9 REAL);";
-	sqlRet = sqlite3_exec(dbHandle, resTable, dummyCallback, 0, &zErrMsg);
-	if( sqlRet != SQLITE_OK )
-	{
-		fprintf(stderr, "SQL error: %s\n", zErrMsg);
-		sqlite3_free(zErrMsg);
-		exit(1);
-	}
-
-	return;
-}
-
 void writeRequest(InputStruct_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum)
 {
 	//COMMENT: Is 2048 still enough?

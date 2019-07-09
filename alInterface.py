@@ -68,12 +68,12 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag):
 if __name__ == "__main__":
     fName = ""
     tag = ""
-    if len(sys.argv > 1):
-        tag = argv[1]
+    if len(sys.argv) > 1:
+        tag = sys.argv[1]
     else:
         tag = defaultTag
-    if len(sys.argv > 2):
-        fName = argv[2]
+    if len(sys.argv) > 2:
+        fName = sys.argv[2]
     else:
         fName = defaultFName
     pollAndProcessFGSRequests([0, 1], FineGrainProvider.FAKE, fName, tag)

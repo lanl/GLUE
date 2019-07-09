@@ -1,5 +1,6 @@
 *.o
 *.swp
 *.vscode
+*.db
 
 individualReqs
