@@ -1,5 +1,5 @@
 from enum import Enum
-import sqlite3 as lite
+import sqlite3
 
 class FineGrainProvider(Enum):
     LAMMPS = 0
@@ -7,30 +7,36 @@ class FineGrainProvider(Enum):
     FAKE = 2
 
 # TODO: Probably make mode an enum
-def pollAndProcessFGSRequests(rankArr, mode):
+def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag):
     reqNumArr = [0] * len(rankArr)
+
+    sqlDB = sqlite3.connect(dbPath)
+    sqlCursor = sqlDB.cursor()
 
     # TODO: Figure out a way to stop that isn't ```kill - 9```
     while True:
         for i in range(0, len(rankArr)):
             rank = rankArr[i]
             req = reqNumArr[i]
-            # TODO: Again, asynchrony and parallelism are goals
-            # TODO: Rewrite logic to use SQL database 
-            reqName = "fgsReq_" + str(rank) + "_" + str(req)
-            try:
-                reqFid = open(reqName, 'r')
-                fline = reqFid.readline()
-                reqFid.close()
-                result = -4.4
-                # TODO: process fline
-                # Pass req arguments to fine grain solver
+            selString = "SELECT * FROM REQS WHERE RANK=? AND REQ=? AND TAG=\"?\";"
+            selArgs = (rank, req, tag)
+            for row in sqlCursor.execute(selString, selArgs):
+                #Process row to arguments
+                temperature = row[3]
+                density = [row[4], row[5], row[6], row[7]]
+                charges = [row[8], row[9], row[10], row[11]]
+                #Get results
+                viscosity = 0.0
+                thermalConductivity = 0.0
+                diffCoeff = [0.0] * 10
                 if mode == FineGrainProvider.LAMMPS:
                     # call lammps with args
-                    result = 0.0
+                    # TODO
+                    pass
                 elif mode == FineGrainProvider.MYSTIC:
                     # call mystic: I think Mystic will handle most of our logic?
-                    result = 1.1
+                    # TODO
+                    pass
                 elif mode == FineGrainProvider.ACTIVELEARNER:
                     # This is probably more for the Nick stuff
                     #  Ask Learner
@@ -39,20 +45,21 @@ def pollAndProcessFGSRequests(rankArr, mode):
                     #     We good? Return value
                     #  Call LAMMPS
                     #     Go get a coffee, then return value. And add to LUT (?)
-                    result = 3.3
+                    # TODO
+                    pass
                 elif mode == FineGrainProvider.FAKE:
-                    # Do nothing? Or find a reasonable analytic solution
-                    result = 2.2
-                # Now write the result
-                ackName = "fgsAck_" + str(rank) + "_" + str(req)
-                ackFid = open(ackName, 'w')
-                ackFid.write(str(result) + "\n")
-                ackFid.close()
-                #Increment request number
+                    # Simplest stencil imaginable
+                    diffCoeff[7] = (temperature + density[0] + charges[3]) / 3
+                # Write the result
+                insString = "INSERT INTO RESULTS VALUES(\"?\", ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                insArgs = (tag, rank, req, viscosity, thermalConductivity) + tuple(diffCoeff)
+                sqlCursor.execute(insString, insArgs)
+                sqlDB.commit()
+                # Increment the request number
                 reqNumArr[i] = reqNumArr[i] + 1
-            except:
-                pass
+        #Probably some form of delay?
+    sqlDB.close()
 
 
 if __name__ == "__main__":
-    pollAndProcessFGSRequests([0, 1], FineGrainProvider.FAKE)
+    pollAndProcessFGSRequests([0, 1], FineGrainProvider.FAKE, "testDB.db", "DUMMY_TAG_42")
