@@ -8,21 +8,21 @@ defaultTag = "DUMMY_TAG_42"
 class FineGrainProvider(Enum):
     LAMMPS = 0
     MYSTIC = 1
-    FAKE = 2
+    ACTIVELEARNER=2
+    FAKE = 3
 
 # TODO: Probably make mode an enum
 def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag):
     reqNumArr = [0] * len(rankArr)
-
-    sqlDB = sqlite3.connect(dbPath)
-    sqlCursor = sqlDB.cursor()
 
     # TODO: Figure out a way to stop that isn't ```kill - 9```
     while True:
         for i in range(0, len(rankArr)):
             rank = rankArr[i]
             req = reqNumArr[i]
-            selString = "SELECT * FROM REQS WHERE RANK=? AND REQ=? AND TAG=\"?\";"
+            sqlDB = sqlite3.connect(dbPath)
+            sqlCursor = sqlDB.cursor()
+            selString = "SELECT * FROM REQS WHERE RANK=? AND REQ=? AND TAG=?;"
             selArgs = (rank, req, tag)
             for row in sqlCursor.execute(selString, selArgs):
                 #Process row to arguments
@@ -55,14 +55,16 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag):
                     # Simplest stencil imaginable
                     diffCoeff[7] = (temperature + density[0] + charges[3]) / 3
                 # Write the result
-                insString = "INSERT INTO RESULTS VALUES(\"?\", ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                insString = "INSERT INTO RESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 insArgs = (tag, rank, req, viscosity, thermalConductivity) + tuple(diffCoeff)
                 sqlCursor.execute(insString, insArgs)
                 sqlDB.commit()
                 # Increment the request number
                 reqNumArr[i] = reqNumArr[i] + 1
+            sqlCursor.close()
+            sqlDB.close()
         #Probably some form of delay?
-    sqlDB.close()
+    
 
 
 if __name__ == "__main__":
@@ -76,4 +78,4 @@ if __name__ == "__main__":
         fName = sys.argv[2]
     else:
         fName = defaultFName
-    pollAndProcessFGSRequests([0, 1], FineGrainProvider.FAKE, fName, tag)
+    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag)

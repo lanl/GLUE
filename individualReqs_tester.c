@@ -3,7 +3,7 @@
 
 #include "alInterface.h"
 
-const unsigned int dimX = 8;
+const unsigned int dimX = 16;
 const unsigned int nSteps = 2;
 const char * defaultFName = "testDB.db";
 const char * defaultTag = "DUMMY_TAG_42";
@@ -45,9 +45,10 @@ int main(int argc, char ** argv)
 		}
 	}
 
+	//Timesteps
 	for(int t = 0; t < nSteps; t++)
 	{
-		//prepare arguments
+		//Prepare arguments
 		for(int i = 0; i < dimX; i++)
 		{
 			if(i == 0)
@@ -72,13 +73,11 @@ int main(int argc, char ** argv)
 		//Update state
 		for(int i = 0; i < dimX; i++)
 		{
-			//ResultStruct_t reqFineGrainSim_single(InputStruct_s input, int mpiRank, char * tag, sqlite3 *dbHandle);
 			InputStruct_t input;
 			input.temperature = grid[i].val;
 			input.density[0] = grid[i].left;
 			input.charges[3] = grid[i].right;
 			ResultStruct_t result = reqFineGrainSim_single(input, 0, tag, dbHandle);
-
 			grid[i].val =  result.diffusionCoefficient[7];
 		}
 	}
@@ -86,13 +85,16 @@ int main(int argc, char ** argv)
 	fprintf(stdout, "Results:\n[");
 	for(int i = 0; i < dimX; i++)
 	{
-		fprintf(stdout, "%d", grid[i].val);
+		fprintf(stdout, "%f", grid[i].val);
 		if(i != dimX - 1)
 		{
 			fprintf(stdout,", ");
 		}
 	}
 	fprintf(stdout, "]\n");
+	fflush(stdout);
+
+	closeDB(dbHandle);
 
 	return 0;
 }

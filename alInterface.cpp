@@ -43,11 +43,14 @@ void writeRequest(InputStruct_t input, int mpiRank, char * tag, sqlite3 * dbHand
 	int sqlRet;
 	char *zErrMsg;
 	sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
-	if( sqlRet != SQLITE_OK )
+	while( sqlRet != SQLITE_OK )
 	{
-		fprintf(stderr, "SQL error: %s\n", zErrMsg);
-		sqlite3_free(zErrMsg);
-		exit(1);
+		//THIS IS REALLY REALLY BAD
+		sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
+		// fprintf(stderr, "Error in writeRequest\n");
+		// fprintf(stderr, "SQL error: %s\n", zErrMsg);
+		// sqlite3_free(zErrMsg);
+		// exit(1);
 	}
 	return;
 }
@@ -79,16 +82,19 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * t
 		//Send SELECT with sqlite3_exec. Blocking?
 		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ=%d AND TAG=\'%s\' AND RANK=%d;", reqNumber, tag, mpiRank);
 		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
-		if (rc != SQLITE_OK)
+		while (rc != SQLITE_OK)
 		{
-			fprintf(stderr, "Error in reqFineGrainSim_single\n");
-			fprintf(stderr, "SQL error: %s\n", err);
+			//THIS IS REALLY REALLY BAD
+			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
+			// fprintf(stderr, "Error in reqFineGrainSim_single\n");
+			// fprintf(stderr, "SQL error: %s\n", err);
 
-			sqlite3_free(err);
-			sqlite3_close(dbHandle);
-			exit(1);
+			// sqlite3_free(err);
+			// sqlite3_close(dbHandle);
+			// exit(1);
 		}
-
+		// fprintf(stdout, "Processing REQ=%d\n", reqNumber);
+		// fflush(stdout);
 		//Get lock
 		nastyGlobalSelectTable.tableMutex.lock();
 		//Check if result in table
@@ -135,4 +141,9 @@ sqlite3* initDB(int mpiRank, char * fName)
 	sqlite3 *dbHandle;
 	sqlite3_open(fName, &dbHandle);
 	return dbHandle;
+}
+
+void closeDB(sqlite3* dbHandle)
+{
+	sqlite3_close(dbHandle);
 }

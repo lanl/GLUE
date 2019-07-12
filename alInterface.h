@@ -29,6 +29,7 @@ extern "C"
 	ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * tag, sqlite3 *dbHandle);
 	ResultStruct_t* reqFineGrainSim_batch(InputStruct_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
 	sqlite3 * initDB(int mpiRank, char * fName);
+	void closeDB(sqlite3* dbHandle);
 #ifdef __cplusplus
 }
 #endif
