@@ -4,12 +4,14 @@
 #include "alInterface.h"
 #include <map>
 #include <mutex>
+#include <set>
 
 typedef ResultStruct_t SelectResult_t;
 
 struct AsyncSelectTable_s
 {
 	std::map<int, SelectResult_t> resultTable;
+	std::set<int> reqQueue;
 	std::mutex tableMutex;
 };
 

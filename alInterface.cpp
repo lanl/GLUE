@@ -2,7 +2,7 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <sqlite3.h> 
+#include <sqlite3.h>
 
 ///TODO: Verify this is the correct way to do a global variable
 AsyncSelectTable_t nastyGlobalSelectTable;
@@ -15,7 +15,6 @@ static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
 
 static int readCallback_single(void *NotUsed, int argc, char **argv, char **azColName)
 {
-	///TABLE: (tag TEXT, rank INT, req INT, <outputs> REAL)
 	//Process row: Ignore 0 (tag) and 1 (rank)
 	int reqID = atoi(argv[2]);
 	SelectResult_t result;
@@ -29,8 +28,16 @@ static int readCallback_single(void *NotUsed, int argc, char **argv, char **azCo
 	}
 
 	nastyGlobalSelectTable.tableMutex.lock();
-	nastyGlobalSelectTable.resultTable[reqID] = result;
-	nastyGlobalSelectTable.tableMutex.unlock();	
+	//Check if request has been processed yet
+	auto reqIter = nastyGlobalSelectTable.reqQueue.find(reqID);
+	if (reqIter != nastyGlobalSelectTable.reqQueue.end())
+	{
+		//Write result to global map so we can use it
+		nastyGlobalSelectTable.resultTable[reqID] = result;
+		nastyGlobalSelectTable.tableMutex.unlock();
+		//And remove request from queue in case we get duplicate results
+		nastyGlobalSelectTable.reqQueue.erase(reqIter);
+	}
 
 	return 0;
 }
@@ -45,13 +52,17 @@ void writeRequest(InputStruct_t input, int mpiRank, char * tag, sqlite3 * dbHand
 	sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
 	while( sqlRet != SQLITE_OK )
 	{
-		//THIS IS REALLY REALLY BAD
+		//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
 		sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
 		// fprintf(stderr, "Error in writeRequest\n");
 		// fprintf(stderr, "SQL error: %s\n", zErrMsg);
 		// sqlite3_free(zErrMsg);
 		// exit(1);
 	}
+	//Push the request number into the queue (set) for later use
+	nastyGlobalSelectTable.tableMutex.lock();
+	nastyGlobalSelectTable.reqQueue.insert(reqNum);
+	nastyGlobalSelectTable.tableMutex.unlock();
 	return;
 }
 
@@ -65,7 +76,7 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * t
 	char sqlBuf[2048];
 	char *err = nullptr;
 
-	///COMMENT: Changing to SQLite
+	///SQLite
 	///  It provides a file-based DB. It has C, Python, and Klepto interfaces. As of sqlite3 it is probably somewhat
 	///    performant with many concurrent writes and queries. And it will provide an easily queried DB for
 	///    further study of the results to learn how to make our learners better
@@ -84,7 +95,7 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * t
 		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
 		while (rc != SQLITE_OK)
 		{
-			//THIS IS REALLY REALLY BAD
+			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
 			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
 			// fprintf(stderr, "Error in reqFineGrainSim_single\n");
 			// fprintf(stderr, "SQL error: %s\n", err);
@@ -93,9 +104,7 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * t
 			// sqlite3_close(dbHandle);
 			// exit(1);
 		}
-		// fprintf(stdout, "Processing REQ=%d\n", reqNumber);
-		// fflush(stdout);
-		//Get lock
+		//SQL did something, so Get lock
 		nastyGlobalSelectTable.tableMutex.lock();
 		//Check if result in table
 		auto res = nastyGlobalSelectTable.resultTable.find(reqNumber);
@@ -106,7 +115,7 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * t
 			retVal = res->second;
 		}
 		//Relase lock
-		nastyGlobalSelectTable.tableMutex.unlock();	
+		nastyGlobalSelectTable.tableMutex.unlock();
 	}
 
 	//Increment request number
@@ -131,7 +140,21 @@ ResultStruct_t* reqFineGrainSim_batch(InputStruct_t *input, int numInputs, int m
 	}
 
 	//Get results
-	///TODO
+	bool haveResults = false;
+	while(!haveResults)
+	{
+		//Get bounds of request: Lock to attempt thread safety
+		nastyGlobalSelectTable.tableMutex.lock();
+		int start = * nastyGlobalSelectTable.reqQueue.begin();
+		auto nextToLast = nastyGlobalSelectTable.reqQueue.end();
+		nextToLast--;
+		int end = * nextToLast;
+		nastyGlobalSelectTable.tableMutex.unlock();
+
+
+		///TODO: Make and process requests
+	}
+
 
 	return retVal;
 }
