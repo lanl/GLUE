@@ -13,7 +13,7 @@ static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
 	return 0;
 }
 
-static int readCallback_single(void *NotUsed, int argc, char **argv, char **azColName)
+static int readCallback(void *NotUsed, int argc, char **argv, char **azColName)
 {
 	//Process row: Ignore 0 (tag) and 1 (rank)
 	int reqID = atoi(argv[2]);
@@ -52,12 +52,15 @@ void writeRequest(InputStruct_t input, int mpiRank, char * tag, sqlite3 * dbHand
 	sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
 	while( sqlRet != SQLITE_OK )
 	{
-		//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
 		sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
-		// fprintf(stderr, "Error in writeRequest\n");
-		// fprintf(stderr, "SQL error: %s\n", zErrMsg);
-		// sqlite3_free(zErrMsg);
-		// exit(1);
+		if(!(sqlRet == SQLITE_OK || sqlRet == SQLITE_BUSY || sqlRet == SQLITE_LOCKED))
+		{
+			fprintf(stderr, "Error in writeRequest\n");
+			fprintf(stderr, "SQL error: %s\n", zErrMsg);
+			sqlite3_free(zErrMsg);
+			sqlite3_close(dbHandle);
+			exit(1);
+		}
 	}
 	//Push the request number into the queue (set) for later use
 	nastyGlobalSelectTable.tableMutex.lock();
@@ -92,17 +95,20 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * t
 	{
 		//Send SELECT with sqlite3_exec. 
 		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ=%d AND TAG=\'%s\' AND RANK=%d;", reqNumber, tag, mpiRank);
-		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
+		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
 		while (rc != SQLITE_OK)
 		{
 			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
-			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
-			// fprintf(stderr, "Error in reqFineGrainSim_single\n");
-			// fprintf(stderr, "SQL error: %s\n", err);
+			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
+			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
+			{
+				fprintf(stderr, "Error in reqFineGrainSim_single\n");
+				fprintf(stderr, "SQL error: %s\n", err);
 
-			// sqlite3_free(err);
-			// sqlite3_close(dbHandle);
-			// exit(1);
+				sqlite3_free(err);
+				sqlite3_close(dbHandle);
+				exit(1);
+			}
 		}
 		//SQL did something, so Get lock
 		nastyGlobalSelectTable.tableMutex.lock();
@@ -156,17 +162,19 @@ ResultStruct_t* reqFineGrainSim_batch(InputStruct_t *input, int numInputs, int m
 
 		//Send SELECT with sqlite3_exec. 
 		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ>=%d AND REQ<=%d AND TAG=\'%s\' AND RANK=%d;", start, end, tag, mpiRank);
-		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
+		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
 		while (rc != SQLITE_OK)
 		{
-			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
-			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
-			// fprintf(stderr, "Error in reqFineGrainSim_single\n");
-			// fprintf(stderr, "SQL error: %s\n", err);
-
-			// sqlite3_free(err);
-			// sqlite3_close(dbHandle);
-			// exit(1);
+			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
+			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
+			{
+				fprintf(stderr, "Error in reqFineGrainSim_single\n");
+				fprintf(stderr, "SQL error: %s\n", err);
+				
+				sqlite3_free(err);
+				sqlite3_close(dbHandle);
+				exit(1);
+			}
 		}
 		//SQL did something, so Get lock
 		nastyGlobalSelectTable.tableMutex.lock();

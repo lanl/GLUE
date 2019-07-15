@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "alInterface.h"
 
@@ -76,13 +77,22 @@ int main(int argc, char ** argv)
 		{
 			input[i].temperature = grid[i].val;
 			input[i].density[0] = grid[i].left;
+			for(int j = 1; j < 4; j++)
+			{
+				input[i].density[j] = 7.2;
+			}
 			input[i].charges[3] = grid[i].right;
+			for(int j = 0; j < 3; j++)
+			{
+				input[i].charges[j] = 2.7;
+			}
 		}
 		ResultStruct_t *result = reqFineGrainSim_batch(input, dimX, 0, tag, dbHandle);
 		for(int i = 0; i < dimX; i++)
 		{
 			grid[i].val =  result[i].diffusionCoefficient[7];
 		}
+		free(result);
 	}
 
 	fprintf(stdout, "Results:\n[");
