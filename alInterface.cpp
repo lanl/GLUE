@@ -90,7 +90,7 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * t
 	bool haveResult = false;
 	while(!haveResult)
 	{
-		//Send SELECT with sqlite3_exec. Blocking?
+		//Send SELECT with sqlite3_exec. 
 		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ=%d AND TAG=\'%s\' AND RANK=%d;", reqNumber, tag, mpiRank);
 		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
 		while (rc != SQLITE_OK)
@@ -131,19 +131,22 @@ ResultStruct_t* reqFineGrainSim_batch(InputStruct_t *input, int numInputs, int m
 
 	ResultStruct_t * retVal = (ResultStruct_t *)malloc(sizeof(ResultStruct_t) * numInputs);
 
+	char sqlBuf[2048];
+	char *err = nullptr;
+
 	//Send requests
-	int blockStart = reqNumber;
+	int curReq = reqNumber;
 	for(int i = 0; i < numInputs; i++)
 	{
-		writeRequest(input[i], mpiRank, tag, dbHandle, reqNumber);
-		reqNumber++;
+		writeRequest(input[i], mpiRank, tag, dbHandle, curReq);
+		curReq++;
 	}
 
 	//Get results
 	bool haveResults = false;
 	while(!haveResults)
 	{
-		//Get bounds of request: Lock to attempt thread safety
+		//Get bounds of unfulfilled requests: Lock to attempt thread safety
 		nastyGlobalSelectTable.tableMutex.lock();
 		int start = * nastyGlobalSelectTable.reqQueue.begin();
 		auto nextToLast = nastyGlobalSelectTable.reqQueue.end();
@@ -151,10 +154,40 @@ ResultStruct_t* reqFineGrainSim_batch(InputStruct_t *input, int numInputs, int m
 		int end = * nextToLast;
 		nastyGlobalSelectTable.tableMutex.unlock();
 
+		//Send SELECT with sqlite3_exec. 
+		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ>=%d AND REQ<=%d AND TAG=\'%s\' AND RANK=%d;", start, end, tag, mpiRank);
+		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
+		while (rc != SQLITE_OK)
+		{
+			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
+			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_single, 0, &err);
+			// fprintf(stderr, "Error in reqFineGrainSim_single\n");
+			// fprintf(stderr, "SQL error: %s\n", err);
 
-		///TODO: Make and process requests
+			// sqlite3_free(err);
+			// sqlite3_close(dbHandle);
+			// exit(1);
+		}
+		//SQL did something, so Get lock
+		nastyGlobalSelectTable.tableMutex.lock();
+		//Are all requests processed?
+		haveResults = nastyGlobalSelectTable.reqQueue.empty();
+		nastyGlobalSelectTable.tableMutex.unlock();
 	}
 
+	//All requests have been procssed, so pull them
+	nastyGlobalSelectTable.tableMutex.lock();
+	curReq = reqNumber;
+	for(int i = 0; i < numInputs; i++)
+	{
+		///TODO: Add in an error check
+		retVal[i] = nastyGlobalSelectTable.resultTable.find(curReq)->second;
+		curReq++;
+	}
+	nastyGlobalSelectTable.tableMutex.unlock();
+
+	//Increment reqNumber
+	reqNumber += numInputs;
 
 	return retVal;
 }
