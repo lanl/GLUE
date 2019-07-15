@@ -71,14 +71,17 @@ int main(int argc, char ** argv)
 		}
 
 		//Update state
+		InputStruct_t input[dimX];
 		for(int i = 0; i < dimX; i++)
 		{
-			InputStruct_t input;
-			input.temperature = grid[i].val;
-			input.density[0] = grid[i].left;
-			input.charges[3] = grid[i].right;
-			ResultStruct_t result = reqFineGrainSim_single(input, 0, tag, dbHandle);
-			grid[i].val =  result.diffusionCoefficient[7];
+			input[i].temperature = grid[i].val;
+			input[i].density[0] = grid[i].left;
+			input[i].charges[3] = grid[i].right;
+		}
+		ResultStruct_t *result = reqFineGrainSim_batch(input, dimX, 0, tag, dbHandle);
+		for(int i = 0; i < dimX; i++)
+		{
+			grid[i].val =  result[i].diffusionCoefficient[7];
 		}
 	}
 
