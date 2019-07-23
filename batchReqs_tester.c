@@ -72,7 +72,7 @@ int main(int argc, char ** argv)
 		}
 
 		//Update state
-		InputStruct_t input[dimX];
+		icf_request_t input[dimX];
 		for(int i = 0; i < dimX; i++)
 		{
 			input[i].temperature = grid[i].val;
@@ -87,7 +87,7 @@ int main(int argc, char ** argv)
 				input[i].charges[j] = 2.7;
 			}
 		}
-		ResultStruct_t *result = reqFineGrainSim_batch(input, dimX, 0, tag, dbHandle);
+		icf_result_t *result = icf_req_batch(input, dimX, 0, tag, dbHandle);
 		for(int i = 0; i < dimX; i++)
 		{
 			grid[i].val =  result[i].diffusionCoefficient[7];

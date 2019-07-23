@@ -11,7 +11,6 @@ class FineGrainProvider(Enum):
     ACTIVELEARNER=2
     FAKE = 3
 
-# TODO: Probably make mode an enum
 def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag):
     reqNumArr = [0] * len(rankArr)
 

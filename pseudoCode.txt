@@ -2,7 +2,7 @@
 * Solver side code: Probably C with iso-c bindings as needed
 */
 
-ResultStruct_t reqFineGrainSim(ARGS, int mpiRank)
+icf_result_t reqFineGrainSim(ARGS, int mpiRank)
 {
 	//Static variables are dirty but this is an okay use
 	static int reqNumber = 0;
@@ -24,7 +24,7 @@ ResultStruct_t reqFineGrainSim(ARGS, int mpiRank)
 		if(results good)
 		{
 			haveResult = true;
-			ResultStruct_t retVal = STUFF;
+			icf_result_t retVal = STUFF;
 		}
 		//Close file
 	}

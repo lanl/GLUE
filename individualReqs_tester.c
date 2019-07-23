@@ -73,11 +73,11 @@ int main(int argc, char ** argv)
 		//Update state
 		for(int i = 0; i < dimX; i++)
 		{
-			InputStruct_t input;
+			icf_request_t input;
 			input.temperature = grid[i].val;
 			input.density[0] = grid[i].left;
 			input.charges[3] = grid[i].right;
-			ResultStruct_t result = reqFineGrainSim_single(input, 0, tag, dbHandle);
+			icf_result_t result = icf_req_single(input, 0, tag, dbHandle);
 			grid[i].val =  result.diffusionCoefficient[7];
 		}
 	}

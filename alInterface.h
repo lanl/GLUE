@@ -3,7 +3,7 @@
 
 #include <sqlite3.h>
 
-struct InputStruct_s
+struct icf_request_s
 {
 	double temperature;
 	//n
@@ -11,7 +11,7 @@ struct InputStruct_s
 	double charges[4];
 };
 
-struct ResultStruct_s
+struct icf_result_s
 {
 	double viscosity;
 	double thermalConductivity;
@@ -19,15 +19,15 @@ struct ResultStruct_s
 	double diffusionCoefficient[10];
 };
 
-typedef struct ResultStruct_s ResultStruct_t;
-typedef struct InputStruct_s InputStruct_t;
+typedef struct icf_result_s icf_result_t;
+typedef struct icf_request_s icf_request_t;
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-	ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * tag, sqlite3 *dbHandle);
-	ResultStruct_t* reqFineGrainSim_batch(InputStruct_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
+	icf_result_t icf_req_single(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle);
+	icf_result_t* icf_req_batch(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
 	sqlite3 * initDB(int mpiRank, char * fName);
 	void closeDB(sqlite3* dbHandle);
 #ifdef __cplusplus

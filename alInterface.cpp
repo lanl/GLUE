@@ -42,7 +42,7 @@ static int readCallback(void *NotUsed, int argc, char **argv, char **azColName)
 	return 0;
 }
 
-void writeRequest(InputStruct_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum)
+void writeRequest(icf_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum)
 {
 	//COMMENT: Is 2048 still enough?
 	char sqlBuf[2048];
@@ -69,12 +69,12 @@ void writeRequest(InputStruct_t input, int mpiRank, char * tag, sqlite3 * dbHand
 	return;
 }
 
-ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
+icf_result_t icf_req_single(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
 {
 	//Static variables are dirty but this is an okay use
 	static int reqNumber = 0;
 
-	ResultStruct_t retVal;
+	icf_result_t retVal;
 
 	char sqlBuf[2048];
 	char *err = nullptr;
@@ -102,7 +102,7 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * t
 			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
 			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
 			{
-				fprintf(stderr, "Error in reqFineGrainSim_single\n");
+				fprintf(stderr, "Error in icf_req_single\n");
 				fprintf(stderr, "SQL error: %s\n", err);
 
 				sqlite3_free(err);
@@ -130,12 +130,12 @@ ResultStruct_t reqFineGrainSim_single(InputStruct_t input, int mpiRank, char * t
 	return retVal;
 }
 
-ResultStruct_t* reqFineGrainSim_batch(InputStruct_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
+icf_result_t* icf_req_batch(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
 {
 	//Static variables are dirty but this is an okay use
 	static int reqNumber = 0;
 
-	ResultStruct_t * retVal = (ResultStruct_t *)malloc(sizeof(ResultStruct_t) * numInputs);
+	icf_result_t * retVal = (icf_result_t *)malloc(sizeof(icf_result_t) * numInputs);
 
 	char sqlBuf[2048];
 	char *err = nullptr;
@@ -168,7 +168,7 @@ ResultStruct_t* reqFineGrainSim_batch(InputStruct_t *input, int numInputs, int m
 			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
 			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
 			{
-				fprintf(stderr, "Error in reqFineGrainSim_single\n");
+				fprintf(stderr, "Error in icf_req_single\n");
 				fprintf(stderr, "SQL error: %s\n", err);
 				
 				sqlite3_free(err);
