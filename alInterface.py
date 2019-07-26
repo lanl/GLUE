@@ -1,9 +1,10 @@
 from enum import Enum
-import sys
 import sqlite3
+import argparse
 
 defaultFName = "testDB.db"
 defaultTag = "DUMMY_TAG_42"
+defaultLammps = "./lmp"
 
 class FineGrainProvider(Enum):
     LAMMPS = 0
@@ -67,14 +68,16 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag):
 
 
 if __name__ == "__main__":
-    fName = ""
-    tag = ""
-    if len(sys.argv) > 1:
-        tag = sys.argv[1]
-    else:
-        tag = defaultTag
-    if len(sys.argv) > 2:
-        fName = sys.argv[2]
-    else:
-        fName = defaultFName
+    argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
+
+    argParser.add_argument('--tag', action='store', type=str, required=False, default=defaultTag)
+    argParser.add_argument('--lammps', action='store', type=str, required=False, default=defaultLammps)
+    argParser.add_argument('--db', action='store', type=str, required=False, default=defaultFName)
+
+    args = vars(argParser.parse_args())
+
+    tag = args['tag']
+    fName = args['db']
+    lammps = args['lammps']
+
     pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag)

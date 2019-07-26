@@ -1,4 +1,4 @@
 #!/bin/bash
-python ../initTables.py foo test.db
+python ../initTables.py --tag foo --db test.db
 ../individualReqs foo test.db >> cOut.txt &
-python ../alInterface.py foo test.db >> pyOut.txt &
+python ../alInterface.py --tag foo --db test.db >> pyOut.txt &

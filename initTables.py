@@ -1,5 +1,5 @@
-import sys
 import sqlite3
+import argparse
 
 defaultFName = "testDB.db"
 defaultTag = "DUMMY_TAG_42"
@@ -18,14 +18,13 @@ def initSQLTables(dbPath, tag):
     sqlDB.close()
 
 if __name__ == "__main__":
-    fName = ""
-    tag = ""
-    if len(sys.argv) > 1:
-        tag = sys.argv[1]
-    else:
-        tag = defaultTag
-    if len(sys.argv) > 2:
-        fName = sys.argv[2]
-    else:
-        fName = defaultFName
+    argParser = argparse.ArgumentParser(description='Python To Create DB Files for LAMMPS and AL')
+
+    argParser.add_argument('--tag', action='store', type=str, required=False, default=defaultTag)
+    argParser.add_argument('--db', action='store', type=str, required=False, default=defaultFName)
+
+    args = vars(argParser.parse_args())
+
+    tag = args['tag']
+    fName = args['db']
     initSQLTables(fName, tag)
