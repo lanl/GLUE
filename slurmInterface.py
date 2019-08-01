@@ -3,8 +3,6 @@ import subprocess
 import typing
 import sys
 
-defaultUname = "tcg"
-
 def checkSlurmQueue(uname: str):
     try:
         runproc = subprocess.run(
@@ -34,11 +32,12 @@ def getSlurmQueue(uname: str):
 
 
 if __name__ == "__main__":
+    defaultUname = "tcg"
+
     argParser = argparse.ArgumentParser(description='Python Interface to Slurm')
-    argParser.add_argument('--uname', action='store', type=str, required=False, default=defaultUname)
+    argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
 
     args = vars(argParser.parse_args())
-
     uname = args['uname']
 
     squeue = getSlurmQueue(uname)

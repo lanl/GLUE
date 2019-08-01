@@ -3,17 +3,13 @@ import sqlite3
 import argparse
 import slurmInterface
 
-defaultFName = "testDB.db"
-defaultTag = "DUMMY_TAG_42"
-defaultLammps = "./lmp"
-
 class FineGrainProvider(Enum):
     LAMMPS = 0
     MYSTIC = 1
     ACTIVELEARNER=2
     FAKE = 3
 
-def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps):
+def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname):
     reqNumArr = [0] * len(rankArr)
 
     # TODO: Figure out a way to stop that isn't ```kill - 9```
@@ -78,16 +74,24 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps):
 
 
 if __name__ == "__main__":
+    defaultFName = "testDB.db"
+    defaultTag = "DUMMY_TAG_42"
+    defaultLammps = "./lmp"
+    defaultUname = "tcg"
+
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
-    argParser.add_argument('--tag', action='store', type=str, required=False, default=defaultTag)
-    argParser.add_argument('--lammps', action='store', type=str, required=False, default=defaultLammps)
-    argParser.add_argument('--db', action='store', type=str, required=False, default=defaultFName)
+    argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
+    argParser.add_argument('-l', '--lammps', action='store', type=str, required=False, default=defaultLammps, help="Path to LAMMPS Binary")
+    argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
+    argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
+
 
     args = vars(argParser.parse_args())
 
     tag = args['tag']
     fName = args['db']
     lammps = args['lammps']
+    uname = args['uname']
 
-    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag, lammps)
+    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag, lammps, uname)
