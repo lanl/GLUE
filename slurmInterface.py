@@ -23,7 +23,7 @@ def checkSlurmQueue(uname: str):
 def getSlurmQueue(uname: str):
     slurmOut = checkSlurmQueue(uname)
     if slurmOut == "":
-        return (-1, [])
+        return (sys.maxsize, [])
     strList = slurmOut.splitlines()
     if len(strList) > 1:
         return (len(strList) - 1, strList[1:])
@@ -33,15 +33,20 @@ def getSlurmQueue(uname: str):
 
 if __name__ == "__main__":
     defaultUname = "tcg"
+    defaultMaxJobs = 4
 
     argParser = argparse.ArgumentParser(description='Python Interface to Slurm')
     argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
+    argParser.add_argument('-j', '--maxjobs', action='store', type=int, required=False, default=defaultMaxJobs, help="Maximum Number of Slurm Jobs To Enqueue")
 
     args = vars(argParser.parse_args())
     uname = args['uname']
+    jobs = args['maxjobs']
 
     squeue = getSlurmQueue(uname)
     if(squeue[0] != -1):
+        if(squeue[0] > jobs):
+            print(str(squeue[0]) + " > " +  str(jobs))
         for line in squeue[1]:
             print(line)
     else:

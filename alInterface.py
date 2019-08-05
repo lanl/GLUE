@@ -1,6 +1,7 @@
 from enum import Enum
 import sqlite3
 import argparse
+import collections
 import slurmInterface
 
 class FineGrainProvider(Enum):
@@ -9,7 +10,13 @@ class FineGrainProvider(Enum):
     ACTIVELEARNER=2
     FAKE = 3
 
-def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname):
+ICFInputs = collections.namedtuple('ICFInputs', 'Temperature Density Charges')
+ICFOutputs = collections.namedtuple('ICFOutputs', 'Viscosity ThermalConductivity DiffCoeff')
+
+def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, icfArgs):
+    pass
+
+def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs):
     reqNumArr = [0] * len(rankArr)
 
     # TODO: Figure out a way to stop that isn't ```kill - 9```
@@ -25,11 +32,11 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname):
             # Get current set of requests
             for row in sqlCursor.execute(selString, selArgs):
                 #Process row to arguments
-                temperature = row[3]
-                density = [row[4], row[5], row[6], row[7]]
-                charges = [row[8], row[9], row[10], row[11]]
+                icfInput = ICFInputs(Temperature=float(row[3]), Density=[], Charges=[])
+                icfInput.Density.extend([row[4], row[5], row[6], row[7]])
+                icfInput.Charges.extend([row[8], row[9], row[10], row[11]])
                 #Enqueue task
-                reqQueue.append((req, temperature, density, charges))
+                reqQueue.append((req, icfInput))
                 #Increment reqNum
                 reqNumArr[i] = reqNumArr[i] + 1
             sqlCursor.close()
@@ -39,8 +46,11 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname):
                 if mode == FineGrainProvider.LAMMPS:
                     # call lammps with args as slurmjob
                     # slurmjob will write result back
-                    # TODO
-                    pass
+                    launchedJob = False
+                    while(launchedJob == False):
+                        if slurmInterface.getSlurmQueue[0] < maxJobs:
+                            #TODO: Fire off job
+                            launchedJob = True
                 elif mode == FineGrainProvider.MYSTIC:
                     # call mystic: I think Mystic will handle most of our logic?
                     # TODO
@@ -57,15 +67,14 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname):
                     pass
                 elif mode == FineGrainProvider.FAKE:
                     # Simplest stencil imaginable
-                    viscosity = 0.0
-                    thermalConductivity = 0.0
-                    diffCoeff = [0.0] * 10
-                    diffCoeff[7] = (task[1] + task[2][0] + task[3][3]) / 3
+                    icfInput = task[1]
+                    icfOutput = ICFOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
+                    icfOutput.DiffCoeff[7] = (icfInput.Temperature + icfInput.Density[0] +  icfInput.Charges[3]) / 3
                     # Write the result
                     sqlDB = sqlite3.connect(dbPath)
                     sqlCursor = sqlDB.cursor()
                     insString = "INSERT INTO RESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                    insArgs = (tag, rank, task[0], viscosity, thermalConductivity) + tuple(diffCoeff)
+                    insArgs = (tag, rank, task[0], icfOutput.Viscosity, icfOutput.ThermalConductivity) + tuple(icfOutput.DiffCoeff)
                     sqlCursor.execute(insString, insArgs)
                     sqlDB.commit()
                     sqlCursor.close()
@@ -78,6 +87,7 @@ if __name__ == "__main__":
     defaultTag = "DUMMY_TAG_42"
     defaultLammps = "./lmp"
     defaultUname = "tcg"
+    defaultMaxJobs = 4
 
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
@@ -85,6 +95,7 @@ if __name__ == "__main__":
     argParser.add_argument('-l', '--lammps', action='store', type=str, required=False, default=defaultLammps, help="Path to LAMMPS Binary")
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
     argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
+    argParser.add_argument('-j', '--maxjobs', action='store', type=int, required=False, default=defaultMaxJobs, help="Maximum Number of Slurm Jobs To Enqueue")
 
 
     args = vars(argParser.parse_args())
@@ -93,5 +104,6 @@ if __name__ == "__main__":
     fName = args['db']
     lammps = args['lammps']
     uname = args['uname']
+    jobs = args['maxjobs']
 
-    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag, lammps, uname)
+    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag, lammps, uname, jobs)
