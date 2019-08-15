@@ -3,6 +3,7 @@ import sqlite3
 import argparse
 import collections
 import slurmInterface
+import os
 
 class FineGrainProvider(Enum):
     LAMMPS = 0
@@ -13,7 +14,15 @@ class FineGrainProvider(Enum):
 ICFInputs = collections.namedtuple('ICFInputs', 'Temperature Density Charges')
 ICFOutputs = collections.namedtuple('ICFOutputs', 'Viscosity ThermalConductivity DiffCoeff')
 
-def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, icfArgs):
+def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs):
+    # Mkdir ./${TAG}_${RANK}_${REQ}
+    outDir = tag + "_" + str(rank) + "_" + str(req)
+    outPath = os.path.join(os.getcwd(), outDir)
+    os.mkdir(outPath)
+    # cp /lammpsScripts/in.Argon_Deuterium_plasma # Need to verify we can handle paths properly
+    # generate slurm script by writing to file
+    # either syscall or subprocess.run slurm with the script
+    # Then do nothing because the script itself will write the result
     pass
 
 def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs):
@@ -49,7 +58,7 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
                     launchedJob = False
                     while(launchedJob == False):
                         if slurmInterface.getSlurmQueue[0] < maxJobs:
-                            #TODO: Fire off job
+                            buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1])
                             launchedJob = True
                 elif mode == FineGrainProvider.MYSTIC:
                     # call mystic: I think Mystic will handle most of our logic?
