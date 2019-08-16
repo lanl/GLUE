@@ -19,6 +19,23 @@ def checkSlurmQueue(uname: str):
         print(err, file=sys.stderr)
         return ""
 
+def launchSlurmJob(script: str):
+    try:
+        runproc = subprocess.run(
+            ["sbatch", uname],
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE
+        )
+        if runproc.returncode == 0:
+            return str(runproc.stdout,"utf-8")
+        else:
+            print(str(runproc.stderr,"utf-8"), file=sys.stderr)
+            return ""
+    except FileNotFoundError as err:
+        print(err, file=sys.stderr)
+        return ""
+
+
 
 def getSlurmQueue(uname: str):
     slurmOut = checkSlurmQueue(uname)

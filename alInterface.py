@@ -3,7 +3,12 @@ import sqlite3
 import argparse
 import collections
 import slurmInterface
+import zbar
+import SM
 import os
+import shutil
+import numpy as np
+import csv
 
 class FineGrainProvider(Enum):
     LAMMPS = 0
@@ -14,18 +19,69 @@ class FineGrainProvider(Enum):
 ICFInputs = collections.namedtuple('ICFInputs', 'Temperature Density Charges')
 ICFOutputs = collections.namedtuple('ICFOutputs', 'Viscosity ThermalConductivity DiffCoeff')
 
-def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs):
+def writeLammpsInputs(icfArgs, dirPath):
+    # TODO: Refactor constants and general cleanup
+    # WARNING: Seems to be restricted to two materials for now
+    density_normalisation = 1.e25 # per cm^3
+    m=np.array([3.3210778e-24,6.633365399999999e-23])
+    Z=np.array([1,13])
+    lammpsDens = icfArgs.Density[0:2] * density_normalisation
+    lammpsTemperature = icfArgs.Temperature[0:2]
+    lammpsIonization = zBar(lammpsDens, Z, lammpsTemperature)
+    for s in range(len(lammpsDens)):
+        zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
+        with open(zbarFile, 'w') as testfile:
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([lammpsIonization[s-1]])
+    temperatureFile = os.path.join(dirPath, "temperature.csv")
+    with open(temperatureFile, 'w') as testfile:
+        csv_writer = csv.writer(testfile,delimiter=' ')
+        csv_writer.writerow([lammpsTemperature])
+    interparticle_radius.append(sm.Wigner_Seitz_radius(sum(lammpsDens)))
+    L=20*max(interparticle_radius)  #in cm
+    volume =L**3
+    boxLengthFile = os.path.join(dirPath, "box_length.csv")
+    with open(boxLengthFile, 'w') as testfile:
+         csv_writer = csv.writer(testfile,delimiter=' ')
+         csv_writer.writerow([L*1.e-2])
+    N=[]
+    for s in range(len(lammpsDens)):
+        N.append(int(volume*lammpsDens[s]))
+        numberPartFile = zbarFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
+        with open(numberPartFile, 'w') as testfile:
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([N[s]])
+
+def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs, sqlite, sbatch):
     # Mkdir ./${TAG}_${RANK}_${REQ}
     outDir = tag + "_" + str(rank) + "_" + str(req)
     outPath = os.path.join(os.getcwd(), outDir)
     os.mkdir(outPath)
-    # cp /lammpsScripts/in.Argon_Deuterium_plasma # Need to verify we can handle paths properly
-    # generate slurm script by writing to file
+    # cp ./lammpsScripts/in.Argon_Deuterium_plasma # Need to verify we can handle paths properly
+    lammpsPath = os.path.join(os.getcwd(), "lammpsScripts")
+    ardPlasPath = os.path.join(lammpsPath, "in.Argon_Deuterium_plasma")
+    shutil.copy2(ardPlasPath, outPath)
+    # Generate input files
+    writeLammpsInputs(icfArgs, outPath)
+    # Generate slurm script by writing to file
+    # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
+    # TODO: DRY this
+    # TODO: Safer file i/o
+    slurmFPath = os.path.join(outpath, tag + "_" + str(rank) + "_" + str(req) + ".sh")
+    slurmFile = open(slurmFPath, 'w')
+    slurmFile.write("#!/bin/bash\n")
+    slurmFile.write("#SBATCH -N 1\n")
+    # Actually call lammps
+    slurmFile.write("srun -n 4 " + lammps + "\n")
+    # TODO: grep `mutual_diffusion.csv` for outputs and fill in to the ultra secure SQL insertion
+    slurmFile.write("echo INSERT INTO RESULTS VALUES(" + tag + ", " + str(rank) + ", " + str(reqid) + ", VISCOSITY, THERMALCONDUCTIVITY, REST_ARE_DIFFCOEFF, ?, ?, ?, ?, ?, ?, ?, ?, ?) > writeRes.sql\n")
+    slurmFile.write(sqlite + " " + dbPath + " < writeRes.sql\n")
+    slurmFile.close()
     # either syscall or subprocess.run slurm with the script
+    launchSlurmJob(slurmFPath)
     # Then do nothing because the script itself will write the result
-    pass
 
-def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs):
+def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs, sqlite, sbatch):
     reqNumArr = [0] * len(rankArr)
 
     # TODO: Figure out a way to stop that isn't ```kill - 9```
@@ -58,7 +114,7 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
                     launchedJob = False
                     while(launchedJob == False):
                         if slurmInterface.getSlurmQueue[0] < maxJobs:
-                            buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1])
+                            buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1], sqlite)
                             launchedJob = True
                 elif mode == FineGrainProvider.MYSTIC:
                     # call mystic: I think Mystic will handle most of our logic?
@@ -96,12 +152,16 @@ if __name__ == "__main__":
     defaultTag = "DUMMY_TAG_42"
     defaultLammps = "./lmp"
     defaultUname = "tcg"
+    defaultSqlite = "sqlite3"
+    defaultSbatch = "/usr/bin/sbatch"
     defaultMaxJobs = 4
 
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
     argParser.add_argument('-l', '--lammps', action='store', type=str, required=False, default=defaultLammps, help="Path to LAMMPS Binary")
+    argParser.add_argument('-q', '--sqlite', action='store', type=str, required=False, default=defaultSqlite, help="Path to sqlite3 Binary")
+    argParser.add_argument('-s', '--sbatch', action='store', type=str, required=False, default=defaultSbatch, help="Path to sbatch Binary")
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
     argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
     argParser.add_argument('-j', '--maxjobs', action='store', type=int, required=False, default=defaultMaxJobs, help="Maximum Number of Slurm Jobs To Enqueue")
@@ -114,5 +174,7 @@ if __name__ == "__main__":
     lammps = args['lammps']
     uname = args['uname']
     jobs = args['maxjobs']
+    sqlite = args['sqlite']
+    sbatch = args['sbatch']
 
-    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag, lammps, uname, jobs)
+    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag, lammps, uname, job, sqlite, sbatch)
