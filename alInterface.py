@@ -81,6 +81,16 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs, sq
     launchSlurmJob(slurmFPath)
     # Then do nothing because the script itself will write the result
 
+def insertLammpsResult(rank, tag, dbPath, uname, reqid, lammpsResult):
+    sqlDB = sqlite3.connect(dbPath)
+    sqlCursor = sqlDB.cursor()
+    insString = "INSERT INTO RESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff)
+    sqlCursor.execute(insString, insArgs)
+    sqlDB.commit()
+    sqlCursor.close()
+    sqlDB.close()
+
 def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs, sqlite, sbatch):
     reqNumArr = [0] * len(rankArr)
 
@@ -136,14 +146,7 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
                     icfOutput = ICFOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
                     icfOutput.DiffCoeff[7] = (icfInput.Temperature + icfInput.Density[0] +  icfInput.Charges[3]) / 3
                     # Write the result
-                    sqlDB = sqlite3.connect(dbPath)
-                    sqlCursor = sqlDB.cursor()
-                    insString = "INSERT INTO RESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                    insArgs = (tag, rank, task[0], icfOutput.Viscosity, icfOutput.ThermalConductivity) + tuple(icfOutput.DiffCoeff)
-                    sqlCursor.execute(insString, insArgs)
-                    sqlDB.commit()
-                    sqlCursor.close()
-                    sqlDB.close()
+                    insertLammpsResult(rank, tag, dbPath, task[0], icfOutput)
         #Probably some form of delay?
 
 
