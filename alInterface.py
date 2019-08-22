@@ -180,4 +180,4 @@ if __name__ == "__main__":
     sqlite = args['sqlite']
     sbatch = args['sbatch']
 
-    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag, lammps, uname, job, sqlite, sbatch)
+    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag, lammps, uname, jobs, sqlite, sbatch)
