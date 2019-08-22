@@ -165,9 +165,9 @@ fix extra all print ${trun} "I $T ${dens1} ${dens2} ${Zbar_D} ${Zbar_Ar} ${D11} 
 
 run ${trun}
 
-clear
-next T
+# clear
+# next T
 
-jump in.ArD
+# jump in.ArD
 
 

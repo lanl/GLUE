@@ -2,5 +2,7 @@
 *.swp
 *.vscode
 *.db
+*.csv
+*.lammps
 
 individualReqs

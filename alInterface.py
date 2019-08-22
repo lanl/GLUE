@@ -52,7 +52,7 @@ def writeLammpsInputs(icfArgs, dirPath):
             csv_writer = csv.writer(testfile,delimiter=' ')
             csv_writer.writerow([N[s]])
 
-def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs, sqlite, sbatch):
+def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs, sbatch):
     # Mkdir ./${TAG}_${RANK}_${REQ}
     outDir = tag + "_" + str(rank) + "_" + str(req)
     outPath = os.path.join(os.getcwd(), outDir)
@@ -72,16 +72,15 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs, sq
     slurmFile.write("#!/bin/bash\n")
     slurmFile.write("#SBATCH -N 1\n")
     # Actually call lammps
-    slurmFile.write("srun -n 4 " + lammps + "\n")
-    # TODO: grep `mutual_diffusion.csv` for outputs and fill in to the ultra secure SQL insertion
-    slurmFile.write("echo INSERT INTO RESULTS VALUES(" + tag + ", " + str(rank) + ", " + str(reqid) + ", VISCOSITY, THERMALCONDUCTIVITY, REST_ARE_DIFFCOEFF, ?, ?, ?, ?, ?, ?, ?, ?, ?) > writeRes.sql\n")
-    slurmFile.write(sqlite + " " + dbPath + " < writeRes.sql\n")
+    slurmFile.write("srun -n 4 " + lammps + " < ./in.Argon_Deuterium_plasma \n")
+    # Process the result and write to DB
+    slurmFile.write("python3 ../processICFResult.py -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + dbPath + " -f ./mutual_diffusion.csv\n")
     slurmFile.close()
     # either syscall or subprocess.run slurm with the script
     launchSlurmJob(slurmFPath)
     # Then do nothing because the script itself will write the result
 
-def insertLammpsResult(rank, tag, dbPath, uname, reqid, lammpsResult):
+def insertLammpsResult(rank, tag, dbPath, reqid, lammpsResult):
     sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
     insString = "INSERT INTO RESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -91,7 +90,7 @@ def insertLammpsResult(rank, tag, dbPath, uname, reqid, lammpsResult):
     sqlCursor.close()
     sqlDB.close()
 
-def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs, sqlite, sbatch):
+def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs, sbatch):
     reqNumArr = [0] * len(rankArr)
 
     # TODO: Figure out a way to stop that isn't ```kill - 9```
@@ -124,7 +123,7 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
                     launchedJob = False
                     while(launchedJob == False):
                         if slurmInterface.getSlurmQueue[0] < maxJobs:
-                            buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1], sqlite)
+                            buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1])
                             launchedJob = True
                 elif mode == FineGrainProvider.MYSTIC:
                     # call mystic: I think Mystic will handle most of our logic?
@@ -180,4 +179,4 @@ if __name__ == "__main__":
     sqlite = args['sqlite']
     sbatch = args['sbatch']
 
-    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag, lammps, uname, jobs, sqlite, sbatch)
+    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag, lammps, uname, jobs, sbatch)
