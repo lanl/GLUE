@@ -1,8 +1,10 @@
 *.o
+*.a
 *.swp
 *.vscode
 *.db
 *.csv
 *.lammps
+__pycache__
 
 individualReqs

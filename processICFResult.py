@@ -5,7 +5,7 @@ import numpy as np
 def procFileAndInsert(tag, dbPath, rank, reqid, inFile):
     # Open file
     # Need to remove leading I
-    resAdd = np.loadtxt(inFile, skiprows=1, converters = {0: lambda s: -0.0})
+    resAdd = np.loadtxt(inFile, converters = {0: lambda s: -0.0})
     # Write results to an output namedtuple
     icfOutput = ICFOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
     icfOutput.DiffCoeff[0] = resAdd[6]
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     defaultID = 0
     defaultCSV = "./mutual_diffusion.csv"
 
-    argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
+    argParser = argparse.ArgumentParser(description='Python Driver to Convert LAMMPS ICF Result into DB Entry')
 
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
     argParser.add_argument('-r', '--rank', action='store', type=int, required=False, default=defaultRank, help="MPI Rank of Requester")
