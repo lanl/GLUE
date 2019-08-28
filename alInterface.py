@@ -66,16 +66,14 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs, sb
     # Generate slurm script by writing to file
     # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
     # TODO: DRY this
-    # TODO: Safer file i/o
     slurmFPath = os.path.join(outpath, tag + "_" + str(rank) + "_" + str(req) + ".sh")
-    slurmFile = open(slurmFPath, 'w')
-    slurmFile.write("#!/bin/bash\n")
-    slurmFile.write("#SBATCH -N 1\n")
-    # Actually call lammps
-    slurmFile.write("srun -n 4 " + lammps + " < ./in.Argon_Deuterium_plasma \n")
-    # Process the result and write to DB
-    slurmFile.write("python3 ../processICFResult.py -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + dbPath + " -f ./mutual_diffusion.csv\n")
-    slurmFile.close()
+    with open(slurmFPath, 'w') as slurmFile:
+        slurmFile.write("#!/bin/bash\n")
+        slurmFile.write("#SBATCH -N 1\n")
+        # Actually call lammps
+        slurmFile.write("srun -n 4 " + lammps + " < ./in.Argon_Deuterium_plasma \n")
+        # Process the result and write to DB
+        slurmFile.write("python3 ../processICFResult.py -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + dbPath + " -f ./mutual_diffusion.csv\n")
     # either syscall or subprocess.run slurm with the script
     launchSlurmJob(slurmFPath)
     # Then do nothing because the script itself will write the result
