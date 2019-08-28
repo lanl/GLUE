@@ -3,8 +3,8 @@ import sqlite3
 import argparse
 import collections
 import slurmInterface
-import zbar
-import SM
+from zbar import zBar
+from SM import Wigner_Seitz_radius
 import os
 import shutil
 import numpy as np
@@ -25,7 +25,8 @@ def writeLammpsInputs(icfArgs, dirPath):
     density_normalisation = 1.e25 # per cm^3
     m=np.array([3.3210778e-24,6.633365399999999e-23])
     Z=np.array([1,13])
-    lammpsDens = icfArgs.Density[0:2] * density_normalisation
+    interparticle_radius = []
+    lammpsDens = np.array(icfArgs.Density[0:2]) * density_normalisation
     lammpsTemperature = icfArgs.Temperature
     lammpsIonization = zBar(lammpsDens, Z, lammpsTemperature)
     for s in range(len(lammpsDens)):
@@ -37,7 +38,7 @@ def writeLammpsInputs(icfArgs, dirPath):
     with open(temperatureFile, 'w') as testfile:
         csv_writer = csv.writer(testfile,delimiter=' ')
         csv_writer.writerow([lammpsTemperature])
-    interparticle_radius.append(sm.Wigner_Seitz_radius(sum(lammpsDens)))
+    interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
     L=20*max(interparticle_radius)  #in cm
     volume =L**3
     boxLengthFile = os.path.join(dirPath, "box_length.csv")
@@ -52,9 +53,9 @@ def writeLammpsInputs(icfArgs, dirPath):
             csv_writer = csv.writer(testfile,delimiter=' ')
             csv_writer.writerow([N[s]])
 
-def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs, sbatch):
+def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs):
     # Mkdir ./${TAG}_${RANK}_${REQ}
-    outDir = tag + "_" + str(rank) + "_" + str(req)
+    outDir = tag + "_" + str(rank) + "_" + str(reqid)
     outPath = os.path.join(os.getcwd(), outDir)
     os.mkdir(outPath)
     # cp ./lammpsScripts/in.Argon_Deuterium_plasma # Need to verify we can handle paths properly
@@ -66,16 +67,19 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs, sb
     # Generate slurm script by writing to file
     # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
     # TODO: DRY this
-    slurmFPath = os.path.join(outpath, tag + "_" + str(rank) + "_" + str(req) + ".sh")
+    slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
     with open(slurmFPath, 'w') as slurmFile:
         slurmFile.write("#!/bin/bash\n")
         slurmFile.write("#SBATCH -N 1\n")
+        # TODO: Refactor these somehow
+        slurmFile.write("module load lammps-20190807-gcc-8.2.0-pwkgneo\n")
+        slurmFile.write("module load sqlite-3.28.0-gcc-8.2.0-5rujt2k\n")
         # Actually call lammps
         slurmFile.write("srun -n 4 " + lammps + " < ./in.Argon_Deuterium_plasma \n")
         # Process the result and write to DB
         slurmFile.write("python3 ../processICFResult.py -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + dbPath + " -f ./mutual_diffusion.csv\n")
     # either syscall or subprocess.run slurm with the script
-    launchSlurmJob(slurmFPath)
+    #launchSlurmJob(slurmFPath)
     # Then do nothing because the script itself will write the result
 
 def insertLammpsResult(rank, tag, dbPath, reqid, lammpsResult):
