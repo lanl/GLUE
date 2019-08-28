@@ -26,7 +26,7 @@ def writeLammpsInputs(icfArgs, dirPath):
     m=np.array([3.3210778e-24,6.633365399999999e-23])
     Z=np.array([1,13])
     lammpsDens = icfArgs.Density[0:2] * density_normalisation
-    lammpsTemperature = icfArgs.Temperature[0:2]
+    lammpsTemperature = icfArgs.Temperature
     lammpsIonization = zBar(lammpsDens, Z, lammpsTemperature)
     for s in range(len(lammpsDens)):
         zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
