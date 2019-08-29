@@ -22,7 +22,7 @@ def checkSlurmQueue(uname: str):
 def launchSlurmJob(script: str):
     try:
         runproc = subprocess.run(
-            ["sbatch", uname],
+            ["sbatch", script],
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE
         )

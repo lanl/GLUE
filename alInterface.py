@@ -2,7 +2,7 @@ from enum import Enum
 import sqlite3
 import argparse
 import collections
-import slurmInterface
+from slurmInterface import launchSlurmJob
 from zbar import zBar
 from SM import Wigner_Seitz_radius
 import os
@@ -66,6 +66,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs):
     jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
     shutil.copy2(ardPlasPath, outPath)
     shutil.copy2(jobEnvFilePath, outPath)
+    icfResultScript = os.path.join(pythonScriptDir, "processICFResult.py")
     # Generate input files
     writeLammpsInputs(icfArgs, outPath)
     # Generate slurm script by writing to file
@@ -75,13 +76,14 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs):
     with open(slurmFPath, 'w') as slurmFile:
         slurmFile.write("#!/bin/bash\n")
         slurmFile.write("#SBATCH -N 1\n")
-        slurmFile.write("source ./jobEnv.sh")
+        slurmFile.write("cd " + outPath + "\n")
+        slurmFile.write("source ./jobEnv.sh\n")
         # Actually call lammps
-        slurmFile.write("srun -n 4 " + lammps + " < ./in.Argon_Deuterium_plasma \n")
+        slurmFile.write("srun -n 4 " + lammps + " < in.Argon_Deuterium_plasma   \n")
         # Process the result and write to DB
-        slurmFile.write("python3 ../processICFResult.py -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + dbPath + " -f ./mutual_diffusion.csv\n")
+        slurmFile.write("python3 " + icfResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + dbPath + " -f ./mutual_diffusion.csv\n")
     # either syscall or subprocess.run slurm with the script
-    #launchSlurmJob(slurmFPath)
+    launchSlurmJob(slurmFPath)
     # Then do nothing because the script itself will write the result
 
 def insertLammpsResult(rank, tag, dbPath, reqid, lammpsResult):
@@ -126,7 +128,8 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
                     # slurmjob will write result back
                     launchedJob = False
                     while(launchedJob == False):
-                        if slurmInterface.getSlurmQueue[0] < maxJobs:
+                        queueState = getSlurmQueue(uname)
+                        if queueState[0] < maxJobs:
                             buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1])
                             launchedJob = True
                 elif mode == FineGrainProvider.MYSTIC:
@@ -183,4 +186,4 @@ if __name__ == "__main__":
     sqlite = args['sqlite']
     sbatch = args['sbatch']
 
-    pollAndProcessFGSRequests([0], FineGrainProvider.FAKE, fName, tag, lammps, uname, jobs, sbatch)
+    pollAndProcessFGSRequests([0], FineGrainProvider.LAMMPS, fName, tag, lammps, uname, jobs, sbatch)
