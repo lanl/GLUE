@@ -58,10 +58,14 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs):
     outDir = tag + "_" + str(rank) + "_" + str(reqid)
     outPath = os.path.join(os.getcwd(), outDir)
     os.mkdir(outPath)
-    # cp ./lammpsScripts/in.Argon_Deuterium_plasma # Need to verify we can handle paths properly
-    lammpsPath = os.path.join(os.getcwd(), "lammpsScripts")
+    # cp ${SCRIPT_DIR}/lammpsScripts/in.Argon_Deuterium_plasma 
+    pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
+    lammpsPath = os.path.join(pythonScriptDir, "lammpsScripts")
     ardPlasPath = os.path.join(lammpsPath, "in.Argon_Deuterium_plasma")
+    slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
+    jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
     shutil.copy2(ardPlasPath, outPath)
+    shutil.copy2(jobEnvFilePath, outPath)
     # Generate input files
     writeLammpsInputs(icfArgs, outPath)
     # Generate slurm script by writing to file
@@ -71,9 +75,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs):
     with open(slurmFPath, 'w') as slurmFile:
         slurmFile.write("#!/bin/bash\n")
         slurmFile.write("#SBATCH -N 1\n")
-        # TODO: Refactor these somehow
-        slurmFile.write("module load lammps-20190807-gcc-8.2.0-pwkgneo\n")
-        slurmFile.write("module load sqlite-3.28.0-gcc-8.2.0-5rujt2k\n")
+        slurmFile.write("source ./jobEnv.sh")
         # Actually call lammps
         slurmFile.write("srun -n 4 " + lammps + " < ./in.Argon_Deuterium_plasma \n")
         # Process the result and write to DB
