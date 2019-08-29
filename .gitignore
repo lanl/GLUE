@@ -5,6 +5,8 @@
 *.db
 *.csv
 *.lammps
+*.pyc
 __pycache__
 
 individualReqs
+batchReqs
