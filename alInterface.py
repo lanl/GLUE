@@ -2,7 +2,7 @@ from enum import Enum
 import sqlite3
 import argparse
 import collections
-from slurmInterface import launchSlurmJob
+from slurmInterface import launchSlurmJob, getSlurmQueue
 from zbar import zBar
 from SM import Wigner_Seitz_radius
 import os
@@ -57,34 +57,36 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs):
     # Mkdir ./${TAG}_${RANK}_${REQ}
     outDir = tag + "_" + str(rank) + "_" + str(reqid)
     outPath = os.path.join(os.getcwd(), outDir)
-    os.mkdir(outPath)
-    # cp ${SCRIPT_DIR}/lammpsScripts/in.Argon_Deuterium_plasma 
-    pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
-    lammpsPath = os.path.join(pythonScriptDir, "lammpsScripts")
-    ardPlasPath = os.path.join(lammpsPath, "in.Argon_Deuterium_plasma")
-    slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
-    jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
-    shutil.copy2(ardPlasPath, outPath)
-    shutil.copy2(jobEnvFilePath, outPath)
-    icfResultScript = os.path.join(pythonScriptDir, "processICFResult.py")
-    # Generate input files
-    writeLammpsInputs(icfArgs, outPath)
-    # Generate slurm script by writing to file
-    # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
-    # TODO: DRY this
-    slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
-    with open(slurmFPath, 'w') as slurmFile:
-        slurmFile.write("#!/bin/bash\n")
-        slurmFile.write("#SBATCH -N 1\n")
-        slurmFile.write("cd " + outPath + "\n")
-        slurmFile.write("source ./jobEnv.sh\n")
-        # Actually call lammps
-        slurmFile.write("srun -n 4 " + lammps + " < in.Argon_Deuterium_plasma   \n")
-        # Process the result and write to DB
-        slurmFile.write("python3 " + icfResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + dbPath + " -f ./mutual_diffusion.csv\n")
-    # either syscall or subprocess.run slurm with the script
-    launchSlurmJob(slurmFPath)
-    # Then do nothing because the script itself will write the result
+    if(not os.path.exists(outPath)):
+        os.mkdir(outPath)
+        # cp ${SCRIPT_DIR}/lammpsScripts/in.Argon_Deuterium_plasma 
+        # Copy scripts and configuration files
+        pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
+        lammpsPath = os.path.join(pythonScriptDir, "lammpsScripts")
+        ardPlasPath = os.path.join(lammpsPath, "in.Argon_Deuterium_plasma")
+        slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
+        jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
+        shutil.copy2(ardPlasPath, outPath)
+        shutil.copy2(jobEnvFilePath, outPath)
+        icfResultScript = os.path.join(pythonScriptDir, "processICFResult.py")
+        # Generate input files
+        writeLammpsInputs(icfArgs, outPath)
+        # Generate slurm script by writing to file
+        # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
+        # TODO: DRY this
+        slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
+        with open(slurmFPath, 'w') as slurmFile:
+            slurmFile.write("#!/bin/bash\n")
+            slurmFile.write("#SBATCH -N 1\n")
+            slurmFile.write("cd " + outPath + "\n")
+            slurmFile.write("source ./jobEnv.sh\n")
+            # Actually call lammps
+            slurmFile.write("srun -n 4 " + lammps + " < in.Argon_Deuterium_plasma   \n")
+            # Process the result and write to DB
+            slurmFile.write("python3 " + icfResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -f ./mutual_diffusion.csv\n")
+        # either syscall or subprocess.run slurm with the script
+        launchSlurmJob(slurmFPath)
+        # Then do nothing because the script itself will write the result
 
 def insertLammpsResult(rank, tag, dbPath, reqid, lammpsResult):
     sqlDB = sqlite3.connect(dbPath)
@@ -130,6 +132,7 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
                     while(launchedJob == False):
                         queueState = getSlurmQueue(uname)
                         if queueState[0] < maxJobs:
+                            print("Processing REQ=" + str(task[0]))
                             buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1])
                             launchedJob = True
                 elif mode == FineGrainProvider.MYSTIC:

@@ -20,8 +20,8 @@ def initSQLTables(dbPath, tag):
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser(description='Python To Create DB Files for LAMMPS and AL')
 
-    argParser.add_argument('--tag', action='store', type=str, required=False, default=defaultTag)
-    argParser.add_argument('--db', action='store', type=str, required=False, default=defaultFName)
+    argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
+    argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
 
     args = vars(argParser.parse_args())
 
