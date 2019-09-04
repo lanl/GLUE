@@ -4,7 +4,7 @@ import argparse
 defaultFName = "testDB.db"
 defaultTag = "DUMMY_TAG_42"
 
-def initSQLTables(dbPath, tag):
+def initSQLTables(dbPath):
     sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
 
@@ -20,11 +20,9 @@ def initSQLTables(dbPath, tag):
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser(description='Python To Create DB Files for LAMMPS and AL')
 
-    argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
 
     args = vars(argParser.parse_args())
 
-    tag = args['tag']
     fName = args['db']
-    initSQLTables(fName, tag)
+    initSQLTables(fName)

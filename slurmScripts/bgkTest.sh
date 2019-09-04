@@ -26,6 +26,3 @@ srun -n 1 ${BGK_DIR}/exec/MultiBGK_AL_ ${BGK_INP}
 
 # Verify completion
 echo "Finished BGK. Cleaning up"
-
-#Terminate python
-pkill python || true

@@ -25,7 +25,8 @@ enum ALInterfaceMode_e
 	MYSTIC = 1,
 	ACTIVELEARNER = 2,
 	FAKE = 3,
-	DEFAULT = 4
+	DEFAULT = 4,
+	KILL = 9
 };
 
 #endif /* __alInterface_hpp */

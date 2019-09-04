@@ -16,6 +16,7 @@ class ALInterfaceMode(Enum):
     ACTIVELEARNER=2
     FAKE = 3
     DEFAULT = 4
+    KILL = 9
 
 ICFInputs = collections.namedtuple('ICFInputs', 'Temperature Density Charges')
 ICFOutputs = collections.namedtuple('ICFOutputs', 'Viscosity ThermalConductivity DiffCoeff')
@@ -99,11 +100,11 @@ def insertLammpsResult(rank, tag, dbPath, reqid, lammpsResult):
     sqlCursor.close()
     sqlDB.close()
 
-def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs, sbatch):
+def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch):
     reqNumArr = [0] * len(rankArr)
 
-    # TODO: Figure out a way to stop that isn't ```kill - 9```
-    while True:
+    keepSpinning = True
+    while keepSpinning:
         for i in range(0, len(rankArr)):
             rank = rankArr[i]
             req = reqNumArr[i]
@@ -127,7 +128,10 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
             sqlDB.close()
             # Process tasks based on mode
             for task in reqQueue:
-                if mode == ALInterfaceMode.LAMMPS:
+                modeSwitch = defaultMode
+                if task[2] != ALInterfaceMode.DEFAULT:
+                    modeSwitch = task[2]
+                if modeSwitch == ALInterfaceMode.LAMMPS:
                     # call lammps with args as slurmjob
                     # slurmjob will write result back
                     launchedJob = False
@@ -137,11 +141,11 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
                             print("Processing REQ=" + str(task[0]))
                             buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1])
                             launchedJob = True
-                elif mode == ALInterfaceMode.MYSTIC:
+                elif modeSwitch == ALInterfaceMode.MYSTIC:
                     # call mystic: I think Mystic will handle most of our logic?
                     # TODO
                     pass
-                elif mode == ALInterfaceMode.ACTIVELEARNER:
+                elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                     # This is probably more for the Nick stuff
                     #  Ask Learner
                     #     We good? Return value
@@ -151,13 +155,15 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
                     #     Go get a coffee, then return value. And add to LUT (?)
                     # TODO
                     pass
-                elif mode == ALInterfaceMode.FAKE:
+                elif modeSwitch == ALInterfaceMode.FAKE:
                     # Simplest stencil imaginable
                     icfInput = task[1]
                     icfOutput = ICFOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
                     icfOutput.DiffCoeff[7] = (icfInput.Temperature + icfInput.Density[0] +  icfInput.Charges[3]) / 3
                     # Write the result
                     insertLammpsResult(rank, tag, dbPath, task[0], icfOutput)
+                elif modeSwitch == ALInterfaceMode.KILL:
+                    keepSpinning = False
         #Probably some form of delay?
 
 

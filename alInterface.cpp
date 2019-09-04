@@ -42,11 +42,12 @@ static int readCallback(void *NotUsed, int argc, char **argv, char **azColName)
 	return 0;
 }
 
-void writeRequest(icf_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum)
+void writeRequest(icf_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
 {
 	//COMMENT: Is 2048 still enough?
+	///TODO: Template on input type? Or just make one per input type?
 	char sqlBuf[2048];
-	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %d)", tag, mpiRank, reqNum, input.temperature, input.density[0], input.density[1], input.density[2], input.density[3], input.charges[0], input.charges[1], input.charges[2], input.charges[3], ALInterfaceMode_e::DEFAULT);
+	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %d)", tag, mpiRank, reqNum, input.temperature, input.density[0], input.density[1], input.density[2], input.density[3], input.charges[0], input.charges[1], input.charges[2], input.charges[3], reqType);
 	int sqlRet;
 	char *zErrMsg;
 	sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
@@ -69,9 +70,10 @@ void writeRequest(icf_request_t input, int mpiRank, char * tag, sqlite3 * dbHand
 	return;
 }
 
-icf_result_t icf_req_single(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
+icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
 	//Static variables are dirty but this is an okay use
+	///TODO: Refactor reqNumber to writeRequest()
 	static int reqNumber = 0;
 
 	icf_result_t retVal;
@@ -87,10 +89,14 @@ icf_result_t icf_req_single(icf_request_t input, int mpiRank, char * tag, sqlite
 	///TABLE: (tag TEXT, rank INT, req INT, <inputs> REAL)
 
 	//Send request
-	writeRequest(input, mpiRank, tag, dbHandle, reqNumber);
+	writeRequest(input, mpiRank, tag, dbHandle, reqNumber, reqType);
 
 	//Spin on file until result is available
 	bool haveResult = false;
+	if(reqType == ALInterfaceMode_e::KILL)
+	{
+		haveResult = true;
+	}
 	while(!haveResult)
 	{
 		//Send SELECT with sqlite3_exec. 
@@ -130,9 +136,15 @@ icf_result_t icf_req_single(icf_request_t input, int mpiRank, char * tag, sqlite
 	return retVal;
 }
 
-icf_result_t* icf_req_batch(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
+icf_result_t icf_req_single(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
+{
+	return icf_req_single_with_reqtype(input, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
+}
+
+icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
 	//Static variables are dirty but this is an okay use
+	///TODO: Refactor reqNumber to writeRequest()
 	static int reqNumber = 0;
 
 	icf_result_t * retVal = (icf_result_t *)malloc(sizeof(icf_result_t) * numInputs);
@@ -144,12 +156,16 @@ icf_result_t* icf_req_batch(icf_request_t *input, int numInputs, int mpiRank, ch
 	int curReq = reqNumber;
 	for(int i = 0; i < numInputs; i++)
 	{
-		writeRequest(input[i], mpiRank, tag, dbHandle, curReq);
+		writeRequest(input[i], mpiRank, tag, dbHandle, curReq, reqType);
 		curReq++;
 	}
 
-	//Get results
+	//Get results (if you want them)
 	bool haveResults = false;
+	if(reqType == ALInterfaceMode_e::KILL)
+	{
+		haveResults = true;
+	}
 	while(!haveResults)
 	{
 		//Get bounds of unfulfilled requests: Lock to attempt thread safety
@@ -198,6 +214,25 @@ icf_result_t* icf_req_batch(icf_request_t *input, int numInputs, int mpiRank, ch
 	reqNumber += numInputs;
 
 	return retVal;
+}
+
+icf_result_t* icf_req_batch(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
+{
+	return icf_req_batch_with_reqtype(input, numInputs, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
+}
+
+void icf_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
+{
+	icf_request_t req;
+	req.temperature = -0.0;
+	for(int i = 0; i < 4; i++)
+	{
+		req.density[i] = -0.0;
+		req.charges[i] = -0.0;
+	}
+
+	icf_req_single_with_reqtype(req, mpiRank, tag, dbHandle, ALInterfaceMode_e::KILL);
+	return;
 }
 
 sqlite3* initDB(int mpiRank, char * fName)
