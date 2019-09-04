@@ -9,6 +9,7 @@ struct icf_request_s
 	//n
 	double density[4];
 	double charges[4];
+	unsigned int reqType;
 };
 
 struct icf_result_s

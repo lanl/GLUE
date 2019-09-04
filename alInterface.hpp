@@ -19,4 +19,13 @@ typedef struct AsyncSelectTable_s AsyncSelectTable_t;
 
 extern AsyncSelectTable_t nastyGlobalSelectTable;
 
+enum ALInterfaceMode_e
+{
+	LAMMPS = 0,
+	MYSTIC = 1,
+	ACTIVELEARNER = 2,
+	FAKE = 3,
+	DEFAULT = 4
+};
+
 #endif /* __alInterface_hpp */

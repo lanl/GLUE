@@ -10,11 +10,12 @@ import shutil
 import numpy as np
 import csv
 
-class FineGrainProvider(Enum):
+class ALInterfaceMode(Enum):
     LAMMPS = 0
     MYSTIC = 1
     ACTIVELEARNER=2
     FAKE = 3
+    DEFAULT = 4
 
 ICFInputs = collections.namedtuple('ICFInputs', 'Temperature Density Charges')
 ICFOutputs = collections.namedtuple('ICFOutputs', 'Viscosity ThermalConductivity DiffCoeff')
@@ -117,15 +118,16 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
                 icfInput = ICFInputs(Temperature=float(row[3]), Density=[], Charges=[])
                 icfInput.Density.extend([row[4], row[5], row[6], row[7]])
                 icfInput.Charges.extend([row[8], row[9], row[10], row[11]])
+                reqType = ALInterfaceMode(row[12])
                 #Enqueue task
-                reqQueue.append((req, icfInput))
+                reqQueue.append((req, icfInput, reqType))
                 #Increment reqNum
                 reqNumArr[i] = reqNumArr[i] + 1
             sqlCursor.close()
             sqlDB.close()
             # Process tasks based on mode
             for task in reqQueue:
-                if mode == FineGrainProvider.LAMMPS:
+                if mode == ALInterfaceMode.LAMMPS:
                     # call lammps with args as slurmjob
                     # slurmjob will write result back
                     launchedJob = False
@@ -135,11 +137,11 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
                             print("Processing REQ=" + str(task[0]))
                             buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1])
                             launchedJob = True
-                elif mode == FineGrainProvider.MYSTIC:
+                elif mode == ALInterfaceMode.MYSTIC:
                     # call mystic: I think Mystic will handle most of our logic?
                     # TODO
                     pass
-                elif mode == FineGrainProvider.ACTIVELEARNER:
+                elif mode == ALInterfaceMode.ACTIVELEARNER:
                     # This is probably more for the Nick stuff
                     #  Ask Learner
                     #     We good? Return value
@@ -149,7 +151,7 @@ def pollAndProcessFGSRequests(rankArr, mode, dbPath, tag, lammps, uname, maxJobs
                     #     Go get a coffee, then return value. And add to LUT (?)
                     # TODO
                     pass
-                elif mode == FineGrainProvider.FAKE:
+                elif mode == ALInterfaceMode.FAKE:
                     # Simplest stencil imaginable
                     icfInput = task[1]
                     icfOutput = ICFOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
@@ -189,4 +191,4 @@ if __name__ == "__main__":
     sqlite = args['sqlite']
     sbatch = args['sbatch']
 
-    pollAndProcessFGSRequests([0], FineGrainProvider.LAMMPS, fName, tag, lammps, uname, jobs, sbatch)
+    pollAndProcessFGSRequests([0], ALInterfaceMode.LAMMPS, fName, tag, lammps, uname, jobs, sbatch)
