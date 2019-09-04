@@ -70,11 +70,18 @@ void writeRequest(icf_request_t input, int mpiRank, char * tag, sqlite3 * dbHand
 	return;
 }
 
-icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+int getReqNumber()
 {
 	//Static variables are dirty but this is an okay use
-	///TODO: Refactor reqNumber to writeRequest()
 	static int reqNumber = 0;
+	int retNum = reqNumber;
+	reqNumber++;
+	return retNum;
+}
+
+icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+{
+	int reqNumber = getReqNumber();
 
 	icf_result_t retVal;
 
@@ -130,9 +137,6 @@ icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char 
 		nastyGlobalSelectTable.tableMutex.unlock();
 	}
 
-	//Increment request number
-	reqNumber++;
-
 	return retVal;
 }
 
@@ -143,9 +147,7 @@ icf_result_t icf_req_single(icf_request_t input, int mpiRank, char * tag, sqlite
 
 icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
-	//Static variables are dirty but this is an okay use
-	///TODO: Refactor reqNumber to writeRequest()
-	static int reqNumber = 0;
+	int startReq = -1;
 
 	icf_result_t * retVal = (icf_result_t *)malloc(sizeof(icf_result_t) * numInputs);
 
@@ -153,11 +155,14 @@ icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, in
 	char *err = nullptr;
 
 	//Send requests
-	int curReq = reqNumber;
 	for(int i = 0; i < numInputs; i++)
 	{
+		int curReq = getReqNumber();
+		if(startReq == -1)
+		{
+			startReq = curReq;
+		}
 		writeRequest(input[i], mpiRank, tag, dbHandle, curReq, reqType);
-		curReq++;
 	}
 
 	//Get results (if you want them)
@@ -201,7 +206,7 @@ icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, in
 
 	//All requests have been procssed, so pull them
 	nastyGlobalSelectTable.tableMutex.lock();
-	curReq = reqNumber;
+	int curReq = startReq;
 	for(int i = 0; i < numInputs; i++)
 	{
 		///TODO: Add in an error check
@@ -210,8 +215,6 @@ icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, in
 	}
 	nastyGlobalSelectTable.tableMutex.unlock();
 
-	//Increment reqNumber
-	reqNumber += numInputs;
 
 	return retVal;
 }

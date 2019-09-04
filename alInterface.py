@@ -175,6 +175,7 @@ if __name__ == "__main__":
     defaultSqlite = "sqlite3"
     defaultSbatch = "/usr/bin/sbatch"
     defaultMaxJobs = 4
+    defaultMode = ALInterfaceMode.LAMMPS
 
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
@@ -185,6 +186,7 @@ if __name__ == "__main__":
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
     argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
     argParser.add_argument('-j', '--maxjobs', action='store', type=int, required=False, default=defaultMaxJobs, help="Maximum Number of Slurm Jobs To Enqueue")
+    argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultMode, help="Default Request Type (LAMMPS=0)")
 
 
     args = vars(argParser.parse_args())
@@ -196,5 +198,6 @@ if __name__ == "__main__":
     jobs = args['maxjobs']
     sqlite = args['sqlite']
     sbatch = args['sbatch']
+    mode = ALInterfaceMode(args['mode'])
 
-    pollAndProcessFGSRequests([0], ALInterfaceMode.LAMMPS, fName, tag, lammps, uname, jobs, sbatch)
+    pollAndProcessFGSRequests([0], mode, fName, tag, lammps, uname, jobs, sbatch)

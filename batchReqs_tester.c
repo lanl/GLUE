@@ -107,6 +107,8 @@ int main(int argc, char ** argv)
 	fprintf(stdout, "]\n");
 	fflush(stdout);
 
+	icf_stop_service(0, tag, dbHandle);
+
 	closeDB(dbHandle);
 
 	return 0;
