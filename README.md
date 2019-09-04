@@ -22,26 +22,12 @@ Then, to build
 
 ## Running
 
-### Running with BGK
-
-#### Pre-requisites
+### With BGK
 
 1. Have LAMMPS built and available. Using spack: ```spack install lammps```
 2. Clone and build <https://github.com/lanl/Multi-BGK> on branch ```ALDR``` using ```make ALDR```
-
-#### Running
-
-Initially we will assume that two seperate terminal tabs are used. In the future this will be streamlined in to a single slurm script. ```tmux``` is a useful tool for this.
-
-On the first (BGK) tab:
-
-1. From the BGK checkout directory, call ```python ${GLUE_CODE_DIR}/initTables.py```
-2. From the BGK directory, start ```./exec/MultiBGK_AL_``` with the desired input file
-
-On the second (Glue) tab:
-
-From the BGK checkout directory, call ```python ${GLUE_CODE_DIR}/alInterface.py -l ${PATH_TO_LAMMPS}/bin/lmp -u $USER -j 4 -d testDB.db -t dummy```
-
-This calls the ```alInterface.py``` script and tells it which ```LAMMPS``` binary to use. We specify that all jobs are to be launched as our current ```$USER``` and to have, at most, ```4``` concurrent SLURM jobs at once. Finally, we specify the path to the database and the tag (```dummy```) to be used to match the requests to this run.
-
-When the run is complete, manually terminate the ```alInterface.py``` task.
+3. Set up a run directory containing the appropriate BGK directories and input deck
+4. Copy ```${GLUECODE_REPO_ROOT}/slurmScripts/bgkTest.sh``` into the run directory
+5. Update the ```export```ed environment variables at the start of the file to match your setup
+6. Update ```${GLUECODE_REPO_ROOT}/slurmScripts/jobEnv.sh``` with any additional modules or environment variables required to run
+7. ```sbatch bgkTest.sh```
