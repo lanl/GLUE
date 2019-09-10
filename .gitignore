@@ -6,6 +6,7 @@
 *.csv
 *.lammps
 *.pyc
+*.mod
 __pycache__
 
 individualReqs

@@ -19,8 +19,26 @@ struct icf_result_s
 	double diffusionCoefficient[10];
 };
 
+struct lbmZeroD_request_s
+{
+	//compute distance, L, from the wall
+	double distance;
+	//density
+	double density;
+	//temperature L:
+	double temperature;
+};
+
+struct lbmZeroD_result_s
+{
+	//adsorption
+	double adsorption;
+};
+
 typedef struct icf_result_s icf_result_t;
 typedef struct icf_request_s icf_request_t;
+typedef struct lbmZeroD_result_s lbmZeroD_result_t;
+typedef struct lbmZeroD_request_s lbmZeroD_request_t;
 
 #ifdef __cplusplus
 extern "C"
@@ -30,6 +48,8 @@ extern "C"
 	icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
 	icf_result_t* icf_req_batch(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
 	icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
+	lbmZeroD_result_t * lbmZeroD_req_single_f(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle);
+
 	void icf_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
 	sqlite3 * initDB(int mpiRank, char * fName);
 	void closeDB(sqlite3* dbHandle);
