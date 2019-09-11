@@ -1,5 +1,5 @@
 import argparse
-from alInterface import ICFOutputs, insertLammpsResult
+from alInterface import BGKOutputs, insertLammpsResult
 import numpy as np
 
 def procFileAndInsert(tag, dbPath, rank, reqid, inFile):
@@ -7,12 +7,12 @@ def procFileAndInsert(tag, dbPath, rank, reqid, inFile):
     # Need to remove leading I
     resAdd = np.loadtxt(inFile, converters = {0: lambda s: -0.0})
     # Write results to an output namedtuple
-    icfOutput = ICFOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
-    icfOutput.DiffCoeff[0] = resAdd[6]
-    icfOutput.DiffCoeff[1] = resAdd[7]
-    icfOutput.DiffCoeff[2] = resAdd[8]
+    bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
+    bgkOutput.DiffCoeff[0] = resAdd[6]
+    bgkOutput.DiffCoeff[1] = resAdd[7]
+    bgkOutput.DiffCoeff[2] = resAdd[8]
     # Write the tuple
-    insertLammpsResult(rank, tag, dbPath, reqid, icfOutput)
+    insertLammpsResult(rank, tag, dbPath, reqid, bgkOutput)
 
 
 if __name__ == "__main__":
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     defaultID = 0
     defaultCSV = "./mutual_diffusion.csv"
 
-    argParser = argparse.ArgumentParser(description='Python Driver to Convert LAMMPS ICF Result into DB Entry')
+    argParser = argparse.ArgumentParser(description='Python Driver to Convert LAMMPS BGK Result into DB Entry')
 
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
     argParser.add_argument('-r', '--rank', action='store', type=int, required=False, default=defaultRank, help="MPI Rank of Requester")

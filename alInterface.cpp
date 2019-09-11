@@ -42,7 +42,7 @@ static int readCallback(void *NotUsed, int argc, char **argv, char **azColName)
 	return 0;
 }
 
-void writeRequest(icf_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
+void writeRequest(bgk_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
 {
 	//COMMENT: Is 2048 still enough?
 	///TODO: Template on input type? Or just make one per input type?
@@ -79,11 +79,11 @@ int getReqNumber()
 	return retNum;
 }
 
-icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+bgk_result_t bgk_req_single_with_reqtype(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
 	int reqNumber = getReqNumber();
 
-	icf_result_t retVal;
+	bgk_result_t retVal;
 
 	char sqlBuf[2048];
 	char *err = nullptr;
@@ -115,7 +115,7 @@ icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char 
 			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
 			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
 			{
-				fprintf(stderr, "Error in icf_req_single\n");
+				fprintf(stderr, "Error in bgk_req_single\n");
 				fprintf(stderr, "SQL error: %s\n", err);
 
 				sqlite3_free(err);
@@ -140,16 +140,16 @@ icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char 
 	return retVal;
 }
 
-icf_result_t icf_req_single(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
+bgk_result_t bgk_req_single(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
 {
-	return icf_req_single_with_reqtype(input, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
+	return bgk_req_single_with_reqtype(input, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
 }
 
-icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+bgk_result_t* bgk_req_batch_with_reqtype(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
 	int startReq = -1;
 
-	icf_result_t * retVal = (icf_result_t *)malloc(sizeof(icf_result_t) * numInputs);
+	bgk_result_t * retVal = (bgk_result_t *)malloc(sizeof(bgk_result_t) * numInputs);
 
 	char sqlBuf[2048];
 	char *err = nullptr;
@@ -189,7 +189,7 @@ icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, in
 			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
 			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
 			{
-				fprintf(stderr, "Error in icf_req_single\n");
+				fprintf(stderr, "Error in bgk_req_single\n");
 				fprintf(stderr, "SQL error: %s\n", err);
 				
 				sqlite3_free(err);
@@ -219,14 +219,14 @@ icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, in
 	return retVal;
 }
 
-icf_result_t* icf_req_batch(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
+bgk_result_t* bgk_req_batch(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
 {
-	return icf_req_batch_with_reqtype(input, numInputs, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
+	return bgk_req_batch_with_reqtype(input, numInputs, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
 }
 
-void icf_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
+void bgk_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
 {
-	icf_request_t req;
+	bgk_request_t req;
 	req.temperature = -0.0;
 	for(int i = 0; i < 4; i++)
 	{
@@ -234,7 +234,7 @@ void icf_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
 		req.charges[i] = -0.0;
 	}
 
-	icf_req_single_with_reqtype(req, mpiRank, tag, dbHandle, ALInterfaceMode_e::KILL);
+	bgk_req_single_with_reqtype(req, mpiRank, tag, dbHandle, ALInterfaceMode_e::KILL);
 	return;
 }
 

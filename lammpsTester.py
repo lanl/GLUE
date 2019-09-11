@@ -1,12 +1,12 @@
 import argparse
-from alInterface import ICFOutputs, ICFInputs, buildAndLaunchLAMMPSJob
+from alInterface import BGKOutputs, BGKInputs, buildAndLaunchLAMMPSJob
 from slurmInterface import getSlurmQueue
 
 def runLammpsQueue(numReqs, maxJobs, tag, dbPath, uname, lammps):
     # Generate requests
     lammpsIns = []
     for i in range(numReqs):
-        inValues = ICFInputs(Temperature=500000.0, Density=[0.0]*4, Charges=[0.0]*4)
+        inValues = BGKInputs(Temperature=500000.0, Density=[0.0]*4, Charges=[0.0]*4)
         for j in range(4):
             inValues.Charges[j] = 0.0 + 0.15*i + 0.07*j
             inValues.Density[j] = 0.0 + 0.15*j + 0.07*i

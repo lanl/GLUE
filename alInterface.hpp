@@ -6,7 +6,7 @@
 #include <mutex>
 #include <set>
 
-typedef icf_result_t SelectResult_t;
+typedef bgk_result_t SelectResult_t;
 
 struct AsyncSelectTable_s
 {
