@@ -42,34 +42,6 @@ static int readCallback_icf(void *NotUsed, int argc, char **argv, char **azColNa
 	return 0;
 }
 
-void writeRequest_icf(icf_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
-{
-	//COMMENT: Is 2048 still enough?
-	///TODO: Template on input type? Or just make one per input type?
-	char sqlBuf[2048];
-	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %d)", tag, mpiRank, reqNum, input.temperature, input.density[0], input.density[1], input.density[2], input.density[3], input.charges[0], input.charges[1], input.charges[2], input.charges[3], reqType);
-	int sqlRet;
-	char *zErrMsg;
-	sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
-	while( sqlRet != SQLITE_OK )
-	{
-		sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
-		if(!(sqlRet == SQLITE_OK || sqlRet == SQLITE_BUSY || sqlRet == SQLITE_LOCKED))
-		{
-			fprintf(stderr, "Error in writeRequest_icf\n");
-			fprintf(stderr, "SQL error: %s\n", zErrMsg);
-			sqlite3_free(zErrMsg);
-			sqlite3_close(dbHandle);
-			exit(1);
-		}
-	}
-	//Push the request number into the queue (set) for later use
-	nastyGlobalSelectTable.tableMutex.lock();
-	nastyGlobalSelectTable.reqQueue.insert(reqNum);
-	nastyGlobalSelectTable.tableMutex.unlock();
-	return;
-}
-
 int getReqNumber()
 {
 	//Static variables are dirty but this is an okay use
@@ -96,7 +68,7 @@ icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char 
 	///TABLE: (tag TEXT, rank INT, req INT, <inputs> REAL)
 
 	//Send request
-	writeRequest_icf(input, mpiRank, tag, dbHandle, reqNumber, reqType);
+	writeRequest<icf_request_t>(input, mpiRank, tag, dbHandle, reqNumber, reqType);
 
 	//Spin on file until result is available
 	bool haveResult = false;
@@ -162,7 +134,7 @@ icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, in
 		{
 			startReq = curReq;
 		}
-		writeRequest_icf(input[i], mpiRank, tag, dbHandle, curReq, reqType);
+		writeRequest<icf_request_t>(input[i], mpiRank, tag, dbHandle, curReq, reqType);
 	}
 
 	//Get results (if you want them)
