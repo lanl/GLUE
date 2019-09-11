@@ -48,9 +48,12 @@ extern "C"
 	icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
 	icf_result_t* icf_req_batch(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
 	icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
-	lbmZeroD_result_t * lbmZeroD_req_single_f(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle);
-
 	void icf_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
+
+	lbmZeroD_result_t lbmZeroD_req_single(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle);
+	lbmZeroD_result_t lbmZeroD_req_single_with_reqtype(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
+	void lbmZeroD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
+	
 	sqlite3 * initDB(int mpiRank, char * fName);
 	void closeDB(sqlite3* dbHandle);
 #ifdef __cplusplus

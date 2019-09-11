@@ -13,7 +13,7 @@ static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
 	return 0;
 }
 
-static int readCallback(void *NotUsed, int argc, char **argv, char **azColName)
+static int readCallback_icf(void *NotUsed, int argc, char **argv, char **azColName)
 {
 	//Process row: Ignore 0 (tag) and 1 (rank)
 	int reqID = atoi(argv[2]);
@@ -42,7 +42,7 @@ static int readCallback(void *NotUsed, int argc, char **argv, char **azColName)
 	return 0;
 }
 
-void writeRequest(icf_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
+void writeRequest_icf(icf_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
 {
 	//COMMENT: Is 2048 still enough?
 	///TODO: Template on input type? Or just make one per input type?
@@ -56,7 +56,7 @@ void writeRequest(icf_request_t input, int mpiRank, char * tag, sqlite3 * dbHand
 		sqlRet = sqlite3_exec(dbHandle, sqlBuf, dummyCallback, 0, &zErrMsg);
 		if(!(sqlRet == SQLITE_OK || sqlRet == SQLITE_BUSY || sqlRet == SQLITE_LOCKED))
 		{
-			fprintf(stderr, "Error in writeRequest\n");
+			fprintf(stderr, "Error in writeRequest_icf\n");
 			fprintf(stderr, "SQL error: %s\n", zErrMsg);
 			sqlite3_free(zErrMsg);
 			sqlite3_close(dbHandle);
@@ -96,7 +96,7 @@ icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char 
 	///TABLE: (tag TEXT, rank INT, req INT, <inputs> REAL)
 
 	//Send request
-	writeRequest(input, mpiRank, tag, dbHandle, reqNumber, reqType);
+	writeRequest_icf(input, mpiRank, tag, dbHandle, reqNumber, reqType);
 
 	//Spin on file until result is available
 	bool haveResult = false;
@@ -108,11 +108,11 @@ icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char 
 	{
 		//Send SELECT with sqlite3_exec. 
 		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ=%d AND TAG=\'%s\' AND RANK=%d;", reqNumber, tag, mpiRank);
-		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
+		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_icf, 0, &err);
 		while (rc != SQLITE_OK)
 		{
 			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
-			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
+			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_icf, 0, &err);
 			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
 			{
 				fprintf(stderr, "Error in icf_req_single\n");
@@ -162,7 +162,7 @@ icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, in
 		{
 			startReq = curReq;
 		}
-		writeRequest(input[i], mpiRank, tag, dbHandle, curReq, reqType);
+		writeRequest_icf(input[i], mpiRank, tag, dbHandle, curReq, reqType);
 	}
 
 	//Get results (if you want them)
@@ -183,10 +183,10 @@ icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, in
 
 		//Send SELECT with sqlite3_exec. 
 		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ>=%d AND REQ<=%d AND TAG=\'%s\' AND RANK=%d;", start, end, tag, mpiRank);
-		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
+		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_icf, 0, &err);
 		while (rc != SQLITE_OK)
 		{
-			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback, 0, &err);
+			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_icf, 0, &err);
 			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
 			{
 				fprintf(stderr, "Error in icf_req_single\n");
@@ -235,6 +235,30 @@ void icf_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
 	}
 
 	icf_req_single_with_reqtype(req, mpiRank, tag, dbHandle, ALInterfaceMode_e::KILL);
+	return;
+}
+
+lbmZeroD_result_t lbmZeroD_req_single(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
+{
+	return lbmZeroD_req_single_with_reqtype(input, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
+}
+
+lbmZeroD_result_t lbmZeroD_req_single_with_reqtype(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+{
+	lbmZeroD_result_t retVal;
+	///TODO
+	exit(1);
+	return retVal;
+}
+
+void lbmZeroD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
+{
+	lbmZeroD_request_t req;
+	req.distance = -0.0;
+	req.density = -0.0;
+	req.temperature = -0.0;
+
+	lbmZeroD_req_single_with_reqtype(req, mpiRank, tag, dbHandle, ALInterfaceMode_e::KILL);
 	return;
 }
 
