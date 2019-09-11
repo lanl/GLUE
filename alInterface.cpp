@@ -69,44 +69,8 @@ icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char 
 	//Send request
 	writeRequest<icf_request_t>(input, mpiRank, tag, dbHandle, reqNumber, reqType);
 
-	//Spin on file until result is available
-	bool haveResult = false;
-	if(reqType == ALInterfaceMode_e::KILL)
-	{
-		haveResult = true;
-	}
-	while(!haveResult)
-	{
-		//Send SELECT with sqlite3_exec. 
-		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ=%d AND TAG=\'%s\' AND RANK=%d;", reqNumber, tag, mpiRank);
-		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_icf, 0, &err);
-		while (rc != SQLITE_OK)
-		{
-			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
-			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_icf, 0, &err);
-			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
-			{
-				fprintf(stderr, "Error in icf_req_single\n");
-				fprintf(stderr, "SQL error: %s\n", err);
-
-				sqlite3_free(err);
-				sqlite3_close(dbHandle);
-				exit(1);
-			}
-		}
-		//SQL did something, so Get lock
-		globalICFResultTable.tableMutex.lock();
-		//Check if result in table
-		auto res = globalICFResultTable.resultTable.find(reqNumber);
-		if (res != globalICFResultTable.resultTable.end())
-		{
-			//It exists, so this is the final iteration of the loop
-			haveResult = true;
-			retVal = res->second;
-		}
-		//Relase lock
-		globalICFResultTable.tableMutex.unlock();
-	}
+	//Read result
+	retVal = readResult<icf_result_t>(mpiRank, tag, dbHandle, reqNumber, reqType);
 
 	return retVal;
 }
