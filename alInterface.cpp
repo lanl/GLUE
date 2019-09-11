@@ -5,7 +5,7 @@
 #include <sqlite3.h>
 
 ///TODO: Verify this is the correct way to do a global variable
-AsyncSelectTable_t nastyGlobalSelectTable;
+AsyncSelectTable_t<icf_result_t> globalICFResultTable;
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
 {
@@ -17,7 +17,7 @@ static int readCallback_icf(void *NotUsed, int argc, char **argv, char **azColNa
 {
 	//Process row: Ignore 0 (tag) and 1 (rank)
 	int reqID = atoi(argv[2]);
-	SelectResult_t result;
+	icf_result_t result;
 
 	//Add results
 	result.viscosity = atof(argv[3]);
@@ -27,17 +27,16 @@ static int readCallback_icf(void *NotUsed, int argc, char **argv, char **azColNa
 		result.diffusionCoefficient[i] = atof(argv[i+5]);
 	}
 
-	nastyGlobalSelectTable.tableMutex.lock();
+	//Get global select table of type icf_result_t
+	globalICFResultTable.tableMutex.lock();
 	//Check if request has been processed yet
-	auto reqIter = nastyGlobalSelectTable.reqQueue.find(reqID);
-	if (reqIter != nastyGlobalSelectTable.reqQueue.end())
+	auto reqIter = globalICFResultTable.resultTable.find(reqID);
+	if (reqIter == globalICFResultTable.resultTable.end())
 	{
 		//Write result to global map so we can use it
-		nastyGlobalSelectTable.resultTable[reqID] = result;
-		nastyGlobalSelectTable.tableMutex.unlock();
-		//And remove request from queue in case we get duplicate results
-		nastyGlobalSelectTable.reqQueue.erase(reqIter);
+		globalICFResultTable.resultTable[reqID] = result;
 	}
+	globalICFResultTable.tableMutex.unlock();
 
 	return 0;
 }
@@ -96,17 +95,17 @@ icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char 
 			}
 		}
 		//SQL did something, so Get lock
-		nastyGlobalSelectTable.tableMutex.lock();
+		globalICFResultTable.tableMutex.lock();
 		//Check if result in table
-		auto res = nastyGlobalSelectTable.resultTable.find(reqNumber);
-		if (res != nastyGlobalSelectTable.resultTable.end())
+		auto res = globalICFResultTable.resultTable.find(reqNumber);
+		if (res != globalICFResultTable.resultTable.end())
 		{
 			//It exists, so this is the final iteration of the loop
 			haveResult = true;
 			retVal = res->second;
 		}
 		//Relase lock
-		nastyGlobalSelectTable.tableMutex.unlock();
+		globalICFResultTable.tableMutex.unlock();
 	}
 
 	return retVal;
@@ -146,12 +145,12 @@ icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, in
 	while(!haveResults)
 	{
 		//Get bounds of unfulfilled requests: Lock to attempt thread safety
-		nastyGlobalSelectTable.tableMutex.lock();
-		int start = * nastyGlobalSelectTable.reqQueue.begin();
-		auto nextToLast = nastyGlobalSelectTable.reqQueue.end();
+		globalICFResultTable.tableMutex.lock();
+		int start = * globalICFResultTable.reqQueue.begin();
+		auto nextToLast = globalICFResultTable.reqQueue.end();
 		nextToLast--;
 		int end = * nextToLast;
-		nastyGlobalSelectTable.tableMutex.unlock();
+		globalICFResultTable.tableMutex.unlock();
 
 		//Send SELECT with sqlite3_exec. 
 		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ>=%d AND REQ<=%d AND TAG=\'%s\' AND RANK=%d;", start, end, tag, mpiRank);
@@ -170,22 +169,22 @@ icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, in
 			}
 		}
 		//SQL did something, so Get lock
-		nastyGlobalSelectTable.tableMutex.lock();
+		globalICFResultTable.tableMutex.lock();
 		//Are all requests processed?
-		haveResults = nastyGlobalSelectTable.reqQueue.empty();
-		nastyGlobalSelectTable.tableMutex.unlock();
+		haveResults = globalICFResultTable.reqQueue.empty();
+		globalICFResultTable.tableMutex.unlock();
 	}
 
 	//All requests have been procssed, so pull them
-	nastyGlobalSelectTable.tableMutex.lock();
+	globalICFResultTable.tableMutex.lock();
 	int curReq = startReq;
 	for(int i = 0; i < numInputs; i++)
 	{
 		///TODO: Add in an error check
-		retVal[i] = nastyGlobalSelectTable.resultTable.find(curReq)->second;
+		retVal[i] = globalICFResultTable.resultTable.find(curReq)->second;
 		curReq++;
 	}
-	nastyGlobalSelectTable.tableMutex.unlock();
+	globalICFResultTable.tableMutex.unlock();
 
 
 	return retVal;

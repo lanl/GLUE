@@ -8,18 +8,13 @@
 #include <type_traits>
 #include <string>
 
-typedef icf_result_t SelectResult_t;
-
-struct AsyncSelectTable_s
+template <typename T> struct AsyncSelectTable_t
 {
-	std::map<int, SelectResult_t> resultTable;
-	std::set<int> reqQueue;
+	std::map<int, T> resultTable;
 	std::mutex tableMutex;
 };
 
-typedef struct AsyncSelectTable_s AsyncSelectTable_t;
-
-extern AsyncSelectTable_t nastyGlobalSelectTable;
+extern AsyncSelectTable_t<icf_result_t> globalICFResultTable;
 
 enum ALInterfaceMode_e
 {
@@ -32,6 +27,27 @@ enum ALInterfaceMode_e
 };
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName);
+static int readCallback_icf(void *NotUsed, int argc, char **argv, char **azColName);
+
+template <typename T> void * getResCallback()
+{
+	if(std::is_same<T, icf_request_t>::value)
+	{
+		return readCallback_icf;
+	}
+	else
+	{
+		return dummyCallback;
+	}
+}
+
+template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
+{
+	if(std::is_same<T, icf_request_t>::value)
+	{
+		return globalICFResultTable;
+	}
+}
 
 template <typename T> std::string getReqSQLString(T input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
 {
@@ -62,10 +78,6 @@ template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite
 			exit(1);
 		}
 	}
-	//Push the request number into the queue (set) for later use
-	nastyGlobalSelectTable.tableMutex.lock();
-	nastyGlobalSelectTable.reqQueue.insert(reqNum);
-	nastyGlobalSelectTable.tableMutex.unlock();
 	return;
 }
 
