@@ -13,7 +13,7 @@ AR_FLAGS=-rcs
 
 all: test libalGlue.a
 
-test: individualReqs batchReqs
+test: glueCode_sniffTest
 
 libalGlue.a: alInterface.o alInterface_f.o
 	${AR} ${AR_FLAGS} libalGlue.a alInterface.o alInterface_f.o
@@ -24,17 +24,11 @@ alInterface.o: alInterface.cpp alInterface.h alInterface.hpp
 alInterface_f.o: alInterface_f.f90
 	${FC} -c alInterface_f.f90
 
-individualReqs_tester.o: individualReqs_tester.c
-	${CC} -c individualReqs_tester.c
+glueCode_sniffTest.o: glueCode_sniffTest.c
+	${CC} -c glueCode_sniffTest.c
 
-batchReqs_tester.o: batchReqs_tester.c
-	${CC} -c batchReqs_tester.c
-
-individualReqs: libalGlue.a individualReqs_tester.o
-	${CXX}  individualReqs_tester.o libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3 -o individualReqs
-
-batchReqs: libalGlue.a batchReqs_tester.o
-	${CXX}  batchReqs_tester.o libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3 -o batchReqs
+glueCode_sniffTest: libalGlue.a glueCode_sniffTest.o
+	${CXX}  glueCode_sniffTest.o libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3 -o glueCode_sniffTest
 
 clean:
-	rm -f ./*.o ./*.mod ./individualReqs ./batchReqs
+	rm -f ./*.o ./*.a ./*.mod ./glueCode_sniffTest ./test.db

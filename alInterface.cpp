@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <sqlite3.h>
-#include <unordered_set>
+#include <set>
 
 ///TODO: Verify this is the correct way to do a global variable
 AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
@@ -74,7 +74,7 @@ bgk_result_t bgk_req_single(bgk_request_t input, int mpiRank, char * tag, sqlite
 
 bgk_result_t* bgk_req_batch_with_reqtype(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
-	std::unordered_set<int> reqQueue;
+	std::set<int> reqQueue;
 	bgk_result_t * retVal = (bgk_result_t *)malloc(sizeof(bgk_result_t) * numInputs);
 	//Start all requests
 	for(int i = 0; i < numInputs; i++)
