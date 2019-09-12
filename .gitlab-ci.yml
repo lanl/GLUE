@@ -1,10 +1,26 @@
 stages:
   - build
+  - test
 
-build:
+build:gnu:
   stage: build
   tags:
     - darwin-slurm-shared
   script:
     - source slurmScripts/darwinEnv.sh
     - make
+  artifacts:
+    paths:
+    - alInterface_f.mod
+    - libalGlue.a
+    - glueCode_sniffTest
+
+test:gnu:glueSniff:
+  stage: test
+  tags:
+   - darwin-slurm-shared
+  script:
+    - source slurmScripts/darwinEnv.sh
+    - make test
+  dependencies:
+    - build:gnu
