@@ -7,20 +7,69 @@ build:gnu:
   tags:
     - darwin-slurm-shared
   script:
-    - source slurmScripts/darwinEnv.sh
+    - source slurmScripts/darwin-gnu.sh
     - make
   artifacts:
     paths:
     - alInterface_f.mod
     - libalGlue.a
     - glueCode_sniffTest
+    expire_in: 1 day
+
+build:intel:
+  stage: build
+  tags:
+    - darwin-slurm-shared
+  script:
+    - source slurmScripts/darwin-intel.sh
+    - make CC=icpc CXX=icpc FC=ifort
+  artifacts:
+    paths:
+    - alInterface_f.mod
+    - libalGlue.a
+    - glueCode_sniffTest
+    expire_in: 1 day
+
+build:clang:
+  stage: build
+  tags:
+    - darwin-slurm-shared
+  script:
+    - source slurmScripts/darwin-clang.sh
+    - make CC=clang CXX=clang++ FC=gfortran
+  artifacts:
+    paths:
+    - alInterface_f.mod
+    - libalGlue.a
+    - glueCode_sniffTest
+    expire_in: 1 day
 
 test:gnu:glueSniff:
   stage: test
   tags:
    - darwin-slurm-shared
   script:
-    - source slurmScripts/darwinEnv.sh
+    - source slurmScripts/darwin-gnu.sh
     - bash ./glueCode_sniffTest.sh
   dependencies:
     - build:gnu
+
+test:intel:glueSniff:
+  stage: test
+  tags:
+   - darwin-slurm-shared
+  script:
+    - source slurmScripts/darwin-intel.sh
+    - bash ./glueCode_sniffTest.sh
+  dependencies:
+    - build:intel
+
+test:clang:glueSniff:
+  stage: test
+  tags:
+   - darwin-slurm-shared
+  script:
+    - source slurmScripts/darwin-clang.sh
+    - bash ./glueCode_sniffTest.sh
+  dependencies:
+    - build:clang

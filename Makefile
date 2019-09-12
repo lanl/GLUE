@@ -10,6 +10,7 @@ SQLITE_INCLUDE=${SQLITE_DIR}/include
 SQLITE_LIBDIR=${SQLITE_DIR}/lib
 
 AR_FLAGS=-rcs
+CXXFLAGS=-std=c++14
 
 
 all: glueCode_sniffTest libalGlue.a
@@ -18,7 +19,7 @@ libalGlue.a: alInterface.o alInterface_f.o
 	${AR} ${AR_FLAGS} libalGlue.a alInterface.o alInterface_f.o
 
 alInterface.o: alInterface.cpp alInterface.h alInterface.hpp
-	${CXX} -I${SQLITE_INCLUDE} -c alInterface.cpp 
+	${CXX} ${CXXFLAGS} -I${SQLITE_INCLUDE} -c alInterface.cpp 
 
 alInterface_f.o: alInterface_f.f90
 	${FC} -c alInterface_f.f90
