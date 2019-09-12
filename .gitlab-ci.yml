@@ -21,6 +21,6 @@ test:gnu:glueSniff:
    - darwin-slurm-shared
   script:
     - source slurmScripts/darwinEnv.sh
-    - make test
+    - bash ./glueCode_sniffTest.sh
   dependencies:
     - build:gnu
