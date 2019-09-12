@@ -5,7 +5,6 @@
 #include <map>
 #include <mutex>
 #include <set>
-#include <type_traits>
 #include <string>
 
 template <typename T> struct AsyncSelectTable_t
@@ -44,11 +43,11 @@ template <typename T> void * getResCallback()
 {
 	if(std::is_same<T, bgk_request_t>::value)
 	{
-		return readCallback_bgk;
+		return (void*)readCallback_bgk;
 	}
 	else
 	{
-		return dummyCallback;
+		return (void*)dummyCallback;
 	}
 }
 
