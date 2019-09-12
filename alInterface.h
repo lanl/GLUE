@@ -3,7 +3,7 @@
 
 #include <sqlite3.h>
 
-struct icf_request_s
+struct bgk_request_s
 {
 	double temperature;
 	//n
@@ -11,7 +11,7 @@ struct icf_request_s
 	double charges[4];
 };
 
-struct icf_result_s
+struct bgk_result_s
 {
 	double viscosity;
 	double thermalConductivity;
@@ -35,8 +35,8 @@ struct lbmZeroD_result_s
 	double adsorption;
 };
 
-typedef struct icf_result_s icf_result_t;
-typedef struct icf_request_s icf_request_t;
+typedef struct bgk_result_s bgk_result_t;
+typedef struct bgk_request_s bgk_request_t;
 typedef struct lbmZeroD_result_s lbmZeroD_result_t;
 typedef struct lbmZeroD_request_s lbmZeroD_request_t;
 
@@ -44,11 +44,11 @@ typedef struct lbmZeroD_request_s lbmZeroD_request_t;
 extern "C"
 {
 #endif
-	icf_result_t icf_req_single(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle);
-	icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
-	icf_result_t* icf_req_batch(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
-	icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
-	void icf_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
+	bgk_result_t bgk_req_single(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle);
+	bgk_result_t bgk_req_single_with_reqtype(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
+	bgk_result_t* bgk_req_batch(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
+	bgk_result_t* bgk_req_batch_with_reqtype(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
+	void bgk_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
 
 	lbmZeroD_result_t lbmZeroD_req_single(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle);
 	lbmZeroD_result_t lbmZeroD_req_single_with_reqtype(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);

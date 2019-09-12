@@ -18,18 +18,18 @@ class ALInterfaceMode(Enum):
     DEFAULT = 4
     KILL = 9
 
-ICFInputs = collections.namedtuple('ICFInputs', 'Temperature Density Charges')
-ICFOutputs = collections.namedtuple('ICFOutputs', 'Viscosity ThermalConductivity DiffCoeff')
+BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
+BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
 
-def writeLammpsInputs(icfArgs, dirPath):
+def writeLammpsInputs(bgkArgs, dirPath):
     # TODO: Refactor constants and general cleanup
     # WARNING: Seems to be restricted to two materials for now
     density_normalisation = 1.e25 # per cm^3
     m=np.array([3.3210778e-24,6.633365399999999e-23])
     Z=np.array([1,13])
     interparticle_radius = []
-    lammpsDens = np.array(icfArgs.Density[0:2]) * density_normalisation
-    lammpsTemperature = icfArgs.Temperature
+    lammpsDens = np.array(bgkArgs.Density[0:2]) * density_normalisation
+    lammpsTemperature = bgkArgs.Temperature
     lammpsIonization = zBar(lammpsDens, Z, lammpsTemperature)
     for s in range(len(lammpsDens)):
         zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
@@ -55,7 +55,7 @@ def writeLammpsInputs(icfArgs, dirPath):
             csv_writer = csv.writer(testfile,delimiter=' ')
             csv_writer.writerow([N[s]])
 
-def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs):
+def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, bgkArgs):
     # Mkdir ./${TAG}_${RANK}_${REQ}
     outDir = tag + "_" + str(rank) + "_" + str(reqid)
     outPath = os.path.join(os.getcwd(), outDir)
@@ -70,9 +70,9 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs):
         jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
         shutil.copy2(ardPlasPath, outPath)
         shutil.copy2(jobEnvFilePath, outPath)
-        icfResultScript = os.path.join(pythonScriptDir, "processICFResult.py")
+        bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
         # Generate input files
-        writeLammpsInputs(icfArgs, outPath)
+        writeLammpsInputs(bgkArgs, outPath)
         # Generate slurm script by writing to file
         # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
         # TODO: DRY this
@@ -85,7 +85,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, icfArgs):
             # Actually call lammps
             slurmFile.write("srun -n 4 " + lammps + " < in.Argon_Deuterium_plasma   \n")
             # Process the result and write to DB
-            slurmFile.write("python3 " + icfResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -f ./mutual_diffusion.csv\n")
+            slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -f ./mutual_diffusion.csv\n")
         # either syscall or subprocess.run slurm with the script
         launchSlurmJob(slurmFPath)
         # Then do nothing because the script itself will write the result
@@ -116,12 +116,12 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
             # Get current set of requests
             for row in sqlCursor.execute(selString, selArgs):
                 #Process row to arguments
-                icfInput = ICFInputs(Temperature=float(row[3]), Density=[], Charges=[])
-                icfInput.Density.extend([row[4], row[5], row[6], row[7]])
-                icfInput.Charges.extend([row[8], row[9], row[10], row[11]])
+                bgkInput = BGKInputs(Temperature=float(row[3]), Density=[], Charges=[])
+                bgkInput.Density.extend([row[4], row[5], row[6], row[7]])
+                bgkInput.Charges.extend([row[8], row[9], row[10], row[11]])
                 reqType = ALInterfaceMode(row[12])
                 #Enqueue task
-                reqQueue.append((req, icfInput, reqType))
+                reqQueue.append((req, bgkInput, reqType))
                 #Increment reqNum
                 reqNumArr[i] = reqNumArr[i] + 1
             sqlCursor.close()
@@ -157,11 +157,11 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                     pass
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     # Simplest stencil imaginable
-                    icfInput = task[1]
-                    icfOutput = ICFOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
-                    icfOutput.DiffCoeff[7] = (icfInput.Temperature + icfInput.Density[0] +  icfInput.Charges[3]) / 3
+                    bgkInput = task[1]
+                    bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
+                    bgkOutput.DiffCoeff[7] = (bgkInput.Temperature + bgkInput.Density[0] +  bgkInput.Charges[3]) / 3
                     # Write the result
-                    insertLammpsResult(rank, tag, dbPath, task[0], icfOutput)
+                    insertLammpsResult(rank, tag, dbPath, task[0], bgkOutput)
                 elif modeSwitch == ALInterfaceMode.KILL:
                     keepSpinning = False
         #Probably some form of delay?

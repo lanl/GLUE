@@ -6,7 +6,7 @@ Currently this is a prototype of one approach for the proof of concept mechanism
 
 ## Using
 
-The important parts of the code are ```alInterface.[cpp, h, hpp, py]```. To use those the ```icf_request``` and ```icf_result``` data structures need to be updated with the appropriate inputs and outputs and so too do the portions that process the SQL operations
+The important parts of the code are ```alInterface.[cpp, h, hpp, py]```. To use those the ```bgk_request``` and ```bgk_result``` data structures need to be updated with the appropriate inputs and outputs and so too do the portions that process the SQL operations
 
 ## Building
 

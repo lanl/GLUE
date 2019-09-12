@@ -6,7 +6,7 @@
 #include <unordered_set>
 
 ///TODO: Verify this is the correct way to do a global variable
-AsyncSelectTable_t<icf_result_t> globalICFResultTable;
+AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
 AsyncSelectTable_t<lbmZeroD_result_t> globalLBMZeroDResultTable;
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
@@ -15,11 +15,11 @@ static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
 	return 0;
 }
 
-static int readCallback_icf(void *NotUsed, int argc, char **argv, char **azColName)
+static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColName)
 {
 	//Process row: Ignore 0 (tag) and 1 (rank)
 	int reqID = atoi(argv[2]);
-	icf_result_t result;
+	bgk_result_t result;
 
 	//Add results
 	result.viscosity = atof(argv[3]);
@@ -29,16 +29,16 @@ static int readCallback_icf(void *NotUsed, int argc, char **argv, char **azColNa
 		result.diffusionCoefficient[i] = atof(argv[i+5]);
 	}
 
-	//Get global select table of type icf_result_t
-	globalICFResultTable.tableMutex.lock();
+	//Get global select table of type bgk_result_t
+	globalBGKResultTable.tableMutex.lock();
 	//Check if request has been processed yet
-	auto reqIter = globalICFResultTable.resultTable.find(reqID);
-	if (reqIter == globalICFResultTable.resultTable.end())
+	auto reqIter = globalBGKResultTable.resultTable.find(reqID);
+	if (reqIter == globalBGKResultTable.resultTable.end())
 	{
 		//Write result to global map so we can use it
-		globalICFResultTable.resultTable[reqID] = result;
+		globalBGKResultTable.resultTable[reqID] = result;
 	}
-	globalICFResultTable.tableMutex.unlock();
+	globalBGKResultTable.tableMutex.unlock();
 
 	return 0;
 }
@@ -52,35 +52,35 @@ int getReqNumber()
 	return retNum;
 }
 
-icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+bgk_result_t bgk_req_single_with_reqtype(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
 	int reqNumber = getReqNumber();
 
-	icf_result_t retVal;
+	bgk_result_t retVal;
 
 	//Send request
-	writeRequest<icf_request_t>(input, mpiRank, tag, dbHandle, reqNumber, reqType);
+	writeRequest<bgk_request_t>(input, mpiRank, tag, dbHandle, reqNumber, reqType);
 
 	//Read result
-	retVal = readResult_blocking<icf_result_t>(mpiRank, tag, dbHandle, reqNumber, reqType);
+	retVal = readResult_blocking<bgk_result_t>(mpiRank, tag, dbHandle, reqNumber, reqType);
 
 	return retVal;
 }
 
-icf_result_t icf_req_single(icf_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
+bgk_result_t bgk_req_single(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
 {
-	return icf_req_single_with_reqtype(input, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
+	return bgk_req_single_with_reqtype(input, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
 }
 
-icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+bgk_result_t* bgk_req_batch_with_reqtype(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
 	std::unordered_set<int> reqQueue;
-	icf_result_t * retVal = (icf_result_t *)malloc(sizeof(icf_result_t) * numInputs);
+	bgk_result_t * retVal = (bgk_result_t *)malloc(sizeof(bgk_result_t) * numInputs);
 	//Start all requests
 	for(int i = 0; i < numInputs; i++)
 	{
 		int reqNumber = getReqNumber();
-		writeRequest<icf_request_t>(input[i], mpiRank, tag, dbHandle, reqNumber, reqType);
+		writeRequest<bgk_request_t>(input[i], mpiRank, tag, dbHandle, reqNumber, reqType);
 		reqQueue.insert(reqNumber);
 	}
 
@@ -89,21 +89,21 @@ icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, in
 	int retValCounter = 0;
 	for(auto curReq = reqQueue.begin(); curReq != reqQueue.end(); curReq++)
 	{
-		retVal[retValCounter] = readResult_blocking<icf_result_t>(mpiRank, tag, dbHandle, *curReq, reqType);
+		retVal[retValCounter] = readResult_blocking<bgk_result_t>(mpiRank, tag, dbHandle, *curReq, reqType);
 		retValCounter++;
 	}
 
 	return retVal;
 }
 
-icf_result_t* icf_req_batch(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
+bgk_result_t* bgk_req_batch(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
 {
-	return icf_req_batch_with_reqtype(input, numInputs, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
+	return bgk_req_batch_with_reqtype(input, numInputs, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
 }
 
-void icf_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
+void bgk_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
 {
-	icf_request_t req;
+	bgk_request_t req;
 	req.temperature = -0.0;
 	for(int i = 0; i < 4; i++)
 	{
@@ -111,7 +111,7 @@ void icf_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
 		req.charges[i] = -0.0;
 	}
 
-	icf_req_single_with_reqtype(req, mpiRank, tag, dbHandle, ALInterfaceMode_e::KILL);
+	bgk_req_single_with_reqtype(req, mpiRank, tag, dbHandle, ALInterfaceMode_e::KILL);
 	return;
 }
 

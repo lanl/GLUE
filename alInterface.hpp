@@ -24,7 +24,7 @@ template <typename T> struct AsyncSelectTable_t
 	}
 };
 
-extern AsyncSelectTable_t<icf_result_t> globalICFResultTable;
+extern AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
 extern AsyncSelectTable_t<lbmZeroD_result_t> globalLBMZeroDResultTable;
 
 enum ALInterfaceMode_e
@@ -38,13 +38,13 @@ enum ALInterfaceMode_e
 };
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName);
-static int readCallback_icf(void *NotUsed, int argc, char **argv, char **azColName);
+static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColName);
 
 template <typename T> void * getResCallback()
 {
-	if(std::is_same<T, icf_request_t>::value)
+	if(std::is_same<T, bgk_request_t>::value)
 	{
-		return readCallback_icf;
+		return readCallback_bgk;
 	}
 	else
 	{
@@ -56,9 +56,9 @@ template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
 {
 	exit(1);
 }
-template <> AsyncSelectTable_t<icf_result_t>& getGlobalTable()
+template <> AsyncSelectTable_t<bgk_result_t>& getGlobalTable()
 {
-	return globalICFResultTable;
+	return globalBGKResultTable;
 }
 template <> AsyncSelectTable_t<lbmZeroD_result_t>& getGlobalTable()
 {
@@ -69,7 +69,7 @@ template <typename T> std::string getReqSQLString(T input, int mpiRank, char * t
 {
 	exit(1);
 }
-template <> std::string getReqSQLString(icf_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
+template <> std::string getReqSQLString(bgk_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
 {
 	char sqlBuf[2048];
 	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %d)", tag, mpiRank, reqNum, input.temperature, input.density[0], input.density[1], input.density[2], input.density[3], input.charges[0], input.charges[1], input.charges[2], input.charges[3], reqType);
@@ -92,7 +92,7 @@ template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite
 		sqlRet = sqlite3_exec(dbHandle, sqlString.c_str(), dummyCallback, 0, &zErrMsg);
 		if(!(sqlRet == SQLITE_OK || sqlRet == SQLITE_BUSY || sqlRet == SQLITE_LOCKED))
 		{
-			fprintf(stderr, "Error in writeRequest_icf\n");
+			fprintf(stderr, "Error in writeRequest_bgk\n");
 			fprintf(stderr, "SQL error: %s\n", zErrMsg);
 			sqlite3_free(zErrMsg);
 			sqlite3_close(dbHandle);
@@ -117,14 +117,14 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * d
 	{
 		//Send SELECT with sqlite3_exec. 
 		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ=%d AND TAG=\'%s\' AND RANK=%d;", reqNum, tag, mpiRank);
-		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_icf, 0, &err);
+		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_bgk, 0, &err);
 		while (rc != SQLITE_OK)
 		{
 			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
-			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_icf, 0, &err);
+			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_bgk, 0, &err);
 			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
 			{
-				fprintf(stderr, "Error in icf_req_single\n");
+				fprintf(stderr, "Error in bgk_req_single\n");
 				fprintf(stderr, "SQL error: %s\n", err);
 
 				sqlite3_free(err);

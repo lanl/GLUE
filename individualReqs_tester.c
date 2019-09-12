@@ -73,11 +73,11 @@ int main(int argc, char ** argv)
 		//Update state
 		for(int i = 0; i < dimX; i++)
 		{
-			icf_request_t input;
+			bgk_request_t input;
 			input.temperature = grid[i].val;
 			input.density[0] = grid[i].left;
 			input.charges[3] = grid[i].right;
-			icf_result_t result = icf_req_single(input, 0, tag, dbHandle);
+			bgk_result_t result = bgk_req_single(input, 0, tag, dbHandle);
 			grid[i].val =  result.diffusionCoefficient[7];
 		}
 	}
@@ -94,7 +94,7 @@ int main(int argc, char ** argv)
 	fprintf(stdout, "]\n");
 	fflush(stdout);
 
-	icf_stop_service(0, tag, dbHandle);
+	bgk_stop_service(0, tag, dbHandle);
 
 	closeDB(dbHandle);
 

@@ -1,0 +1,10 @@
+stages:
+  - build
+
+build:
+  stage: build
+  tags:
+    - darwin-slurm-shared
+  script:
+    - source slurmScripts/darwinEnv.sh
+    - make
