@@ -3,9 +3,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <sqlite3.h>
+#include <unordered_set>
 
 ///TODO: Verify this is the correct way to do a global variable
 AsyncSelectTable_t<icf_result_t> globalICFResultTable;
+AsyncSelectTable_t<lbmZeroD_result_t> globalLBMZeroDResultTable;
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
 {
@@ -56,21 +58,11 @@ icf_result_t icf_req_single_with_reqtype(icf_request_t input, int mpiRank, char 
 
 	icf_result_t retVal;
 
-	char sqlBuf[2048];
-	char *err = nullptr;
-
-	///SQLite
-	///  It provides a file-based DB. It has C, Python, and Klepto interfaces. As of sqlite3 it is probably somewhat
-	///    performant with many concurrent writes and queries. And it will provide an easily queried DB for
-	///    further study of the results to learn how to make our learners better
-	///  Evidently the rest of the world has been right for 30-ish(?) years!
-	///TABLE: (tag TEXT, rank INT, req INT, <inputs> REAL)
-
 	//Send request
 	writeRequest<icf_request_t>(input, mpiRank, tag, dbHandle, reqNumber, reqType);
 
 	//Read result
-	retVal = readResult<icf_result_t>(mpiRank, tag, dbHandle, reqNumber, reqType);
+	retVal = readResult_blocking<icf_result_t>(mpiRank, tag, dbHandle, reqNumber, reqType);
 
 	return retVal;
 }
@@ -82,74 +74,24 @@ icf_result_t icf_req_single(icf_request_t input, int mpiRank, char * tag, sqlite
 
 icf_result_t* icf_req_batch_with_reqtype(icf_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
-	int startReq = -1;
-
+	std::unordered_set<int> reqQueue;
 	icf_result_t * retVal = (icf_result_t *)malloc(sizeof(icf_result_t) * numInputs);
-
-	char sqlBuf[2048];
-	char *err = nullptr;
-
-	//Send requests
+	//Start all requests
 	for(int i = 0; i < numInputs; i++)
 	{
-		int curReq = getReqNumber();
-		if(startReq == -1)
-		{
-			startReq = curReq;
-		}
-		writeRequest<icf_request_t>(input[i], mpiRank, tag, dbHandle, curReq, reqType);
+		int reqNumber = getReqNumber();
+		writeRequest<icf_request_t>(input[i], mpiRank, tag, dbHandle, reqNumber, reqType);
+		reqQueue.insert(reqNumber);
 	}
 
-	//Get results (if you want them)
-	bool haveResults = false;
-	if(reqType == ALInterfaceMode_e::KILL)
+	//Process requests
+	//In this case we block on each request so it is pretty simple
+	int retValCounter = 0;
+	for(auto curReq = reqQueue.begin(); curReq != reqQueue.end(); curReq++)
 	{
-		haveResults = true;
+		retVal[retValCounter] = readResult_blocking<icf_result_t>(mpiRank, tag, dbHandle, *curReq, reqType);
+		retValCounter++;
 	}
-	while(!haveResults)
-	{
-		//Get bounds of unfulfilled requests: Lock to attempt thread safety
-		globalICFResultTable.tableMutex.lock();
-		int start = * globalICFResultTable.reqQueue.begin();
-		auto nextToLast = globalICFResultTable.reqQueue.end();
-		nextToLast--;
-		int end = * nextToLast;
-		globalICFResultTable.tableMutex.unlock();
-
-		//Send SELECT with sqlite3_exec. 
-		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ>=%d AND REQ<=%d AND TAG=\'%s\' AND RANK=%d;", start, end, tag, mpiRank);
-		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_icf, 0, &err);
-		while (rc != SQLITE_OK)
-		{
-			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_icf, 0, &err);
-			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
-			{
-				fprintf(stderr, "Error in icf_req_single\n");
-				fprintf(stderr, "SQL error: %s\n", err);
-				
-				sqlite3_free(err);
-				sqlite3_close(dbHandle);
-				exit(1);
-			}
-		}
-		//SQL did something, so Get lock
-		globalICFResultTable.tableMutex.lock();
-		//Are all requests processed?
-		haveResults = globalICFResultTable.reqQueue.empty();
-		globalICFResultTable.tableMutex.unlock();
-	}
-
-	//All requests have been procssed, so pull them
-	globalICFResultTable.tableMutex.lock();
-	int curReq = startReq;
-	for(int i = 0; i < numInputs; i++)
-	{
-		///TODO: Add in an error check
-		retVal[i] = globalICFResultTable.resultTable.find(curReq)->second;
-		curReq++;
-	}
-	globalICFResultTable.tableMutex.unlock();
-
 
 	return retVal;
 }
@@ -180,9 +122,16 @@ lbmZeroD_result_t lbmZeroD_req_single(lbmZeroD_request_t input, int mpiRank, cha
 
 lbmZeroD_result_t lbmZeroD_req_single_with_reqtype(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
+	int reqNumber = getReqNumber();
+
 	lbmZeroD_result_t retVal;
-	///TODO
-	exit(1);
+
+	//Send request
+	writeRequest<lbmZeroD_request_t>(input, mpiRank, tag, dbHandle, reqNumber, reqType);
+
+	//Read result
+	retVal = readResult_blocking<lbmZeroD_result_t>(mpiRank, tag, dbHandle, reqNumber, reqType);
+
 	return retVal;
 }
 

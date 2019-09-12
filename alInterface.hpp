@@ -25,6 +25,7 @@ template <typename T> struct AsyncSelectTable_t
 };
 
 extern AsyncSelectTable_t<icf_result_t> globalICFResultTable;
+extern AsyncSelectTable_t<lbmZeroD_result_t> globalLBMZeroDResultTable;
 
 enum ALInterfaceMode_e
 {
@@ -53,25 +54,31 @@ template <typename T> void * getResCallback()
 
 template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
 {
-	if(std::is_same<T, icf_request_t>::value)
-	{
-		return globalICFResultTable;
-	}
-	else
-	{
-		exit(1);
-	}
+	exit(1);
+}
+template <> AsyncSelectTable_t<icf_result_t>& getGlobalTable()
+{
+	return globalICFResultTable;
+}
+template <> AsyncSelectTable_t<lbmZeroD_result_t>& getGlobalTable()
+{
+	return globalLBMZeroDResultTable;
 }
 
 template <typename T> std::string getReqSQLString(T input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
 {
+	exit(1);
+}
+template <> std::string getReqSQLString(icf_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
+{
 	char sqlBuf[2048];
-	if(std::is_same<T, icf_request_t>::value)
-	{
-		sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %d)", tag, mpiRank, reqNum, input.temperature, input.density[0], input.density[1], input.density[2], input.density[3], input.charges[0], input.charges[1], input.charges[2], input.charges[3], reqType);
-	}
+	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %d)", tag, mpiRank, reqNum, input.temperature, input.density[0], input.density[1], input.density[2], input.density[3], input.charges[0], input.charges[1], input.charges[2], input.charges[3], reqType);
 	std::string retString(sqlBuf);
 	return retString;
+}
+template <> std::string getReqSQLString(lbmZeroD_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
+{
+	exit(1);
 }
 
 template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
@@ -95,7 +102,7 @@ template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite
 	return;
 }
 
-template <typename T> T readResult(int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
+template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
 {
 	T retVal;
 	char sqlBuf[2048];
