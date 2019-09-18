@@ -7,6 +7,8 @@
 #include <set>
 #include <string>
 
+int getReqNumber();
+
 template <typename T> struct AsyncSelectTable_t
 {
 	std::map<int, T> resultTable;
@@ -50,7 +52,6 @@ template <typename T> void * getResCallback()
 		return (void*)dummyCallback;
 	}
 }
-
 template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
 {
 	exit(1);
@@ -150,5 +151,45 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * d
 
 	return retVal;
 }
+
+template <typename S, typename T> T req_single_with_reqtype(S input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+{
+	int reqNumber = getReqNumber();
+
+	T retVal;
+
+	//Send request
+	writeRequest<S>(input, mpiRank, tag, dbHandle, reqNumber, reqType);
+
+	//Read result
+	retVal = readResult_blocking<T>(mpiRank, tag, dbHandle, reqNumber, reqType);
+
+	return retVal;
+}
+
+template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInputs, int mpiRank, char * tag, sqlite3 * dbHandle, unsigned int reqType)
+{
+	std::set<int> reqQueue;
+	T * retVal = (T *)malloc(sizeof(T) * numInputs);
+	//Start all requests
+	for(int i = 0; i < numInputs; i++)
+	{
+		int reqNumber = getReqNumber();
+		writeRequest<S>(input[i], mpiRank, tag, dbHandle, reqNumber, reqType);
+		reqQueue.insert(reqNumber);
+	}
+
+	//Process requests
+	//In this case we block on each request so it is pretty simple
+	int retValCounter = 0;
+	for(auto curReq = reqQueue.begin(); curReq != reqQueue.end(); curReq++)
+	{
+		retVal[retValCounter] = readResult_blocking<T>(mpiRank, tag, dbHandle, *curReq, reqType);
+		retValCounter++;
+	}
+
+	return retVal;
+}
+
 
 #endif /* __alInterface_hpp */

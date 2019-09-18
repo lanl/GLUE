@@ -54,17 +54,7 @@ int getReqNumber()
 
 bgk_result_t bgk_req_single_with_reqtype(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
-	int reqNumber = getReqNumber();
-
-	bgk_result_t retVal;
-
-	//Send request
-	writeRequest<bgk_request_t>(input, mpiRank, tag, dbHandle, reqNumber, reqType);
-
-	//Read result
-	retVal = readResult_blocking<bgk_result_t>(mpiRank, tag, dbHandle, reqNumber, reqType);
-
-	return retVal;
+	return req_single_with_reqtype<bgk_request_t, bgk_result_t>(input, mpiRank, tag, dbHandle, reqType);
 }
 
 bgk_result_t bgk_req_single(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
@@ -74,26 +64,7 @@ bgk_result_t bgk_req_single(bgk_request_t input, int mpiRank, char * tag, sqlite
 
 bgk_result_t* bgk_req_batch_with_reqtype(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
-	std::set<int> reqQueue;
-	bgk_result_t * retVal = (bgk_result_t *)malloc(sizeof(bgk_result_t) * numInputs);
-	//Start all requests
-	for(int i = 0; i < numInputs; i++)
-	{
-		int reqNumber = getReqNumber();
-		writeRequest<bgk_request_t>(input[i], mpiRank, tag, dbHandle, reqNumber, reqType);
-		reqQueue.insert(reqNumber);
-	}
-
-	//Process requests
-	//In this case we block on each request so it is pretty simple
-	int retValCounter = 0;
-	for(auto curReq = reqQueue.begin(); curReq != reqQueue.end(); curReq++)
-	{
-		retVal[retValCounter] = readResult_blocking<bgk_result_t>(mpiRank, tag, dbHandle, *curReq, reqType);
-		retValCounter++;
-	}
-
-	return retVal;
+	return req_batch_with_reqtype<bgk_request_t, bgk_result_t>(input, numInputs, mpiRank, tag, dbHandle, reqType);
 }
 
 bgk_result_t* bgk_req_batch(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
@@ -122,17 +93,7 @@ lbmZeroD_result_t lbmZeroD_req_single(lbmZeroD_request_t input, int mpiRank, cha
 
 lbmZeroD_result_t lbmZeroD_req_single_with_reqtype(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
-	int reqNumber = getReqNumber();
-
-	lbmZeroD_result_t retVal;
-
-	//Send request
-	writeRequest<lbmZeroD_request_t>(input, mpiRank, tag, dbHandle, reqNumber, reqType);
-
-	//Read result
-	retVal = readResult_blocking<lbmZeroD_result_t>(mpiRank, tag, dbHandle, reqNumber, reqType);
-
-	return retVal;
+	return req_single_with_reqtype<lbmZeroD_request_t, lbmZeroD_result_t>(input, mpiRank, tag, dbHandle, reqType);
 }
 
 void lbmZeroD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
