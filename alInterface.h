@@ -52,6 +52,8 @@ extern "C"
 
 	lbmZeroD_result_t lbmZeroD_req_single(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle);
 	lbmZeroD_result_t lbmZeroD_req_single_with_reqtype(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
+	lbmZeroD_result_t* lbmZeroD_req_batch(lbmZeroD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
+	lbmZeroD_result_t* lbmZeroD_req_batch_with_reqtype(lbmZeroD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
 	void lbmZeroD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
 	
 	sqlite3 * initDB(int mpiRank, char * fName);

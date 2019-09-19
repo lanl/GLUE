@@ -96,6 +96,16 @@ lbmZeroD_result_t lbmZeroD_req_single_with_reqtype(lbmZeroD_request_t input, int
 	return req_single_with_reqtype<lbmZeroD_request_t, lbmZeroD_result_t>(input, mpiRank, tag, dbHandle, reqType);
 }
 
+lbmZeroD_result_t* lbmZeroD_req_batch_with_reqtype(lbmZeroD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+{
+	return req_batch_with_reqtype<lbmZeroD_request_t, lbmZeroD_result_t>(input, numInputs, mpiRank, tag, dbHandle, reqType);
+}
+
+lbmZeroD_result_t* lbmZeroD_req_batch(lbmZeroD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
+{
+	return lbmZeroD_req_batch_with_reqtype(input, numInputs, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
+}
+
 void lbmZeroD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
 {
 	lbmZeroD_request_t req;
