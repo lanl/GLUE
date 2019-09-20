@@ -1,4 +1,4 @@
-module alInterface
+module alinterface_f
 	use, intrinsic :: iso_c_binding
 	implicit none
 
@@ -24,4 +24,4 @@ module alInterface
 contains
 
 
-end module alInterface
+end module alinterface_f
