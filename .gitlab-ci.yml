@@ -8,12 +8,14 @@ build:gnu:
     - darwin-slurm-shared
   script:
     - source slurmScripts/darwin-gnu.sh
-    - make
+    - make all
+    - make test
   artifacts:
     paths:
     - alinterface_f.mod
     - libalGlue.a
-    - glueCode_sniffTest
+    - sniffTest_serial
+    - sniffTest_mpi
     expire_in: 1 day
 
 build:intel:
@@ -22,12 +24,14 @@ build:intel:
     - darwin-slurm-shared
   script:
     - source slurmScripts/darwin-intel.sh
-    - make CC=icpc CXX=icpc FC=ifort
+    - make all CC=icpc CXX=icpc FC=ifort
+    - make test CC=icpc CXX=icpc FC=ifort
   artifacts:
     paths:
     - alinterface_f.mod
     - libalGlue.a
-    - glueCode_sniffTest
+    - sniffTest_serial
+    - sniffTest_mpi
     expire_in: 1 day
 
 build:clang:
@@ -36,40 +40,45 @@ build:clang:
     - darwin-slurm-shared
   script:
     - source slurmScripts/darwin-clang.sh
-    - make CC=clang CXX=clang++ FC=gfortran
+    - make all CC=clang CXX=clang++ FC=gfortran
+    - make test CC=clang CXX=clang++ FC=gfortran
   artifacts:
     paths:
     - alinterface_f.mod
     - libalGlue.a
-    - glueCode_sniffTest
+    - sniffTest_serial
+    - sniffTest_mpi
     expire_in: 1 day
 
-test:gnu:glueSniff:
+test:gnu:
   stage: test
   tags:
    - darwin-slurm-shared
   script:
     - source slurmScripts/darwin-gnu.sh
-    - bash ./glueCode_sniffTest.sh
+    - mkdir serial && cd serial
+    - bash ../sniffTest_serial.sh
   dependencies:
     - build:gnu
 
-test:intel:glueSniff:
+test:intel:
   stage: test
   tags:
    - darwin-slurm-shared
   script:
     - source slurmScripts/darwin-intel.sh
-    - bash ./glueCode_sniffTest.sh
+    - mkdir serial && cd serial
+    - bash ../sniffTest_serial.sh
   dependencies:
     - build:intel
 
-test:clang:glueSniff:
+test:clang:
   stage: test
   tags:
    - darwin-slurm-shared
   script:
     - source slurmScripts/darwin-clang.sh
-    - bash ./glueCode_sniffTest.sh
+    - mkdir serial && cd serial
+    - bash ../sniffTest_serial.sh
   dependencies:
     - build:clang

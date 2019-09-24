@@ -3,7 +3,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <sqlite3.h>
-#include <set>
+#include <experimental/filesystem>
+#include <thread>
+#include <chrono>
 
 ///TODO: Verify this is the correct way to do a global variable
 AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
@@ -119,6 +121,10 @@ void lbmZeroD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
 
 sqlite3* initDB(int mpiRank, char * fName)
 {
+	while(!std::experimental::filesystem::exists(fName))
+	{
+		std::this_thread::sleep_for (std::chrono::seconds(1));
+	}
 	sqlite3 *dbHandle;
 	sqlite3_open(fName, &dbHandle);
 	return dbHandle;

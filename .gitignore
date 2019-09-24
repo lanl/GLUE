@@ -11,4 +11,5 @@ __pycache__
 
 individualReqs
 batchReqs
-glueCode_sniffTest
+sniffTest_serial
+sniffTest_mpi

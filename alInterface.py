@@ -9,6 +9,7 @@ import os
 import shutil
 import numpy as np
 import csv
+import time
 
 class ALInterfaceMode(Enum):
     LAMMPS = 0
@@ -103,6 +104,10 @@ def insertLammpsResult(rank, tag, dbPath, reqid, lammpsResult):
 def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch):
     reqNumArr = [0] * len(rankArr)
 
+    #Spin until file exists
+    while not os.path.exists(dbPath):
+        time.sleep(1)
+
     keepSpinning = True
     while keepSpinning:
         for i in range(0, len(rankArr)):
@@ -176,6 +181,7 @@ if __name__ == "__main__":
     defaultSbatch = "/usr/bin/sbatch"
     defaultMaxJobs = 4
     defaultMode = ALInterfaceMode.LAMMPS
+    defaultRanks = [0]
 
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
@@ -187,6 +193,7 @@ if __name__ == "__main__":
     argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
     argParser.add_argument('-j', '--maxjobs', action='store', type=int, required=False, default=defaultMaxJobs, help="Maximum Number of Slurm Jobs To Enqueue")
     argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultMode, help="Default Request Type (LAMMPS=0)")
+    argParser.add_argument('-r', '--ranks', nargs='+', default=defaultRanks, type=int,  help="Rank IDs to Listen For")
 
 
     args = vars(argParser.parse_args())
@@ -198,6 +205,7 @@ if __name__ == "__main__":
     jobs = args['maxjobs']
     sqlite = args['sqlite']
     sbatch = args['sbatch']
+    ranks = args['ranks']
     mode = ALInterfaceMode(args['mode'])
 
-    pollAndProcessFGSRequests([0], mode, fName, tag, lammps, uname, jobs, sbatch)
+    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch)

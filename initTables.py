@@ -1,5 +1,7 @@
 import sqlite3
 import argparse
+import os
+import time
 
 defaultFName = "testDB.db"
 defaultTag = "DUMMY_TAG_42"
@@ -16,6 +18,10 @@ def initSQLTables(dbPath):
     sqlDB.commit()
 
     sqlDB.close()
+
+    #Spin until file exists
+    while not os.path.exists(dbPath):
+        time.sleep(1)
 
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser(description='Python To Create DB Files for LAMMPS and AL')

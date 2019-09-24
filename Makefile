@@ -1,9 +1,10 @@
 CC=gcc
 CXX=g++
+MPICC=mpicc
+MPICXX=mpic++
 FC=gfortran
 AR=ar
 PYTHON=python
-BASH=bash
 
 SQLITE_DIR=
 SQLITE_INCLUDE=${SQLITE_DIR}/include
@@ -13,7 +14,9 @@ AR_FLAGS=-rcs
 CXXFLAGS=-std=c++14
 
 
-all: glueCode_sniffTest libalGlue.a
+all: libalGlue.a
+
+test: sniffTest_mpi sniffTest_serial
 
 libalGlue.a: alInterface.o alInterface_f.o
 	${AR} ${AR_FLAGS} libalGlue.a alInterface.o alInterface_f.o
@@ -24,14 +27,17 @@ alInterface.o: alInterface.cpp alInterface.h alInterface.hpp
 alInterface_f.o: alInterface_f.f90
 	${FC} -c alInterface_f.f90
 
-glueCode_sniffTest.o: glueCode_sniffTest.c
-	${CC} -c glueCode_sniffTest.c
+sniffTest_serial.o: sniffTest_serial.c
+	${CC} -c sniffTest_serial.c
 
-glueCode_sniffTest: libalGlue.a glueCode_sniffTest.o
-	${CXX}  glueCode_sniffTest.o libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3 -o glueCode_sniffTest
+sniffTest_serial: libalGlue.a sniffTest_serial.o
+	${CXX}  sniffTest_serial.o libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3 -lstdc++fs -o sniffTest_serial
 
-test: glueCode_sniffTest
-	${BASH} ./glueCode_sniffTest.sh
+sniffTest_mpi.o: sniffTest_mpi.c
+	${MPICC} -c sniffTest_mpi.c
+
+sniffTest_mpi: libalGlue.a sniffTest_mpi.o
+	${MPICXX} sniffTest_mpi.o libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3 -lstdc++fs -o  sniffTest_mpi
 
 clean:
-	rm -f ./*.o ./*.a ./*.mod ./glueCode_sniffTest
+	rm -f ./*.o ./*.a ./*.mod ./sniffTest_serial ./sniffTest_mpi
