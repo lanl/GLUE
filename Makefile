@@ -12,7 +12,12 @@ SQLITE_LIBDIR=${SQLITE_DIR}/lib
 
 AR_FLAGS=-rcs
 CXXFLAGS=-std=c++14
+LDFLAGS=libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3
 
+ifdef DB_EXISTENCE_SPIN
+	CXXFLAGS += -DDB_EXISTENCE_SPIN
+	LDFLAGS += -lstdc++fs
+endif
 
 all: libalGlue.a
 
@@ -31,13 +36,13 @@ sniffTest_serial.o: sniffTest_serial.c
 	${CC} -c sniffTest_serial.c
 
 sniffTest_serial: libalGlue.a sniffTest_serial.o
-	${CXX}  sniffTest_serial.o libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3 -lstdc++fs -o sniffTest_serial
+	${CXX}  sniffTest_serial.o ${LDFLAGS} -o sniffTest_serial
 
 sniffTest_mpi.o: sniffTest_mpi.c
 	${MPICC} -c sniffTest_mpi.c
 
 sniffTest_mpi: libalGlue.a sniffTest_mpi.o
-	${MPICXX} sniffTest_mpi.o libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3 -lstdc++fs -o  sniffTest_mpi
+	${MPICXX} sniffTest_mpi.o ${LDFLAGS} -o  sniffTest_mpi
 
 clean:
 	rm -f ./*.o ./*.a ./*.mod ./sniffTest_serial ./sniffTest_mpi
