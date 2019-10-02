@@ -28,7 +28,7 @@ BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity
 
 def getSelString(packetType):
     if packetType == SolverCode.BGK:
-        return "SELECT * FROM REQS WHERE RANK=? AND REQ=? AND TAG=?;"
+        return "SELECT * FROM BGKREQS WHERE RANK=? AND REQ=? AND TAG=?;"
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -42,7 +42,6 @@ def processReqRow(sqlRow, packetType):
         return (bgkInput, reqType)
     else:
         raise Exception('Using Unsupported Solver Code')
-    
 
 def writeLammpsInputs(bgkArgs, dirPath):
     # TODO: Refactor constants and general cleanup
@@ -118,7 +117,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, bgkArgs):
 def insertLammpsResult(rank, tag, dbPath, reqid, lammpsResult):
     sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
-    insString = "INSERT INTO RESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff)
     sqlCursor.execute(insString, insArgs)
     sqlDB.commit()
@@ -159,7 +158,10 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                 if task[2] != ALInterfaceMode.DEFAULT:
                     modeSwitch = task[2]
                 if modeSwitch == ALInterfaceMode.LAMMPS:
-                    # call lammps with args as slurmjob
+                    # This is a brute force call. We only want an exact LAMMPS result
+                    # So first, check if we have already processed this request
+                    #TODO
+                    # Then, call lammps with args as slurmjob
                     # slurmjob will write result back
                     launchedJob = False
                     while(launchedJob == False):
@@ -183,12 +185,15 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                     # TODO
                     pass
                 elif modeSwitch == ALInterfaceMode.FAKE:
-                    # Simplest stencil imaginable
-                    bgkInput = task[1]
-                    bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
-                    bgkOutput.DiffCoeff[7] = (bgkInput.Temperature + bgkInput.Density[0] +  bgkInput.Charges[3]) / 3
-                    # Write the result
-                    insertLammpsResult(rank, tag, dbPath, task[0], bgkOutput)
+                    if packetType == SolverCode.BGK:
+                        # Simplest stencil imaginable
+                        bgkInput = task[1]
+                        bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
+                        bgkOutput.DiffCoeff[7] = (bgkInput.Temperature + bgkInput.Density[0] +  bgkInput.Charges[3]) / 3
+                        # Write the result
+                        insertLammpsResult(rank, tag, dbPath, task[0], bgkOutput)
+                    else:
+                        raise Exception('Using Unsupported Solver Code')
                 elif modeSwitch == ALInterfaceMode.KILL:
                     keepSpinning = False
         #Probably some form of delay?
