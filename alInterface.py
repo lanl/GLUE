@@ -19,8 +19,30 @@ class ALInterfaceMode(Enum):
     DEFAULT = 4
     KILL = 9
 
+class SolverCode(Enum):
+    BGK = 0
+    LBMZEROD = 1
+
 BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
 BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
+
+def getSelString(packetType):
+    if packetType == SolverCode.BGK:
+        return "SELECT * FROM REQS WHERE RANK=? AND REQ=? AND TAG=?;"
+    else:
+        raise Exception('Using Unsupported Solver Code')
+
+def processReqRow(sqlRow, packetType):
+    if packetType == SolverCode.BGK:
+        #Process row to arguments
+        bgkInput = BGKInputs(Temperature=float(sqlRow[3]), Density=[], Charges=[])
+        bgkInput.Density.extend([sqlRow[4], sqlRow[5], sqlRow[6], sqlRow[7]])
+        bgkInput.Charges.extend([sqlRow[8], sqlRow[9], sqlRow[10], sqlRow[11]])
+        reqType = ALInterfaceMode(sqlRow[12])
+        return (bgkInput, reqType)
+    else:
+        raise Exception('Using Unsupported Solver Code')
+    
 
 def writeLammpsInputs(bgkArgs, dirPath):
     # TODO: Refactor constants and general cleanup
@@ -103,7 +125,7 @@ def insertLammpsResult(rank, tag, dbPath, reqid, lammpsResult):
     sqlCursor.close()
     sqlDB.close()
 
-def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch):
+def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType):
     reqNumArr = [0] * len(rankArr)
 
     #Spin until file exists
@@ -116,19 +138,17 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
             rank = rankArr[i]
             req = reqNumArr[i]
             sqlDB = sqlite3.connect(dbPath)
+            # SELECT request
             sqlCursor = sqlDB.cursor()
-            selString = "SELECT * FROM REQS WHERE RANK=? AND REQ=? AND TAG=?;"
+            selString = getSelString(packetType)
             selArgs = (rank, req, tag)
             reqQueue = []
             # Get current set of requests
             for row in sqlCursor.execute(selString, selArgs):
                 #Process row to arguments
-                bgkInput = BGKInputs(Temperature=float(row[3]), Density=[], Charges=[])
-                bgkInput.Density.extend([row[4], row[5], row[6], row[7]])
-                bgkInput.Charges.extend([row[8], row[9], row[10], row[11]])
-                reqType = ALInterfaceMode(row[12])
+                solverInput = processReqRow(row, packetType)
                 #Enqueue task
-                reqQueue.append((req, bgkInput, reqType))
+                reqQueue.append((req,) + solverInput)
                 #Increment reqNum
                 reqNumArr[i] = reqNumArr[i] + 1
             sqlCursor.close()
@@ -182,8 +202,9 @@ if __name__ == "__main__":
     defaultSqlite = "sqlite3"
     defaultSbatch = "/usr/bin/sbatch"
     defaultMaxJobs = 4
-    defaultMode = ALInterfaceMode.LAMMPS
+    defaultProcessing = ALInterfaceMode.LAMMPS
     defaultRanks = [0]
+    defaultSolver = SolverCode.BGK
 
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
@@ -194,8 +215,9 @@ if __name__ == "__main__":
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
     argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
     argParser.add_argument('-j', '--maxjobs', action='store', type=int, required=False, default=defaultMaxJobs, help="Maximum Number of Slurm Jobs To Enqueue")
-    argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultMode, help="Default Request Type (LAMMPS=0)")
+    argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (LAMMPS=0)")
     argParser.add_argument('-r', '--ranks', nargs='+', default=defaultRanks, type=int,  help="Rank IDs to Listen For")
+    argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
 
 
     args = vars(argParser.parse_args())
@@ -209,5 +231,6 @@ if __name__ == "__main__":
     sbatch = args['sbatch']
     ranks = args['ranks']
     mode = ALInterfaceMode(args['mode'])
+    code = SolverCode(args['code'])
 
-    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch)
+    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code)
