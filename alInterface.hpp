@@ -43,15 +43,13 @@ static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColNa
 
 template <typename T> void * getResCallback()
 {
-	if(std::is_same<T, bgk_request_t>::value)
-	{
-		return (void*)readCallback_bgk;
-	}
-	else
-	{
-		return (void*)dummyCallback;
-	}
+	return (void*)dummyCallback;
 }
+template <> void * getResCallback<bgk_request_t>()
+{
+	return (void*)readCallback_bgk;
+}
+
 template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
 {
 	exit(1);
