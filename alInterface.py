@@ -2,7 +2,6 @@ from enum import Enum, IntEnum
 import sqlite3
 import argparse
 import collections
-from slurmInterface import launchSlurmJob, getSlurmQueue
 from zbar import zBar
 from SM import Wigner_Seitz_radius
 import os
@@ -85,6 +84,48 @@ def writeLammpsInputs(lammpsArgs, dirPath):
     else:
         raise Exception('Using Unsupported Solver Code')
 
+def checkSlurmQueue(uname):
+    try:
+        runproc = subprocess.run(
+            ["squeue", "-u", uname],
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE
+        )
+        if runproc.returncode == 0:
+            return str(runproc.stdout,"utf-8")
+        else:
+            print(str(runproc.stderr,"utf-8"), file=sys.stderr)
+            return ""
+    except FileNotFoundError as err:
+        print(err, file=sys.stderr)
+        return ""
+
+def launchSlurmJob(script):
+    try:
+        runproc = subprocess.run(
+            ["sbatch", script],
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE
+        )
+        if runproc.returncode == 0:
+            return str(runproc.stdout,"utf-8")
+        else:
+            print(str(runproc.stderr,"utf-8"), file=sys.stderr)
+            return ""
+    except FileNotFoundError as err:
+        print(err, file=sys.stderr)
+        return ""
+
+def getSlurmQueue(uname):
+    slurmOut = checkSlurmQueue(uname)
+    if slurmOut == "":
+        return (sys.maxsize, [])
+    strList = slurmOut.splitlines()
+    if len(strList) > 1:
+        return (len(strList) - 1, strList[1:])
+    else:
+        return (0, [])
+
 def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs):
     if isinstance(lammpsArgs, BGKInputs):
         # Mkdir ./${TAG}_${RANK}_${REQ}
@@ -125,12 +166,12 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs)
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def insertLammpsResult(rank, tag, dbPath, reqid, lammpsResult):
+def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
     if isinstance(lammpsResult, BGKOutputs):
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (ResultProvenance.LAMMPS,)
+        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
@@ -205,7 +246,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                         bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
                         bgkOutput.DiffCoeff[7] = (bgkInput.Temperature + bgkInput.Density[0] +  bgkInput.Charges[3]) / 3
                         # Write the result
-                        insertLammpsResult(rank, tag, dbPath, task[0], bgkOutput)
+                        insertResult(rank, tag, dbPath, task[0], bgkOutput, ResultProvenance.FAKE)
                     else:
                         raise Exception('Using Unsupported Solver Code')
                 elif modeSwitch == ALInterfaceMode.KILL:

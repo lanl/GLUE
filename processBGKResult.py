@@ -1,5 +1,5 @@
 import argparse
-from alInterface import BGKOutputs, insertLammpsResult
+from alInterface import BGKOutputs, insertResult, ResultProvenance
 import numpy as np
 
 def procFileAndInsert(tag, dbPath, rank, reqid, inFile):
@@ -12,7 +12,7 @@ def procFileAndInsert(tag, dbPath, rank, reqid, inFile):
     bgkOutput.DiffCoeff[1] = resAdd[7]
     bgkOutput.DiffCoeff[2] = resAdd[8]
     # Write the tuple
-    insertLammpsResult(rank, tag, dbPath, reqid, bgkOutput)
+    insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.LAMMPS)
 
 
 if __name__ == "__main__":
