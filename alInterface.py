@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, IntEnum
 import sqlite3
 import argparse
 import collections
@@ -22,6 +22,11 @@ class ALInterfaceMode(Enum):
 class SolverCode(Enum):
     BGK = 0
     LBMZEROD = 1
+
+class ResultProvenance(IntEnum):
+    FAKE = 0
+    LAMMPS = 1
+    INTERPOLATION = 2
 
 BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
 BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
@@ -117,8 +122,8 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, bgkArgs):
 def insertLammpsResult(rank, tag, dbPath, reqid, lammpsResult):
     sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
-    insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff)
+    insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (ResultProvenance.LAMMPS,)
     sqlCursor.execute(insString, insArgs)
     sqlDB.commit()
     sqlCursor.close()
