@@ -48,86 +48,95 @@ def processReqRow(sqlRow, packetType):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def writeLammpsInputs(bgkArgs, dirPath):
+def writeLammpsInputs(lammpsArgs, dirPath):
     # TODO: Refactor constants and general cleanup
     # WARNING: Seems to be restricted to two materials for now
-    density_normalisation = 1.e25 # per cm^3
-    m=np.array([3.3210778e-24,6.633365399999999e-23])
-    Z=np.array([1,13])
-    interparticle_radius = []
-    lammpsDens = np.array(bgkArgs.Density[0:2]) * density_normalisation
-    lammpsTemperature = bgkArgs.Temperature
-    lammpsIonization = zBar(lammpsDens, Z, lammpsTemperature)
-    for s in range(len(lammpsDens)):
-        zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
-        with open(zbarFile, 'w') as testfile:
+    if isinstance(lammpsArgs, BGKInputs):
+        density_normalisation = 1.e25 # per cm^3
+        m=np.array([3.3210778e-24,6.633365399999999e-23])
+        Z=np.array([1,13])
+        interparticle_radius = []
+        lammpsDens = np.array(lammpsArgs.Density[0:2]) * density_normalisation
+        lammpsTemperature = lammpsArgs.Temperature
+        lammpsIonization = zBar(lammpsDens, Z, lammpsTemperature)
+        for s in range(len(lammpsDens)):
+            zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
+            with open(zbarFile, 'w') as testfile:
+                csv_writer = csv.writer(testfile,delimiter=' ')
+                csv_writer.writerow([lammpsIonization[s-1]])
+        temperatureFile = os.path.join(dirPath, "temperature.csv")
+        with open(temperatureFile, 'w') as testfile:
             csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([lammpsIonization[s-1]])
-    temperatureFile = os.path.join(dirPath, "temperature.csv")
-    with open(temperatureFile, 'w') as testfile:
-        csv_writer = csv.writer(testfile,delimiter=' ')
-        csv_writer.writerow([lammpsTemperature])
-    interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
-    L=20*max(interparticle_radius)  #in cm
-    volume =L**3
-    boxLengthFile = os.path.join(dirPath, "box_length.csv")
-    with open(boxLengthFile, 'w') as testfile:
-         csv_writer = csv.writer(testfile,delimiter=' ')
-         csv_writer.writerow([L*1.e-2])
-    N=[]
-    for s in range(len(lammpsDens)):
-        N.append(int(volume*lammpsDens[s]))
-        numberPartFile = zbarFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
-        with open(numberPartFile, 'w') as testfile:
+            csv_writer.writerow([lammpsTemperature])
+        interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
+        L=20*max(interparticle_radius)  #in cm
+        volume =L**3
+        boxLengthFile = os.path.join(dirPath, "box_length.csv")
+        with open(boxLengthFile, 'w') as testfile:
             csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([N[s]])
+            csv_writer.writerow([L*1.e-2])
+        N=[]
+        for s in range(len(lammpsDens)):
+            N.append(int(volume*lammpsDens[s]))
+            numberPartFile = zbarFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
+            with open(numberPartFile, 'w') as testfile:
+                csv_writer = csv.writer(testfile,delimiter=' ')
+                csv_writer.writerow([N[s]])
+    else:
+        raise Exception('Using Unsupported Solver Code')
 
-def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, bgkArgs):
-    # Mkdir ./${TAG}_${RANK}_${REQ}
-    outDir = tag + "_" + str(rank) + "_" + str(reqid)
-    outPath = os.path.join(os.getcwd(), outDir)
-    if(not os.path.exists(outPath)):
-        os.mkdir(outPath)
-        # cp ${SCRIPT_DIR}/lammpsScripts/in.Argon_Deuterium_plasma 
-        # Copy scripts and configuration files
-        pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
-        lammpsPath = os.path.join(pythonScriptDir, "lammpsScripts")
-        ardPlasPath = os.path.join(lammpsPath, "in.Argon_Deuterium_plasma")
-        slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
-        jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
-        shutil.copy2(ardPlasPath, outPath)
-        shutil.copy2(jobEnvFilePath, outPath)
-        bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
-        # Generate input files
-        writeLammpsInputs(bgkArgs, outPath)
-        # Generate slurm script by writing to file
-        # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
-        # TODO: DRY this
-        slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
-        with open(slurmFPath, 'w') as slurmFile:
-            slurmFile.write("#!/bin/bash\n")
-            slurmFile.write("#SBATCH -N 1\n")
-            slurmFile.write("#SBATCH -o " + tag + "-%j.out\n")
-            slurmFile.write("#SBATCH -e " + tag + "-%j.err\n")
-            slurmFile.write("cd " + outPath + "\n")
-            slurmFile.write("source ./jobEnv.sh\n")
-            # Actually call lammps
-            slurmFile.write("srun -n 4 " + lammps + " < in.Argon_Deuterium_plasma   \n")
-            # Process the result and write to DB
-            slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -f ./mutual_diffusion.csv\n")
-        # either syscall or subprocess.run slurm with the script
-        launchSlurmJob(slurmFPath)
-        # Then do nothing because the script itself will write the result
+def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs):
+    if isinstance(lammpsArgs, BGKInputs):
+        # Mkdir ./${TAG}_${RANK}_${REQ}
+        outDir = tag + "_" + str(rank) + "_" + str(reqid)
+        outPath = os.path.join(os.getcwd(), outDir)
+        if(not os.path.exists(outPath)):
+            os.mkdir(outPath)
+            # cp ${SCRIPT_DIR}/lammpsScripts/in.Argon_Deuterium_plasma 
+            # Copy scripts and configuration files
+            pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
+            lammpsPath = os.path.join(pythonScriptDir, "lammpsScripts")
+            ardPlasPath = os.path.join(lammpsPath, "in.Argon_Deuterium_plasma")
+            slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
+            jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
+            shutil.copy2(ardPlasPath, outPath)
+            shutil.copy2(jobEnvFilePath, outPath)
+            bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
+            # Generate input files
+            writeLammpsInputs(lammpsArgs, outPath)
+            # Generate slurm script by writing to file
+            # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
+            # TODO: DRY this
+            slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
+            with open(slurmFPath, 'w') as slurmFile:
+                slurmFile.write("#!/bin/bash\n")
+                slurmFile.write("#SBATCH -N 1\n")
+                slurmFile.write("#SBATCH -o " + tag + "-%j.out\n")
+                slurmFile.write("#SBATCH -e " + tag + "-%j.err\n")
+                slurmFile.write("cd " + outPath + "\n")
+                slurmFile.write("source ./jobEnv.sh\n")
+                # Actually call lammps
+                slurmFile.write("srun -n 4 " + lammps + " < in.Argon_Deuterium_plasma   \n")
+                # Process the result and write to DB
+                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -f ./mutual_diffusion.csv\n")
+            # either syscall or subprocess.run slurm with the script
+            launchSlurmJob(slurmFPath)
+            # Then do nothing because the script itself will write the result
+    else:
+        raise Exception('Using Unsupported Solver Code')
 
 def insertLammpsResult(rank, tag, dbPath, reqid, lammpsResult):
-    sqlDB = sqlite3.connect(dbPath)
-    sqlCursor = sqlDB.cursor()
-    insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (ResultProvenance.LAMMPS,)
-    sqlCursor.execute(insString, insArgs)
-    sqlDB.commit()
-    sqlCursor.close()
-    sqlDB.close()
+    if isinstance(lammpsResult, BGKOutputs):
+        sqlDB = sqlite3.connect(dbPath)
+        sqlCursor = sqlDB.cursor()
+        insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (ResultProvenance.LAMMPS,)
+        sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+        sqlDB.close()
+    else:
+        raise Exception('Using Unsupported Solver Code')
 
 def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType):
     reqNumArr = [0] * len(rankArr)
