@@ -43,24 +43,22 @@ static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColNa
 
 template <typename T> void * getResCallback()
 {
-	if(std::is_same<T, bgk_request_t>::value)
-	{
-		return (void*)readCallback_bgk;
-	}
-	else
-	{
-		return (void*)dummyCallback;
-	}
+	return (void*)dummyCallback;
 }
+template <> void * getResCallback<bgk_request_t>()
+{
+	return (void*)readCallback_bgk;
+}
+
 template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
 {
 	exit(1);
 }
-template <> AsyncSelectTable_t<bgk_result_t>& getGlobalTable()
+template <> AsyncSelectTable_t<bgk_result_t>& getGlobalTable<bgk_result_t>()
 {
 	return globalBGKResultTable;
 }
-template <> AsyncSelectTable_t<lbmZeroD_result_t>& getGlobalTable()
+template <> AsyncSelectTable_t<lbmZeroD_result_t>& getGlobalTable<lbmZeroD_result_t>()
 {
 	return globalLBMZeroDResultTable;
 }
@@ -69,14 +67,30 @@ template <typename T> std::string getReqSQLString(T input, int mpiRank, char * t
 {
 	exit(1);
 }
-template <> std::string getReqSQLString(bgk_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
+template <> std::string getReqSQLString<bgk_request_t>(bgk_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
 {
 	char sqlBuf[2048];
-	sprintf(sqlBuf, "INSERT INTO REQS VALUES(\'%s\', %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %d)", tag, mpiRank, reqNum, input.temperature, input.density[0], input.density[1], input.density[2], input.density[3], input.charges[0], input.charges[1], input.charges[2], input.charges[3], reqType);
+	sprintf(sqlBuf, "INSERT INTO BGKREQS VALUES(\'%s\', %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %d)", tag, mpiRank, reqNum, input.temperature, input.density[0], input.density[1], input.density[2], input.density[3], input.charges[0], input.charges[1], input.charges[2], input.charges[3], reqType);
 	std::string retString(sqlBuf);
 	return retString;
 }
-template <> std::string getReqSQLString(lbmZeroD_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
+template <> std::string getReqSQLString<lbmZeroD_request_t>(lbmZeroD_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
+{
+	exit(1);
+}
+
+template <typename T> std::string getResultSQLString(int mpiRank, char * tag, int reqNum)
+{
+	exit(1);
+}
+template <> std::string getResultSQLString<bgk_result_t>(int mpiRank, char * tag, int reqNum)
+{
+	char sqlBuf[2048];
+	sprintf(sqlBuf, "SELECT * FROM BGKRESULTS WHERE REQ=%d AND TAG=\'%s\' AND RANK=%d;", reqNum, tag, mpiRank);
+	std::string retString(sqlBuf);
+	return retString;
+}
+template <> std::string getResultSQLString<lbmZeroD_result_t>(int mpiRank, char * tag, int reqNum)
 {
 	exit(1);
 }
@@ -116,7 +130,8 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * d
 	while(!haveResult)
 	{
 		//Send SELECT with sqlite3_exec. 
-		sprintf(sqlBuf, "SELECT * FROM RESULTS WHERE REQ=%d AND TAG=\'%s\' AND RANK=%d;", reqNum, tag, mpiRank);
+		std::string sqlString = getResultSQLString<T>(mpiRank, tag, reqNum);
+		sprintf(sqlBuf, sqlString.c_str(), reqNum, tag, mpiRank);
 		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_bgk, 0, &err);
 		while (rc != SQLITE_OK)
 		{
