@@ -29,5 +29,5 @@ Then, to build
 3. Set up a run directory containing the appropriate BGK directories and input deck
 4. Copy ```${GLUECODE_REPO_ROOT}/slurmScripts/bgkTest.sh``` into the run directory
 5. Update the ```export```ed environment variables at the start of the file to match your setup
-6. Update ```${GLUECODE_REPO_ROOT}/slurmScripts/jobEnv.sh``` with any additional modules or environment variables required to run
+6. Update ```${GLUECODE_REPO_ROOT}/slurmScripts/darwin-${COMPILER}.sh``` script with any additional modules or environment variables required to run and potentially update ```bgkTest.sh``` is not using ```gnu``` or ```darwin```
 7. ```sbatch bgkTest.sh```
