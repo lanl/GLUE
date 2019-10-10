@@ -68,7 +68,7 @@ def writeLammpsInputs(lammpsArgs, dirPath):
             csv_writer = csv.writer(testfile,delimiter=' ')
             csv_writer.writerow([lammpsTemperature])
         interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
-        L=20*max(interparticle_radius)  #in cm
+        L=50*max(interparticle_radius)  #in cm
         volume =L**3
         boxLengthFile = os.path.join(dirPath, "box_length.csv")
         with open(boxLengthFile, 'w') as testfile:
@@ -157,7 +157,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs)
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Actually call lammps
-                slurmFile.write("srun -n 4 " + lammps + " < in.Argon_Deuterium_plasma   \n")
+                slurmFile.write("srun -n 1 " + lammps + " < in.Argon_Deuterium_plasma   \n")
                 # Process the result and write to DB
                 slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -f ./mutual_diffusion.csv\n")
             # either syscall or subprocess.run slurm with the script
