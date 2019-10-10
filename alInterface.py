@@ -51,11 +51,10 @@ def writeLammpsInputs(lammpsArgs, dirPath):
     # TODO: Refactor constants and general cleanup
     # WARNING: Seems to be restricted to two materials for now
     if isinstance(lammpsArgs, BGKInputs):
-        density_normalisation = 1.e25 # per cm^3
         m=np.array([3.3210778e-24,6.633365399999999e-23])
         Z=np.array([1,13])
         interparticle_radius = []
-        lammpsDens = np.array(lammpsArgs.Density[0:2]) * density_normalisation
+        lammpsDens = np.array(lammpsArgs.Density[0:2]) 
         lammpsTemperature = lammpsArgs.Temperature
         lammpsIonization = zBar(lammpsDens, Z, lammpsTemperature)
         for s in range(len(lammpsDens)):
