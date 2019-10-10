@@ -21,13 +21,12 @@ variable echarge     equal        1.6022e-19
 
 # Simulation box length, taken at least 4 times larger than the mean free path of the D.
 
-variable         T            index   100.0 120.0 150 180. 200.
-variable         N_Ar         equal   15000
-variable         N_D          equal   15000
-variable         l            equal   1.44e-09
-
-variable        Zbar_D        equal 1.0
-variable        Zbar_Ar       equal 13.
+variable         T            file temperature.csv
+variable         N_Ar         file Number_part.1.csv
+variable         N_D          file Number_part.0.csv
+variable         l            file box_length.csv
+variable         Zbar_D       file Zbar.0.csv
+variable         Zbar_Ar      file Zbar.1.csv
 
 print         "reference temperature $T [eV]"
 
@@ -164,10 +163,6 @@ thermo_style custom step press etotal c_vacfD[4] c_vacfAr[4]
 fix extra all print ${trun} "I $T ${dens1} ${dens2} ${Zbar_D} ${Zbar_Ar} ${D11} ${D12} ${D22}" append mutual_diffusion.csv
 
 run ${trun}
-
-# clear
-# next T
-
-# jump in.ArD
+D
 
 
