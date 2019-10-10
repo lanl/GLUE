@@ -9,6 +9,7 @@ import shutil
 import numpy as np
 import csv
 import time
+import subprocess
 
 class ALInterfaceMode(Enum):
     LAMMPS = 0
@@ -51,13 +52,12 @@ def writeLammpsInputs(lammpsArgs, dirPath):
     # TODO: Refactor constants and general cleanup
     # WARNING: Seems to be restricted to two materials for now
     if isinstance(lammpsArgs, BGKInputs):
-        density_normalisation = 1.e25 # per cm^3
         m=np.array([3.3210778e-24,6.633365399999999e-23])
         Z=np.array([1,13])
         interparticle_radius = []
-        lammpsDens = np.array(lammpsArgs.Density[0:2]) * density_normalisation
+        lammpsDens = np.array(lammpsArgs.Density[0:2])
         lammpsTemperature = lammpsArgs.Temperature
-        lammpsIonization = zBar(lammpsDens, Z, lammpsTemperature)
+        lammpsIonization = np.array(lammpsArgs.Charges[0:2])
         for s in range(len(lammpsDens)):
             zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
             with open(zbarFile, 'w') as testfile:
