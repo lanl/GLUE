@@ -57,8 +57,8 @@ variable scnlng      equal        1./${Debye}
 
 variable inter   equal        (3./(4.*PI*${dens}))^(1./3.)
 
-variable rc      equal        1.*${inter}
-variable dbin    equal        0.1*${inter}
+variable rc      equal        6.*${Debye}
+variable dbin    equal        0.1*${Debye}
 variable mass_D  equal        3.3210778e-27
 variable mass_Ar equal        6.633365399999999e-26
 
@@ -78,7 +78,7 @@ variable omega_e   equal        ${omega_p}*exp(-0.2*${kappa_p}^1.62)/sqrt(3)
 variable dtstep    equal        1./(300.*${omega_e})
 variable Tdamp     equal        1.e2*${dtstep}
 variable teq       equal        50000
-variable trun      equal        10000
+variable trun      equal        100000
 variable d         equal        1000
 
 print         "equilibration time  ${teq}"
@@ -160,9 +160,11 @@ thermo_style custom step press etotal c_vacfD[4] c_vacfAr[4]
 
 # Write output into file
 
-fix extra all print ${trun} "I $T ${dens1} ${dens2} ${Zbar_D} ${Zbar_Ar} ${D11} ${D12} ${D22}" append mutual_diffusion.csv
+variable dens1cm equal 1.e-6*${dens1}
+variable dens2cm equal 1.e-6*${dens2}
+
+fix extra all print ${trun} "I $T ${dens1cm} ${dens2cm} ${Zbar_D} ${Zbar_Ar} ${D11} ${D12} ${D22}" append mutual_diffusion.csv
 
 run ${trun}
-D
 
 
