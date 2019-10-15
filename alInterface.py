@@ -57,7 +57,7 @@ def writeLammpsInputs(lammpsArgs, dirPath):
         interparticle_radius = []
         lammpsDens = np.array(lammpsArgs.Density[0:2]) 
         lammpsTemperature = lammpsArgs.Temperature
-        lammpsIonization = zBar(lammpsDens, Z, lammpsTemperature)
+        lammpsIonization = np.array(lammpsArgs.Charges[0:2])
         for s in range(len(lammpsDens)):
             zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
             with open(zbarFile, 'w') as testfile:
