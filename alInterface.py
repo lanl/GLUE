@@ -149,8 +149,9 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs)
             with open(slurmFPath, 'w') as slurmFile:
                 slurmFile.write("#!/bin/bash\n")
                 slurmFile.write("#SBATCH -N 1\n")
-                slurmFile.write("#SBATCH -o " + tag + "-%j.out\n")
-                slurmFile.write("#SBATCH -e " + tag + "-%j.err\n")
+                slurmFile.write("#SBATCH -n 16\n")
+                slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
+                slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Actually call lammps
