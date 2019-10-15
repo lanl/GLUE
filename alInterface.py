@@ -157,7 +157,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs)
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Actually call lammps
-                slurmFile.write("srun -n 1 " + lammps + " < in.Argon_Deuterium_plasma   \n")
+                slurmFile.write("mpirun -np 4 " + lammps + " < in.Argon_Deuterium_plasma   \n")
                 # Process the result and write to DB
                 slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -f ./mutual_diffusion.csv\n")
             # either syscall or subprocess.run slurm with the script
