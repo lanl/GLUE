@@ -2,7 +2,6 @@ from enum import Enum, IntEnum
 import sqlite3
 import argparse
 import collections
-from zbar import zBar
 from SM import Wigner_Seitz_radius
 import os
 import shutil
@@ -52,8 +51,6 @@ def writeLammpsInputs(lammpsArgs, dirPath):
     # TODO: Refactor constants and general cleanup
     # WARNING: Seems to be restricted to two materials for now
     if isinstance(lammpsArgs, BGKInputs):
-        m=np.array([3.3210778e-24,6.633365399999999e-23])
-        Z=np.array([1,13])
         interparticle_radius = []
         lammpsDens = np.array(lammpsArgs.Density[0:2]) 
         lammpsTemperature = lammpsArgs.Temperature
@@ -77,7 +74,7 @@ def writeLammpsInputs(lammpsArgs, dirPath):
         N=[]
         for s in range(len(lammpsDens)):
             N.append(int(volume*lammpsDens[s]))
-            numberPartFile = zbarFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
+            numberPartFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
             with open(numberPartFile, 'w') as testfile:
                 csv_writer = csv.writer(testfile,delimiter=' ')
                 csv_writer.writerow([N[s]])
@@ -157,7 +154,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs)
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Actually call lammps
-                slurmFile.write("srun -n 1 " + lammps + " < in.Argon_Deuterium_plasma   \n")
+                slurmFile.write("srun -n 16 " + lammps + " < in.Argon_Deuterium_plasma   \n")
                 # Process the result and write to DB
                 slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -f ./mutual_diffusion.csv\n")
             # either syscall or subprocess.run slurm with the script
