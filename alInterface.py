@@ -10,6 +10,7 @@ import numpy as np
 import csv
 import time
 import subprocess
+
 class ALInterfaceMode(IntEnum):
     LAMMPS = 0
     MYSTIC = 1
@@ -65,7 +66,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
             Trun=100000
             cutoff = 5.5
             box=50
-        elif(lammpsMode = ALInterfaceMode.FASTLAMMPS):
+        elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
             # Values for infrastructure test
             Teq=10
             Trun=10
@@ -193,7 +194,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
                 slurmFile.write("srun -n 1 " + lammps + " < in.Argon_Deuterium_plasma   \n")
                 # Process the result and write to DB
                 #TODO: Add lammpsMode here as well
-                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode) + " -f ./mutual_diffusion.csv\n")
+                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -f ./mutual_diffusion.csv\n")
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
@@ -246,7 +247,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                 modeSwitch = defaultMode
                 if task[2] != ALInterfaceMode.DEFAULT:
                     modeSwitch = task[2]
-                if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch = ALInterfaceMode.FASTLAMMPS:
+                if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch == ALInterfaceMode.FASTLAMMPS:
                     # This is a brute force call. We only want an exact LAMMPS result
                     # So first, check if we have already processed this request
                     #TODO
