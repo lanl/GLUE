@@ -11,12 +11,13 @@ import csv
 import time
 import subprocess
 
-class ALInterfaceMode(Enum):
+class ALInterfaceMode(IntEnum):
     LAMMPS = 0
     MYSTIC = 1
     ACTIVELEARNER=2
     FAKE = 3
     DEFAULT = 4
+    FASTLAMMPS = 5
     KILL = 9
 
 class SolverCode(Enum):
@@ -24,9 +25,10 @@ class SolverCode(Enum):
     LBMZEROD = 1
 
 class ResultProvenance(IntEnum):
-    FAKE = 0
-    LAMMPS = 1
-    INTERPOLATION = 2
+    LAMMPS = 0
+    MYSTIC = 1
+    FAKE = 3
+    FASTLAMMPS = 5
 
 BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
 BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
@@ -48,12 +50,30 @@ def processReqRow(sqlRow, packetType):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def writeLammpsInputs(lammpsArgs, dirPath):
+def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
     # TODO: Refactor constants and general cleanup
     # WARNING: Seems to be restricted to two materials for now
     if isinstance(lammpsArgs, BGKInputs):
         m=np.array([3.3210778e-24,6.633365399999999e-23])
         Z=np.array([1,13])
+        Teq = 0
+        Trun = 0
+        cutoff = 0.0
+        box = 0
+        if(lammpsMode == ALInterfaceMode.LAMMPS):
+            # real values of the MD simulations (long MD)
+            Teq=50000
+            Trun=100000
+            cutoff = 5.5
+            box=50
+        elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
+            # Values for infrastructure test
+            Teq=10
+            Trun=10
+            cutoff = 1.0
+            box=20
+        else:
+            raise Exception('Using Unsupported LAMMPS Mode')
         interparticle_radius = []
         lammpsDens = np.array(lammpsArgs.Density[0:2]) 
         lammpsTemperature = lammpsArgs.Temperature
@@ -68,7 +88,7 @@ def writeLammpsInputs(lammpsArgs, dirPath):
             csv_writer = csv.writer(testfile,delimiter=' ')
             csv_writer.writerow([lammpsTemperature])
         interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
-        L=50*max(interparticle_radius)  #in cm
+        L=box*max(interparticle_radius)  #in cm
         volume =L**3
         boxLengthFile = os.path.join(dirPath, "box_length.csv")
         with open(boxLengthFile, 'w') as testfile:
@@ -81,6 +101,20 @@ def writeLammpsInputs(lammpsArgs, dirPath):
             with open(numberPartFile, 'w') as testfile:
                 csv_writer = csv.writer(testfile,delimiter=' ')
                 csv_writer.writerow([N[s]])
+        # Add here 3 files that contain information regarding cutoff of the force, equilibration and production run times.
+        rc=1.e-2*cutoff*max(interparticle_radius)  #in m
+        CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
+        with open(CutoffradiusFile, 'w') as testfile:
+             csv_writer = csv.writer(testfile,delimiter=' ')
+             csv_writer.writerow([rc])
+        EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
+        with open(EquilibrationtimeFile, 'w') as testfile:
+             csv_writer = csv.writer(testfile,delimiter=' ')
+             csv_writer.writerow([Teq])
+        Production_timeFile = os.path.join(dirPath, "prod_time.csv")
+        with open(Production_timeFile, 'w') as testfile:
+             csv_writer = csv.writer(testfile,delimiter=' ')
+             csv_writer.writerow([Trun])
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -126,7 +160,7 @@ def getSlurmQueue(uname):
     else:
         return (0, [])
 
-def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs):
+def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode):
     if isinstance(lammpsArgs, BGKInputs):
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -144,7 +178,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs)
             shutil.copy2(jobEnvFilePath, outPath)
             bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
             # Generate input files
-            writeLammpsInputs(lammpsArgs, outPath)
+            writeLammpsInputs(lammpsArgs, outPath, lammpsMode)
             # Generate slurm script by writing to file
             # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
             # TODO: DRY this
@@ -159,7 +193,8 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs)
                 # Actually call lammps
                 slurmFile.write("srun -n 1 " + lammps + " < in.Argon_Deuterium_plasma   \n")
                 # Process the result and write to DB
-                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -f ./mutual_diffusion.csv\n")
+                #TODO: Add lammpsMode here as well
+                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -f ./mutual_diffusion.csv\n")
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
@@ -212,7 +247,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                 modeSwitch = defaultMode
                 if task[2] != ALInterfaceMode.DEFAULT:
                     modeSwitch = task[2]
-                if modeSwitch == ALInterfaceMode.LAMMPS:
+                if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch == ALInterfaceMode.FASTLAMMPS:
                     # This is a brute force call. We only want an exact LAMMPS result
                     # So first, check if we have already processed this request
                     #TODO
@@ -223,7 +258,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                         queueState = getSlurmQueue(uname)
                         if queueState[0] < maxJobs:
                             print("Processing REQ=" + str(task[0]))
-                            buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1])
+                            buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1], modeSwitch)
                             launchedJob = True
                 elif modeSwitch == ALInterfaceMode.MYSTIC:
                     # call mystic: I think Mystic will handle most of our logic?
