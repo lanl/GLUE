@@ -11,6 +11,19 @@ import csv
 import time
 import subprocess
 
+
+# real values of the MD simulations (long MD)
+Teq=50000
+Trun=100000
+cutoff = 5.5
+box=50
+
+# Values for infrastructure test 
+Teq=10
+Trun=10
+cutoff = 1.0
+box=20.
+
 class ALInterfaceMode(Enum):
     LAMMPS = 0
     MYSTIC = 1
@@ -68,7 +81,7 @@ def writeLammpsInputs(lammpsArgs, dirPath):
             csv_writer = csv.writer(testfile,delimiter=' ')
             csv_writer.writerow([lammpsTemperature])
         interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
-        L=50*max(interparticle_radius)  #in cm
+        L=box*max(interparticle_radius)  #in cm
         volume =L**3
         boxLengthFile = os.path.join(dirPath, "box_length.csv")
         with open(boxLengthFile, 'w') as testfile:
@@ -81,6 +94,25 @@ def writeLammpsInputs(lammpsArgs, dirPath):
             with open(numberPartFile, 'w') as testfile:
                 csv_writer = csv.writer(testfile,delimiter=' ')
                 csv_writer.writerow([N[s]])
+                
+                
+# Add here 3 files that contain information regarding cutoff of the force, equilibration and production run times.
+        rc=1.e-2*cutoff*max(interparticle_radius)  #in m
+        CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
+        with open(CutoffradiusFile, 'w') as testfile:
+             csv_writer = csv.writer(testfile,delimiter=' ')
+             csv_writer.writerow([rc])
+
+        EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
+        with open(EquilibrationtimeFile, 'w') as testfile:
+             csv_writer = csv.writer(testfile,delimiter=' ')
+             csv_writer.writerow([Teq])
+
+        Production_timeFile = os.path.join(dirPath, "prod_time.csv")
+        with open(Production_timeFile, 'w') as testfile:
+             csv_writer = csv.writer(testfile,delimiter=' ')
+             csv_writer.writerow([Trun])
+
     else:
         raise Exception('Using Unsupported Solver Code')
 
