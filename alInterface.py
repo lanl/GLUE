@@ -214,6 +214,20 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
     else:
         raise Exception('Using Unsupported Solver Code')
 
+def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSwitch):
+    # This is a brute force call. We only want an exact LAMMPS result
+    # So first, check if we have already processed this request
+    #TODO
+    # Then, call lammps with args as slurmjob
+    # slurmjob will write result back
+    launchedJob = False
+    while(launchedJob == False):
+        queueState = getSlurmQueue(uname)
+        if queueState[0] < maxJobs:
+            print("Processing REQ=" + str(reqID))
+            buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch)
+            launchedJob = True
+
 def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType):
     reqNumArr = [0] * len(rankArr)
 
@@ -248,18 +262,8 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                 if task[2] != ALInterfaceMode.DEFAULT:
                     modeSwitch = task[2]
                 if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch == ALInterfaceMode.FASTLAMMPS:
-                    # This is a brute force call. We only want an exact LAMMPS result
-                    # So first, check if we have already processed this request
-                    #TODO
-                    # Then, call lammps with args as slurmjob
-                    # slurmjob will write result back
-                    launchedJob = False
-                    while(launchedJob == False):
-                        queueState = getSlurmQueue(uname)
-                        if queueState[0] < maxJobs:
-                            print("Processing REQ=" + str(task[0]))
-                            buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, task[0], task[1], modeSwitch)
-                            launchedJob = True
+                    # Submit as LAMMPS job
+                    queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch)
                 elif modeSwitch == ALInterfaceMode.MYSTIC:
                     # call mystic: I think Mystic will handle most of our logic?
                     # TODO
