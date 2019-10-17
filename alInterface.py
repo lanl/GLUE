@@ -2,7 +2,6 @@ from enum import Enum, IntEnum
 import sqlite3
 import argparse
 import collections
-from zbar import zBar
 from SM import Wigner_Seitz_radius
 import os
 import shutil
@@ -97,7 +96,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         N=[]
         for s in range(len(lammpsDens)):
             N.append(int(volume*lammpsDens[s]))
-            numberPartFile = zbarFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
+            numberPartFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
             with open(numberPartFile, 'w') as testfile:
                 csv_writer = csv.writer(testfile,delimiter=' ')
                 csv_writer.writerow([N[s]])
@@ -186,12 +185,13 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             with open(slurmFPath, 'w') as slurmFile:
                 slurmFile.write("#!/bin/bash\n")
                 slurmFile.write("#SBATCH -N 1\n")
-                slurmFile.write("#SBATCH -o " + tag + "-%j.out\n")
-                slurmFile.write("#SBATCH -e " + tag + "-%j.err\n")
+                slurmFile.write("#SBATCH -n 16\n")
+                slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
+                slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Actually call lammps
-                slurmFile.write("srun -n 1 " + lammps + " < in.Argon_Deuterium_plasma   \n")
+                slurmFile.write("srun -n 16 " + lammps + " < in.Argon_Deuterium_plasma   \n")
                 # Process the result and write to DB
                 #TODO: Add lammpsMode here as well
                 slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -f ./mutual_diffusion.csv\n")
