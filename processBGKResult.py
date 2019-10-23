@@ -33,9 +33,9 @@ def insertGroundishTruth(dbPath, outLammps):
     #Connect to DB
     sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
-    #insString = "INSERT INTO BGKGROUND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    #insArgs = tuple(inLammps.tolist()) + tuple(outLammps.tolist())
-    #sqlCursor.execute(insString, insArgs)
+    insString = "INSERT INTO BGKGROUND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+    insArgs = tuple(inLammps.tolist()) + tuple(outLammps.tolist())
+    sqlCursor.execute(insString, insArgs)
     sqlDB.commit()
     sqlCursor.close()
     sqlDB.close()
@@ -64,5 +64,5 @@ if __name__ == "__main__":
     mode = ALInterfaceMode(args['mode'])
 
     resultArr = procFileAndInsert(tag, fName, rank, reqid, mode)
-    if(mode == ResultProvenance.FASTLAMMPS):
+    if(mode == ResultProvenance.LAMMPS):
         insertGroundishTruth(fName, resultArr)
