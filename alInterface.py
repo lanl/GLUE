@@ -104,16 +104,16 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         rc=1.e-2*cutoff*max(interparticle_radius)  #in m
         CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
         with open(CutoffradiusFile, 'w') as testfile:
-             csv_writer = csv.writer(testfile,delimiter=' ')
-             csv_writer.writerow([rc])
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([rc])
         EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
         with open(EquilibrationtimeFile, 'w') as testfile:
-             csv_writer = csv.writer(testfile,delimiter=' ')
-             csv_writer.writerow([Teq])
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([Teq])
         Production_timeFile = os.path.join(dirPath, "prod_time.csv")
         with open(Production_timeFile, 'w') as testfile:
-             csv_writer = csv.writer(testfile,delimiter=' ')
-             csv_writer.writerow([Trun])
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([Trun])
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -194,7 +194,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
                 slurmFile.write("srun -n 16 " + lammps + " < in.Argon_Deuterium_plasma   \n")
                 # Process the result and write to DB
                 #TODO: Add lammpsMode here as well
-                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -f ./mutual_diffusion.csv\n")
+                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
