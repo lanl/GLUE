@@ -29,7 +29,15 @@ class ResultProvenance(IntEnum):
     FAKE = 3
     FASTLAMMPS = 5
 
+# BGKInputs
+#  Temperature: float
+#  Density: float[4]
+#  Charges: float[4]
 BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
+# BGKoutputs
+#  Viscosity: float
+#  ThermalConductivity: float
+#  DiffCoeff: float[10]
 BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
 
 def getGroundishTruthVersion(packetType):
