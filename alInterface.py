@@ -32,6 +32,12 @@ class ResultProvenance(IntEnum):
 BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
 BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
 
+def getGroundishTruthVersion(packetType):
+    if packetType == SolverCode.BGK:
+        return 1.0
+    else:
+        raise Exception('Using Unsupported Solver Code')
+
 def getSelString(packetType):
     if packetType == SolverCode.BGK:
         return "SELECT * FROM BGKREQS WHERE RANK=? AND REQ=? AND TAG=?;"
@@ -114,6 +120,14 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         with open(Production_timeFile, 'w') as testfile:
             csv_writer = csv.writer(testfile,delimiter=' ')
             csv_writer.writerow([Trun])
+        # And now write the inputs to a specific file for later use
+        inputList = []
+        inputList.append(lammpsArgs.Temperature)
+        inputList.extend(lammpsArgs.Density)
+        inputList.extend(lammpsArgs.Charges)
+        inputList.append(getGroundishTruthVersion(SolverCode.BGK))
+        Inputs_file = os.path.join(dirPath, "inputs.txt")
+        np.savetxt(Inputs_file, np.asarray(inputList))
     else:
         raise Exception('Using Unsupported Solver Code')
 

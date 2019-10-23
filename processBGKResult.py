@@ -1,5 +1,5 @@
 import argparse
-from alInterface import BGKOutputs, insertResult, ResultProvenance, ALInterfaceMode
+from alInterface import BGKOutputs, insertResult, ResultProvenance, ALInterfaceMode, getGroundishTruthVersion, SolverCode
 import numpy as np
 import sqlite3
 
@@ -19,11 +19,17 @@ def procFileAndInsert(tag, dbPath, rank, reqid, lammpsMode):
         insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FASTLAMMPS)
     else:
         raise Exception('Using Unsupported LAMMPS Mode')
+    outputList = []
+    outputList.append(bgkOutput.Viscosity)
+    outputList.append(bgkOutput.ThermalConductivity)
+    outputList.extend(bgkOutput.DiffCoeff)
+    outputList.append(getGroundishTruthVersion(SolverCode.BGK))
+    return np.asarray(outputList)
 
-def insertGroundishTruth(dbPath):
+def insertGroundishTruth(dbPath, outLammps):
     #Pull data to write
-    inLammps = np.loadtxt("aggregate.csv", skiprows=1)
-    outLammps = np.loadtxt("mutual_diffusion.csv", converters = {0: lambda s: -0.0})[6:9]
+    inLammps = np.loadtxt("inputs.txt")
+    #np.savetxt("outputs.txt", outLammps)
     #Connect to DB
     sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
@@ -57,6 +63,6 @@ if __name__ == "__main__":
     reqid = args['id']
     mode = ALInterfaceMode(args['mode'])
 
-    procFileAndInsert(tag, fName, rank, reqid, mode)
-    if(mode == ResultProvenance.LAMMPS):
-        insertGroundishTruth(fName)
+    resultArr = procFileAndInsert(tag, fName, rank, reqid, mode)
+    if(mode == ResultProvenance.FASTLAMMPS):
+        insertGroundishTruth(fName, resultArr)
