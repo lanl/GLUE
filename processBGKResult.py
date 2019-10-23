@@ -33,7 +33,7 @@ def insertGroundishTruth(dbPath, outLammps):
     #Connect to DB
     sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
-    insString = "INSERT INTO BGKGROUND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+    insString = "INSERT INTO BGKGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
     insArgs = tuple(inLammps.tolist()) + tuple(outLammps.tolist())
     sqlCursor.execute(insString, insArgs)
     sqlDB.commit()
