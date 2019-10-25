@@ -55,10 +55,28 @@ def getSelString(packetType):
 def getGNDStringAndTuple(lammpsArgs):
     selString = ""
     selTup = ()
+    # TODO: Determin what epsilon makes sense
+    epsilon = 0.000001
     if isinstance(lammpsArgs, BGKInputs):
-        # TODO: Floating point comparisons are fun
-        selString = "SELECT * FROM BGKGND WHERE TEMPERATURE=? AND DENSITY_0=? AND DENSITY_1=? AND DENSITY_2=? AND DENSITY_3=? AND CHARGES_0=? AND CHARGES_1=? AND CHARGES_2=? AND CHARGES_3=? AND INVERSION=?;"
-        selTup = (lammpsArgs.Temperature,) + tuple(lammpsArgs.Density) + tuple(lammpsArgs.Charges) + (getGroundishTruthVersion(SolverCode.BGK),)
+        # TODO: DRY this for later use
+        selString += "SELECT * FROM BGKGND WHERE "
+        #Temperature
+        selString += "TEMPERATURE BETWEEN ? AND ? "
+        selTup += (lammpsArgs.Temperature - epsilon, lammpsArgs.Temperature + epsilon)
+        selString += " AND "
+        #Density
+        for i in range(0, 4):
+            selString += "DENSITY_" + str(i) + " BETWEEN ? AND ? "
+            selTup += (lammpsArgs.Density[i] - epsilon, lammpsArgs.Density[i] + epsilon)
+            selString += " AND "
+        #Charges
+        for i in range(0, 4):
+            selString += "CHARGES_" + str(i) + " BETWEEN ? AND ? "
+            selTup += (lammpsArgs.Charges[i] - epsilon, lammpsArgs.Charges[i] + epsilon)
+            selString += " AND "
+        #Version
+        selString += "INVERSION=?;"
+        selTup += (getGroundishTruthVersion(SolverCode.BGK),)
     else:
         raise Exception('Using Unsupported Solver Code')
     return (selString, selTup)
