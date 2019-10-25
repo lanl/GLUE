@@ -27,6 +27,7 @@ class ResultProvenance(IntEnum):
     LAMMPS = 0
     MYSTIC = 1
     FAKE = 3
+    DB = 4
     FASTLAMMPS = 5
 
 # BGKInputs
@@ -55,9 +56,9 @@ def getSelString(packetType):
 def getGNDStringAndTuple(lammpsArgs):
     selString = ""
     selTup = ()
-    # TODO: Determin what epsilon makes sense
-    epsilon = 0.000001
     if isinstance(lammpsArgs, BGKInputs):
+        # TODO: Determin what epsilon makes sense
+        epsilon = 0.000001
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKGND WHERE "
         #Temperature
@@ -268,21 +269,27 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
 def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSwitch):
     # This is a brute force call. We only want an exact LAMMPS result
     # So first, check if we have already processed this request
+    outLammps = None
     selQuery = getGNDStringAndTuple(inArgs)
     sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
     for row in sqlCursor.execute(selQuery[0], selQuery[1]):
-        print("GND Hit")
-        raise Exception('I said GND Hit')
-    # Then, call lammps with args as slurmjob
-    # slurmjob will write result back
-    launchedJob = False
-    while(launchedJob == False):
-        queueState = getSlurmQueue(uname)
-        if queueState[0] < maxJobs:
-            print("Processing REQ=" + str(reqID))
-            buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch)
-            launchedJob = True
+        if isinstance(inArgs, BGKInputs):
+            if row[22] == getGroundishTruthVersion(SolverCode.BGK):
+                outLammps = BGKOutputs(Viscosity=row[10], ThermalConductivity=row[11], DiffCoeff=row[12:22])
+    if outLammps != None:
+        # We had a hit, so send that
+        insertResult(rank, tag, dbPath, reqID, outLammps, ResultProvenance.DB)
+    else:
+        # Call lammps with args as slurmjob
+        # slurmjob will write result back
+        launchedJob = False
+        while(launchedJob == False):
+            queueState = getSlurmQueue(uname)
+            if queueState[0] < maxJobs:
+                print("Processing REQ=" + str(reqID))
+                buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch)
+                launchedJob = True
 
 def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType):
     reqNumArr = [0] * len(rankArr)
