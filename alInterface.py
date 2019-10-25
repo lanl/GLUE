@@ -52,6 +52,17 @@ def getSelString(packetType):
     else:
         raise Exception('Using Unsupported Solver Code')
 
+def getGNDStringAndTuple(lammpsArgs):
+    selString = ""
+    selTup = ()
+    if isinstance(lammpsArgs, BGKInputs):
+        # TODO: Floating point comparisons are fun
+        selString = "SELECT * FROM BGKGND WHERE TEMPERATURE=? AND DENSITY_0=? AND DENSITY_1=? AND DENSITY_2=? AND DENSITY_3=? AND CHARGES_0=? AND CHARGES_1=? AND CHARGES_2=? AND CHARGES_3=? AND INVERSION=?;"
+        selTup = (lammpsArgs.Temperature,) + tuple(lammpsArgs.Density) + tuple(lammpsArgs.Charges) + (getGroundishTruthVersion(SolverCode.BGK),)
+    else:
+        raise Exception('Using Unsupported Solver Code')
+    return (selString, selTup)
+
 def processReqRow(sqlRow, packetType):
     if packetType == SolverCode.BGK:
         #Process row to arguments
@@ -239,7 +250,12 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
 def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSwitch):
     # This is a brute force call. We only want an exact LAMMPS result
     # So first, check if we have already processed this request
-    #TODO
+    selQuery = getGNDStringAndTuple(inArgs)
+    sqlDB = sqlite3.connect(dbPath)
+    sqlCursor = sqlDB.cursor()
+    for row in sqlCursor.execute(selQuery[0], selQuery[1]):
+        print("GND Hit")
+        raise Exception('I said GND Hit')
     # Then, call lammps with args as slurmjob
     # slurmjob will write result back
     launchedJob = False
