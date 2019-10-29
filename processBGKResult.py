@@ -1,11 +1,12 @@
 import argparse
-from alInterface import BGKOutputs, insertResult, ResultProvenance, ALInterfaceMode
+from alInterface import BGKOutputs, insertResult, ResultProvenance, ALInterfaceMode, getGroundishTruthVersion, SolverCode
 import numpy as np
+import sqlite3
 
-def procFileAndInsert(tag, dbPath, rank, reqid, inFile, lammpsMode):
+def procFileAndInsert(tag, dbPath, rank, reqid, lammpsMode):
     # Open file
     # Need to remove leading I
-    resAdd = np.loadtxt(inFile, converters = {0: lambda s: -0.0})
+    resAdd = np.loadtxt("mutual_diffusion.csv", converters = {0: lambda s: -0.0})
     # Write results to an output namedtuple
     bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
     bgkOutput.DiffCoeff[0] = resAdd[6]
@@ -18,14 +19,32 @@ def procFileAndInsert(tag, dbPath, rank, reqid, inFile, lammpsMode):
         insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FASTLAMMPS)
     else:
         raise Exception('Using Unsupported LAMMPS Mode')
+    outputList = []
+    outputList.append(bgkOutput.Viscosity)
+    outputList.append(bgkOutput.ThermalConductivity)
+    outputList.extend(bgkOutput.DiffCoeff)
+    outputList.append(getGroundishTruthVersion(SolverCode.BGK))
+    return np.asarray(outputList)
 
+def insertGroundishTruth(dbPath, outLammps):
+    #Pull data to write
+    inLammps = np.loadtxt("inputs.txt")
+    #np.savetxt("outputs.txt", outLammps)
+    #Connect to DB
+    sqlDB = sqlite3.connect(dbPath)
+    sqlCursor = sqlDB.cursor()
+    insString = "INSERT INTO BGKGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+    insArgs = tuple(inLammps.tolist()) + tuple(outLammps.tolist())
+    sqlCursor.execute(insString, insArgs)
+    sqlDB.commit()
+    sqlCursor.close()
+    sqlDB.close()
 
 if __name__ == "__main__":
     defaultFName = "testDB.db"
     defaultTag = "DUMMY_TAG_42"
     defaultRank = 0
     defaultID = 0
-    defaultCSV = "./mutual_diffusion.csv"
     defaultProcessing = ALInterfaceMode.LAMMPS
 
     argParser = argparse.ArgumentParser(description='Python Driver to Convert LAMMPS BGK Result into DB Entry')
@@ -34,7 +53,6 @@ if __name__ == "__main__":
     argParser.add_argument('-r', '--rank', action='store', type=int, required=False, default=defaultRank, help="MPI Rank of Requester")
     argParser.add_argument('-i', '--id', action='store', type=int, required=False, default=defaultID, help="Request ID")
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
-    argParser.add_argument('-f', '--file', action='store', type=str, required=False, default=defaultCSV, help="Filename to process")
     argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (LAMMPS=0)")
 
     args = vars(argParser.parse_args())
@@ -43,7 +61,8 @@ if __name__ == "__main__":
     fName = args['db']
     rank = args['rank']
     reqid = args['id']
-    inFile = args['file']
     mode = ALInterfaceMode(args['mode'])
 
-    procFileAndInsert(tag, fName, rank, reqid, inFile, mode)
+    resultArr = procFileAndInsert(tag, fName, rank, reqid, mode)
+    if(mode == ResultProvenance.LAMMPS):
+        insertGroundishTruth(fName, resultArr)

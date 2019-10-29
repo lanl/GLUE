@@ -27,6 +27,7 @@ class ResultProvenance(IntEnum):
     LAMMPS = 0
     MYSTIC = 1
     FAKE = 3
+    DB = 4
     FASTLAMMPS = 5
 
 # BGKInputs
@@ -40,11 +41,46 @@ BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
 #  DiffCoeff: float[10]
 BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
 
+def getGroundishTruthVersion(packetType):
+    if packetType == SolverCode.BGK:
+        return 1.0
+    else:
+        raise Exception('Using Unsupported Solver Code')
+
 def getSelString(packetType):
     if packetType == SolverCode.BGK:
         return "SELECT * FROM BGKREQS WHERE RANK=? AND REQ=? AND TAG=?;"
     else:
         raise Exception('Using Unsupported Solver Code')
+
+def getGNDStringAndTuple(lammpsArgs):
+    selString = ""
+    selTup = ()
+    if isinstance(lammpsArgs, BGKInputs):
+        # Optimally find something bigger than machine epsilon
+        epsilon = np.finfo('float64').eps
+        # TODO: DRY this for later use
+        selString += "SELECT * FROM BGKGND WHERE "
+        #Temperature
+        selString += "TEMPERATURE BETWEEN ? AND ? "
+        selTup += (lammpsArgs.Temperature - epsilon, lammpsArgs.Temperature + epsilon)
+        selString += " AND "
+        #Density
+        for i in range(0, 4):
+            selString += "DENSITY_" + str(i) + " BETWEEN ? AND ? "
+            selTup += (lammpsArgs.Density[i] - epsilon, lammpsArgs.Density[i] + epsilon)
+            selString += " AND "
+        #Charges
+        for i in range(0, 4):
+            selString += "CHARGES_" + str(i) + " BETWEEN ? AND ? "
+            selTup += (lammpsArgs.Charges[i] - epsilon, lammpsArgs.Charges[i] + epsilon)
+            selString += " AND "
+        #Version
+        selString += "INVERSION=?;"
+        selTup += (getGroundishTruthVersion(SolverCode.BGK),)
+    else:
+        raise Exception('Using Unsupported Solver Code')
+    return (selString, selTup)
 
 def processReqRow(sqlRow, packetType):
     if packetType == SolverCode.BGK:
@@ -112,16 +148,24 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         rc=1.e-2*cutoff*max(interparticle_radius)  #in m
         CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
         with open(CutoffradiusFile, 'w') as testfile:
-             csv_writer = csv.writer(testfile,delimiter=' ')
-             csv_writer.writerow([rc])
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([rc])
         EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
         with open(EquilibrationtimeFile, 'w') as testfile:
-             csv_writer = csv.writer(testfile,delimiter=' ')
-             csv_writer.writerow([Teq])
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([Teq])
         Production_timeFile = os.path.join(dirPath, "prod_time.csv")
         with open(Production_timeFile, 'w') as testfile:
-             csv_writer = csv.writer(testfile,delimiter=' ')
-             csv_writer.writerow([Trun])
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([Trun])
+        # And now write the inputs to a specific file for later use
+        inputList = []
+        inputList.append(lammpsArgs.Temperature)
+        inputList.extend(lammpsArgs.Density)
+        inputList.extend(lammpsArgs.Charges)
+        inputList.append(getGroundishTruthVersion(SolverCode.BGK))
+        Inputs_file = os.path.join(dirPath, "inputs.txt")
+        np.savetxt(Inputs_file, np.asarray(inputList))
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -202,7 +246,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
                 slurmFile.write("srun -n 16 " + lammps + " < in.Argon_Deuterium_plasma   \n")
                 # Process the result and write to DB
                 #TODO: Add lammpsMode here as well
-                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -f ./mutual_diffusion.csv\n")
+                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
@@ -225,16 +269,27 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
 def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSwitch):
     # This is a brute force call. We only want an exact LAMMPS result
     # So first, check if we have already processed this request
-    #TODO
-    # Then, call lammps with args as slurmjob
-    # slurmjob will write result back
-    launchedJob = False
-    while(launchedJob == False):
-        queueState = getSlurmQueue(uname)
-        if queueState[0] < maxJobs:
-            print("Processing REQ=" + str(reqID))
-            buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch)
-            launchedJob = True
+    outLammps = None
+    selQuery = getGNDStringAndTuple(inArgs)
+    sqlDB = sqlite3.connect(dbPath)
+    sqlCursor = sqlDB.cursor()
+    for row in sqlCursor.execute(selQuery[0], selQuery[1]):
+        if isinstance(inArgs, BGKInputs):
+            if row[22] == getGroundishTruthVersion(SolverCode.BGK):
+                outLammps = BGKOutputs(Viscosity=row[10], ThermalConductivity=row[11], DiffCoeff=row[12:22])
+    if outLammps != None:
+        # We had a hit, so send that
+        insertResult(rank, tag, dbPath, reqID, outLammps, ResultProvenance.DB)
+    else:
+        # Call lammps with args as slurmjob
+        # slurmjob will write result back
+        launchedJob = False
+        while(launchedJob == False):
+            queueState = getSlurmQueue(uname)
+            if queueState[0] < maxJobs:
+                print("Processing REQ=" + str(reqID))
+                buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch)
+                launchedJob = True
 
 def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType):
     reqNumArr = [0] * len(rankArr)
