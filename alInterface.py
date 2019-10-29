@@ -57,8 +57,8 @@ def getGNDStringAndTuple(lammpsArgs):
     selString = ""
     selTup = ()
     if isinstance(lammpsArgs, BGKInputs):
-        # TODO: Determin what epsilon makes sense
-        epsilon = 0.000001
+        # Optimally find something bigger than machine epsilon
+        epsilon = np.finfo('float64').eps
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKGND WHERE "
         #Temperature
