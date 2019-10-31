@@ -43,6 +43,7 @@ if __name__ == "__main__":
     defaultUname = "tcg"
     defaultLammps = "./lmp"
     defaultMaxJobs = 4
+    defaultGenOrRead = 0
 
     argParser = argparse.ArgumentParser(description='Python Driver to Convert LAMMPS BGK Result into DB Entry')
 
@@ -51,7 +52,7 @@ if __name__ == "__main__":
     argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
     argParser.add_argument('-l', '--lammps', action='store', type=str, required=False, default=defaultLammps, help="Path to LAMMPS Binary")
     argParser.add_argument('-j', '--maxjobs', action='store', type=int, required=False, default=defaultMaxJobs, help="Maximum Number of Slurm Jobs To Enqueue")
-
+    argParser.add_argument('-g', '--genorread', action='store', type=int, required=False, default=defaultGenOrRead, help="Generate or Read Training Data")
 
     args = vars(argParser.parse_args())
 
@@ -60,7 +61,10 @@ if __name__ == "__main__":
     lammps = args['lammps']
     uname = args['uname']
     jobs = args['maxjobs']
+    genOrRead = args['genorread']
 
-    genTrainingData(fName, uname, lammps, jobs)
-    results = getAllGNDData(fName, code)
-    printResults(results)
+    if genOrRead == 0:
+        genTrainingData(fName, uname, lammps, jobs)
+    else:
+        results = getAllGNDData(fName, code)
+        printResults(results)
