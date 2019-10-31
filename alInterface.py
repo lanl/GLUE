@@ -223,9 +223,15 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
             lammpsPath = os.path.join(pythonScriptDir, "lammpsScripts")
             ardPlasPath = os.path.join(lammpsPath, "in.Argon_Deuterium_plasma")
-            slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
-            jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
             shutil.copy2(ardPlasPath, outPath)
+            slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
+            # Prioritize the local jobEnv.sh over the repo jobEnv.sh
+            cwdJobPath = os.path.join(os.getcwd(), "jobEnv.sh")
+            jobEnvFilePath = ""
+            if not os.path.exists(cwdJobPath):
+                jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
+            else:
+                jobEnvFilePath = cwdJobPath
             shutil.copy2(jobEnvFilePath, outPath)
             bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
             # Generate input files
@@ -245,7 +251,6 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
                 # Actually call lammps
                 slurmFile.write("srun -n 16 " + lammps + " < in.Argon_Deuterium_plasma   \n")
                 # Process the result and write to DB
-                #TODO: Add lammpsMode here as well
                 slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
