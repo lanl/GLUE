@@ -6,8 +6,8 @@ def genTrainingData(dbPath, uname, lammps, maxJobs):
     reqid = 0
 
     temperature = [10.999999]
-    dens0 = [9.99999992439103e+22]
-    dens1 = 9.99999998583057e+22]
+    dens0 = [9.99999992439103E22]
+    dens1 = [9.99999998583057E22]
     cha0 = [0.713264]
     cha1 = [2.334522]
 
@@ -16,7 +16,7 @@ def genTrainingData(dbPath, uname, lammps, maxJobs):
             for d1 in dens1:
                 for c0 in cha0:
                     for c1 in cha1:
-                        inArgs = BGKInputs(Temperature=t, Density=[dens0, dens1, 0.0, 0.0], Charges=[cha0, cha1, 0.0, 0.0])
+                        inArgs = BGKInputs(Temperature=t, Density=[d0, d1, 0.0, 0.0], Charges=[c0, c1, 0.0, 0.0])
                         queueLammpsJob(uname, maxJobs, reqid, inArgs, 0, "TRAINING", dbPath, lammps, ALInterfaceMode.LAMMPS)
                         reqid += 1
 
@@ -61,6 +61,6 @@ if __name__ == "__main__":
     uname = args['uname']
     jobs = args['maxjobs']
 
-    genTrainingData(dbPath, uname, lammps, maxJobs)
+    genTrainingData(fName, uname, lammps, jobs)
     results = getAllGNDData(fName, code)
     printResults(results)
