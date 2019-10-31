@@ -1,24 +1,20 @@
 import numpy as np
 import argparse
+import os
 from alInterface import SolverCode, BGKInputs, ALInterfaceMode, getAllGNDData, queueLammpsJob
 
 def genTrainingData(dbPath, uname, lammps, maxJobs):
     reqid = 0
 
-    temperature = [10.999999]
-    dens0 = [9.99999992439103E22]
-    dens1 = [9.99999998583057E22]
-    cha0 = [0.713264]
-    cha1 = [2.334522]
+    pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
+    csv = os.path.join(pythonScriptDir, "training")
+    csv = os.path.join(csv, "bgk.csv")
+    trainingEntries = np.loadtxt(csv)
 
-    for t in temperature:
-        for d0 in dens0:
-            for d1 in dens1:
-                for c0 in cha0:
-                    for c1 in cha1:
-                        inArgs = BGKInputs(Temperature=t, Density=[d0, d1, 0.0, 0.0], Charges=[c0, c1, 0.0, 0.0])
-                        queueLammpsJob(uname, maxJobs, reqid, inArgs, 0, "TRAINING", dbPath, lammps, ALInterfaceMode.LAMMPS)
-                        reqid += 1
+    for row in trainingEntries:
+        inArgs = BGKInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0])
+        queueLammpsJob(uname, maxJobs, reqid, inArgs, 0, "TRAINING", dbPath, lammps, ALInterfaceMode.LAMMPS)
+        reqid += 1
 
 def printResults(gndTable):
     header = "#"
