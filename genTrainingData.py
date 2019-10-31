@@ -5,11 +5,13 @@ from alInterface import SolverCode, BGKInputs, ALInterfaceMode, getAllGNDData, q
 def genTrainingData(dbPath, uname, lammps, maxJobs):
     reqid = 0
 
-    temperature = [10.999999]
-    dens0 = [9.99999992439103E22]
-    dens1 = [9.99999998583057E22]
-    cha0 = [0.713264]
-    cha1 = [2.334522]
+    # temperature = [10.999999]
+    # dens0 = [9.99999992439103E22]
+    # dens1 = [9.99999998583057E22]
+    # cha0 = [0.713264]
+    # cha1 = [2.334522]
+    
+    temperature,dens0,dens1,cha0,cha1= np.loadtxt("temperature_densites_charges.csv", skiprows=1,unpack=True) # T=-0.0144 eV
 
     for t in temperature:
         for d0 in dens0:
