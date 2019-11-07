@@ -6,8 +6,6 @@ import numpy as np
 
 torch.set_default_dtype(torch.float64)
 
-import matplotlib
-import matplotlib.pyplot as plt
 
 from alInterface import getAllGNDData, SolverCode
 
@@ -17,52 +15,58 @@ CURRENT_DATABASE = None
 
 class Model():
     """
-    Basic ensemble model. Error bar is std. dev. of networks.
+    Ensemble model. Error bar is std. dev. of networks.
     """
-    def __init__(self,networks,err_info=None):
+    def __init__(self,solver,networks,err_info=None):
         self.networks = networks
         self.err_info = err_info
+        self.solver = solver
 
-    def __call__(self,request_params,batch=False):
+    def __call__(self,request_params):
         """
         :param request_params: features for BGK
-        :param batch: whether request_params is a 2-d array of (example,inputs).
         :return: result[3], errbar[3]
         """
+        batched = request_params.ndim>1
+        request_params = torch.as_tensor(request_params[...,SOLVER_INDEXES[self.solver]["input_slice"]])
 
-        request_params = torch.as_tensor(request_params)
-        if not batch:
+        if not batched:
             request_params = request_params.unsqueeze(0)
 
         results = np.asarray([np.asarray(nn(request_params)) for nn in self.networks])
 
         mean = results.mean(axis=0)
-        std = results.std(axis=1)
+        std = results.std(axis=0)
+
+        if not batched:
+            mean = mean[0]
+            std = std[0]
 
         return mean, std
 
+    def iserrok_fuzzy(self,errbars):
+        return errbars/self.err_info
+
     def iserrok(self,errbars):
-        """
-        :param errbars:
-        :return: bool[3] -- use self.err_info to
-        """
         return errbars < self.err_info
 
-
-
 # Parameters governing input and outputs to problem
-#WARNING HARDCODING
-BGK_TRANSACTION_SIZES =dict(
-    n_inputs=9,   # 9 inputs temp density[4], charge[4]
-    #skip column of metadta
-    n_outputs=3,  # outputs hydro[2], diffusion[10] # only care about first 3 diffusions
-)
+
+SOLVER_INDEXES = {
+    SolverCode.BGK:dict(
+                        input_slice=slice(0,9),
+                        output_slice=slice(12,15),
+                        n_inputs = 9,
+                        n_outputs = 3,
+                    )
+    #Other solver codes...
+}
 
 
 #Parameters governing network structure
 DEFAULT_NET_CONFIG = dict(
-    n_layers=3,
-    n_hidden=10,
+    n_layers=6,
+    n_hidden=64,
     activation_type=torch.nn.ReLU,
     layer_type = torch.nn.Linear
     )
@@ -70,17 +74,21 @@ DEFAULT_NET_CONFIG = dict(
 #Parameters for ensemble uncertainty
 DEFAULT_ENSEMBLE_CONFIG = dict(
     n_members = 10,
-    test_fraction = 0.2,
+    test_fraction = 0.1,
+    score_thresh = 0.75,
+    max_model_tries = 100,
 )
+
 
 #Parameters for the optimization process
 DEFAULT_TRAINING_CONFIG = dict(
-    n_epochs=1000,
+    n_epochs=2000,
     optimizer_type=torch.optim.Adam,
     validation_fraction=0.1,
     lr=1e-3,
-    patience=10,
+    patience=20,
     batch_size=5,
+    eval_batch_size=10000,
     scheduler_type = torch.optim.lr_scheduler.ReduceLROnPlateau,
     cost_type = torch.nn.MSELoss
 )
@@ -89,61 +97,69 @@ DEFAULT_TRAINING_CONFIG = dict(
 DEFAULT_LEARNING_CONFIG = dict(
     net_config = DEFAULT_NET_CONFIG,
     ensemble_config = DEFAULT_ENSEMBLE_CONFIG,
-    transaction_config = BGK_TRANSACTION_SIZES,
+    solver_type = SolverCode.BGK,
     training_config = DEFAULT_TRAINING_CONFIG,
 )
 
-def assemble_dataset(raw_dataset,transaction_config):
-    n_in = transaction_config["n_inputs"]
-    n_out = transaction_config["n_outputs"]
+def assemble_dataset(raw_dataset,solver_code):
     # WARNING HARDCODING FOR BGK TEST
-    features = torch.as_tensor(raw_dataset[:, :9])
-    targets = torch.as_tensor(raw_dataset[:, 12:15])
+    features = torch.as_tensor(raw_dataset[:,SOLVER_INDEXES[solver_code]["input_slice"]])
+    targets = torch.as_tensor(raw_dataset[:,SOLVER_INDEXES[solver_code]["output_slice"]])
     return torch.utils.data.TensorDataset(features,targets)
 
 #prototype, only covers ensemble uncertainties
 def retrain(learning_config=DEFAULT_LEARNING_CONFIG):
 
-    raw_dataset = getAllGNDData(CURRENT_DATABASE,SolverCode.BGK)
+    solver = learning_config["solver_type"]
+    raw_dataset = getAllGNDData(CURRENT_DATABASE,solver)
+    full_dataset = assemble_dataset(raw_dataset,solver)
 
-    transaction_config = learning_config["transaction_config"]
+
     ensemble_config = learning_config["ensemble_config"]
-
-    full_dataset = assemble_dataset(raw_dataset,transaction_config)
-
     n_total = len(full_dataset)
     n_test = int(ensemble_config["test_fraction"]*n_total)
+    n_test = max(n_test,2)
     n_train = n_total-n_test
 
     networks = []
-    model_errors = []
+    network_errors = []
+    network_scores = []
 
-    for i in range(ensemble_config["n_members"]):
+    successful_models = 0
+    i=0
+    while successful_models < ensemble_config["n_members"]:
+        i += 1
+        if i > ensemble_config["max_model_tries"]:
+            break
+        print("Good models found:",successful_models)
         print("Training ensemble member",i)
+
         train_data,test_data = torch.utils.data.random_split(full_dataset, (n_train,n_test))
 
         #This is a place where we could trivially parallelize training.
 
-        this_model = train_single_model(train_data, test_data, learning_config=learning_config)
+        this_model = train_single_model(train_data, learning_config=learning_config)
+        model_score,model_errors = get_error_info(this_model,test_data)
+        print("Score:",model_score)
+        if any(m < ensemble_config["score_thresh"] for m in model_score):
+            continue
+
+        successful_models+=1
 
         networks.append(this_model)
+        network_scores.append(model_score)
+        network_errors.append(model_errors)
+
+    print("scores",network_scores)
+    error_info = compute_err_info(network_errors)
+
+    return Model(solver,networks,error_info)
 
 
-
-        this_error_info = get_error_info(this_model,test_data)
-
-        model_errors.append(this_error_info)
-
-    error_info = compute_err_info(this_error_info)
-
-    return Model(networks,error_info)
-
-
-def train_single_model(train_data, test_data, learning_config):
+def train_single_model(train_data, learning_config):
 
     net_config = learning_config["net_config"]
     training_config = learning_config["training_config"]
-    transaction_config = learning_config["transaction_config"]
 
     #Type parameters
     activation_type = net_config["activation_type"]
@@ -152,23 +168,27 @@ def train_single_model(train_data, test_data, learning_config):
     #Splitting
     n_total = len(train_data)
     n_valid = int(training_config["validation_fraction"]*n_total)
+    n_valid = max(n_valid,2)
     n_train = n_total-n_valid
     train_data, valid_data = torch.utils.data.random_split(train_data, (n_train, n_valid))
 
     #Normalizing
     train_features, train_labels = (train_data[:])
-    print(train_labels.shape)
-    inscaler = Scaler.from_tensor(train_features)
 
+    inscaler = Scaler.from_tensor(train_features)
     cost_scaler = Scaler.from_tensor(train_labels)
     outscaler = Scaler.from_inversion((cost_scaler))
 
     #Size parameters
-    n_inputs = transaction_config["n_inputs"]
-    n_outputs = transaction_config["n_outputs"]
+    solver = learning_config["solver_type"]
+    indices = SOLVER_INDEXES[solver]
+
+    n_inputs = indices["n_inputs"]
+    n_outputs = indices["n_outputs"]
     n_hidden = net_config["n_hidden"]
 
     layers = [inscaler,layer_type(n_inputs,n_hidden),activation_type()]
+
     for i in range(net_config["n_layers"]-2):
         layers.append(layer_type(n_hidden,n_hidden))
         layers.append(activation_type())
@@ -179,15 +199,14 @@ def train_single_model(train_data, test_data, learning_config):
     cost_fn = training_config["cost_type"]()
     opt = training_config["optimizer_type"](train_network.parameters(),lr=training_config["lr"])
     patience = training_config["patience"]
-    scheduler = training_config["scheduler_type"](opt,patience=patience,verbose=True,factor=0.5)
+    scheduler = training_config["scheduler_type"](opt,patience=patience,verbose=False,factor=0.5)
 
 
     best_cost = np.inf
     best_params = train_network.state_dict()
 
     train_dloader = torch.utils.data.DataLoader(train_data,batch_size=training_config["batch_size"],shuffle=True)
-    valid_dloader = torch.utils.data.DataLoader(valid_data,batch_size=10*training_config["batch_size"],shuffle=False)
-    test_dloader = torch.utils.data.DataLoader(test_data,batch_size=10*training_config["batch_size"],shuffle=False)
+    valid_dloader = torch.utils.data.DataLoader(valid_data,batch_size=training_config["eval_batch_size"],shuffle=False)
 
     # Need to add scales for costs
     for i in range(training_config["n_epochs"]):
@@ -196,7 +215,7 @@ def train_single_model(train_data, test_data, learning_config):
         #if i%100==0: print(eval_cost)
         scheduler.step(eval_cost)
         if eval_cost < best_cost:
-            print("best epoch:",i)
+            #print("best epoch:",i)
             best_cost = eval_cost
             best_params = copy.deepcopy(train_network.state_dict())
             boredom = 0
@@ -206,11 +225,18 @@ def train_single_model(train_data, test_data, learning_config):
         if boredom > 2*patience+1:
             print("Training finalized at epoch",i)
             break
+    else:
+        print("Training finished due to max epoch",i)
 
 
-    real_scale_network = torch.nn.Sequential(*train_network[:], outscaler)
+
+
 
     train_network.load_state_dict(best_params)
+    real_scale_network = torch.nn.Sequential(*train_network[:], outscaler)
+
+    for param in real_scale_network.parameters():
+        param.requires_grad_(False)
 
     # evaluate_dataset_errors(train_dloader,real_scale_network,scaler=None,show="train")
     # evaluate_dataset_errors(valid_dloader,real_scale_network,scaler=None,show="valid")
@@ -244,25 +270,9 @@ def evaluate_dataset_errors(dloader,network,scaler,show=False):
     predicted = torch.cat(predicted,dim=0)
     err = predicted-true
 
-    if not show:
-        return err
-
-    predicted = predicted.numpy()
-    true = true.numpy()
-
-    fig,axarr = plt.subplots(1,3,figsize=(12,4))
-    for p,t,ax in zip(predicted.T,true.T,axarr):
-        plt.sca(ax)
-        plt.scatter(p,t,label=show)
-        mm = min(min(p),min(t))
-        xx = max(max(p),max(t))
-        plt.plot((mm,xx),(mm,xx),lw=1,c='r')
-        plt.title(show)
-        plt.xlabel("predicted")
-        plt.ylabel("true")
-    plt.show()
-
     return err
+
+
 
 def build_network(net_config):
     pass
@@ -281,7 +291,9 @@ def get_error_info(network,test_dset):
     error = evaluate_dataset_errors(test_dloader,network,scaler=None).numpy()
     true = test_dset[:][-1].numpy()
     predicted = true + error
+    return get_score(predicted,true)
 
+def get_score(predicted,true):
     score = []
     rmse_list = []
     for i,(p,t) in enumerate(zip(predicted.T,true.T)):
@@ -292,16 +304,17 @@ def get_error_info(network,test_dset):
         #HARDCODED: SCORE FOR EACH THING TO PREDICT IS RSQ
         score.append(rsq)
         rmse_list.append(rmse)
-        print(i,rsq,l1resid)
+        #print(i,rsq,l1resid)
 
     #HARDCODED: TOTAL SCORE IS PRODUCT OF SCORES FOR EACH TARGET
-    score = np.prod(score)
+    score = np.asarray(score)
+    #score = np.prod(score*(score>0))
     rmse_list = np.asarray(rmse_list)
     return score,rmse_list
 
-
 def compute_err_info(errors):
-    pass
+    # multiplication is arbitrary factor...
+    return 2*np.mean(np.asarray(errors),axis=0)
 
 class Scaler(torch.nn.Module):
     def __init__(self,means,stds,eps=1e-100):
