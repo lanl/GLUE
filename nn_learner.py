@@ -6,7 +6,6 @@ import numpy as np
 
 torch.set_default_dtype(torch.float64)
 
-
 from alInterface import getAllGNDData, SolverCode
 
 import sklearn.metrics
@@ -44,6 +43,19 @@ class Model():
 
         return mean, std
 
+    def calibrate(self,dataset):
+        pred,uncertainty = self(dataset[:][0].numpy())
+        true = dataset[:][-1].numpy()
+        abserr = np.abs(pred-true)
+
+        calibration = np.mean(abserr,axis=0)/np.mean(uncertainty,axis=0)
+
+        # Factor 2 is somewhat arbitrary... larger -> less fussy model.
+        # Roughly corresponds to a number of standard deviations
+        calibration /= 2
+
+        self.err_info /= calibration
+
     def iserrok_fuzzy(self,errbars):
         return errbars/self.err_info
 
@@ -65,8 +77,8 @@ SOLVER_INDEXES = {
 
 #Parameters governing network structure
 DEFAULT_NET_CONFIG = dict(
-    n_layers=6,
-    n_hidden=64,
+    n_layers=4,
+    n_hidden=32,
     activation_type=torch.nn.ReLU,
     layer_type = torch.nn.Linear
     )
@@ -84,7 +96,7 @@ DEFAULT_ENSEMBLE_CONFIG = dict(
 DEFAULT_TRAINING_CONFIG = dict(
     n_epochs=2000,
     optimizer_type=torch.optim.Adam,
-    validation_fraction=0.1,
+    validation_fraction=0.2,
     lr=1e-3,
     patience=20,
     batch_size=5,
@@ -120,6 +132,7 @@ def retrain(learning_config=DEFAULT_LEARNING_CONFIG):
     n_test = int(ensemble_config["test_fraction"]*n_total)
     n_test = max(n_test,2)
     n_train = n_total-n_test
+    print("Total / train / test points:",n_total,n_train,n_test)
 
     networks = []
     network_errors = []
@@ -142,7 +155,9 @@ def retrain(learning_config=DEFAULT_LEARNING_CONFIG):
         model_score,model_errors = get_error_info(this_model,test_data)
         print("Score:",model_score)
         if any(m < ensemble_config["score_thresh"] for m in model_score):
+            print("Rejected.")
             continue
+        print("Accepted.")
 
         successful_models+=1
 
@@ -150,10 +165,13 @@ def retrain(learning_config=DEFAULT_LEARNING_CONFIG):
         network_scores.append(model_score)
         network_errors.append(model_errors)
 
-    print("scores",network_scores)
-    error_info = compute_err_info(network_errors)
+    #print("scores",network_scores)
+    error_info = np.mean(np.asarray(network_errors),axis=0)
 
-    return Model(solver,networks,error_info)
+    full_model = Model(solver, networks, error_info)
+    full_model.calibrate(full_dataset)
+
+    return full_model
 
 
 def train_single_model(train_data, learning_config):
@@ -311,10 +329,6 @@ def get_score(predicted,true):
     #score = np.prod(score*(score>0))
     rmse_list = np.asarray(rmse_list)
     return score,rmse_list
-
-def compute_err_info(errors):
-    # multiplication is arbitrary factor...
-    return 2*np.mean(np.asarray(errors),axis=0)
 
 class Scaler(torch.nn.Module):
     def __init__(self,means,stds,eps=1e-100):

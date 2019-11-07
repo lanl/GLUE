@@ -50,25 +50,25 @@ if __name__=="__main__":
     true = raw_dataset[...,output_location]
     error = prediction-true
     okay_prediction = model.iserrok(errbar)
+    point_badness = model.iserrok_fuzzy(errbar)
+
+
+    # Plot thing to see how it is doing.
 
     #print(prediction,errbar,okay_prediction)
     n_targets = prediction.shape[1]
 
     fig,axarr=plt.subplots(1,n_targets,figsize=(4*n_targets,4))
-    for relerr,ax in zip(error.T/errbar.T,axarr):
+    for relerr,ax in zip(point_badness.T,axarr):
         plt.sca(ax)
         plt.hist(relerr,bins=30)
     plt.show()
 
     fig,axarr=plt.subplots(1,n_targets,figsize=(4*n_targets,4))
 
-    point_badness = errbar/model.err_info
     print("Bad points:",(point_badness>=1).any(axis=1).sum(axis=0))
 
-    print("array shapes:",true.shape,prediction.shape,point_badness.shape)
-
     for i,(p,t,bad,ax,eb) in enumerate(zip(prediction.T,true.T,point_badness.T,axarr,model.err_info)):
-
 
         plt.sca(ax)
         plt.title("Target {}".format(i))
