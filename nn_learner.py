@@ -77,8 +77,8 @@ SOLVER_INDEXES = {
 
 #Parameters governing network structure
 DEFAULT_NET_CONFIG = dict(
-    n_layers=4,
-    n_hidden=32,
+    n_layers=6,
+    n_hidden=64,
     activation_type=torch.nn.ReLU,
     layer_type = torch.nn.Linear
     )
@@ -86,7 +86,7 @@ DEFAULT_NET_CONFIG = dict(
 #Parameters for ensemble uncertainty
 DEFAULT_ENSEMBLE_CONFIG = dict(
     n_members = 10,
-    test_fraction = 0.1,
+    test_fraction = 0.2,
     score_thresh = 0.75,
     max_model_tries = 100,
 )
