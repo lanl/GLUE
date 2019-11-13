@@ -26,6 +26,7 @@ class SolverCode(Enum):
 class ResultProvenance(IntEnum):
     LAMMPS = 0
     MYSTIC = 1
+    ACTIVELEARNER = 2
     FAKE = 3
     DB = 4
     FASTLAMMPS = 5
@@ -227,6 +228,13 @@ def getAllGNDData(dbPath, solverCode):
     sqlDB.close()
     return np.array(gndResults)
 
+def alModelStub(inArgs):
+    if isinstance(inArgs, BGKInputs):
+        bgkOutput = None
+        return (sys.float_info.max, bgkOutput)
+    else:
+        raise Exception('Using Unsupported Solver Code With Interpolation Model')
+
 def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode):
     if isinstance(lammpsArgs, BGKInputs):
         # Mkdir ./${TAG}_${RANK}_${REQ}
@@ -315,6 +323,19 @@ def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, mod
 def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType):
     reqNumArr = [0] * len(rankArr)
 
+    #Load any symbols that are only required on a specific code path
+    if defaultMode == ALInterfaceMode.ACTIVELEARNER:
+        import nn_learner
+    interpModel = alModelStub
+    # TODO: Query DB for number of GND rows
+    curGrounds = 0
+
+    #TODO: Refactor boilerplate/prep work. Likely to seperate process
+    # Tell learner where the db is
+    nn_learner.CURRENT_DATABASE = dbPath
+    # Generate the initial model from the nn_learner
+    interpModel = nn_learner.retrain()
+
     #Spin until file exists
     while not os.path.exists(dbPath):
         time.sleep(1)
@@ -353,15 +374,15 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                     # TODO
                     pass
                 elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
-                    # This is probably more for the Nick stuff
-                    #  Ask Learner
-                    #     We good? Return value
-                    #  Check LUT
-                    #     We good? Return value
-                    #  Call LAMMPS
-                    #     Go get a coffee, then return value. And add to LUT (?)
-                    # TODO
-                    pass
+                    # Ask Learner
+                    (prediction, errBar) = interpModel(task[1])
+                    # Check if error is too large
+                    isLegit = interpModel.iserrok(errBar)
+                    if isLegit:
+                        #Value is legit, so write it
+                        insertResult(rank, tag, dbPath, task[0], prediction, ResultProvenance.ACTIVELEARNER)
+                    else: 
+                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, ALInterfaceMode.LAMMPS)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
@@ -375,6 +396,12 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                 elif modeSwitch == ALInterfaceMode.KILL:
                     keepSpinning = False
         #Probably some form of delay?
+        #TODO: Determine if a sufficient number of new groundish truths exist
+        newGrounds = 0
+        if newGrounds > curGrounds:
+            #Generate new model from training data
+            #TODO: Asynchrony!
+            interpModel = nn_learner.retrain()
 
 
 if __name__ == "__main__":
