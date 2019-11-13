@@ -343,8 +343,8 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
     if defaultMode == ALInterfaceMode.ACTIVELEARNER:
         import nn_learner
     interpModel = alModelStub
-    # TODO: Query DB for number of GND rows
-    curGrounds = 0
+    # Query DB for number of GND rows
+    curGrounds = getGNDCount(dbPath, packetType)
 
     #TODO: Refactor boilerplate/prep work. Likely to seperate process
     # Tell learner where the db is
@@ -412,12 +412,13 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                 elif modeSwitch == ALInterfaceMode.KILL:
                     keepSpinning = False
         #Probably some form of delay?
-        #TODO: Determine if a sufficient number of new groundish truths exist
-        newGrounds = 0
+        #Determine if a sufficient number of new groundish truths exist
+        newGrounds = getGNDCount(dbPath, packetType)
         if newGrounds > curGrounds:
             #Generate new model from training data
             #TODO: Asynchrony!
             interpModel = nn_learner.retrain()
+        curGrounds = newGrounds
 
 
 if __name__ == "__main__":
