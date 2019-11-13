@@ -211,6 +211,22 @@ def getSlurmQueue(uname):
     else:
         return (0, [])
 
+def getAllGNDData(dbPath, solverCode):
+    selString = ""
+    if solverCode == SolverCode.BGK:
+        selString = "SELECT * FROM BGKGND;"
+    else:
+        raise Exception('Using Unsupported Solver Code')
+    sqlDB = sqlite3.connect(dbPath)
+    sqlCursor = sqlDB.cursor()
+    gndResults = []
+    for row in sqlCursor.execute(selString):
+        # Add row to numpy array
+        gndResults.append(row)
+    sqlCursor.close()
+    sqlDB.close()
+    return np.array(gndResults)
+
 def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode):
     if isinstance(lammpsArgs, BGKInputs):
         # Mkdir ./${TAG}_${RANK}_${REQ}
