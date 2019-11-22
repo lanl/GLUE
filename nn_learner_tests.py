@@ -1,12 +1,15 @@
-import nn_learner
-import alInterface
 import torch
 
 import sklearn.metrics
 
 import numpy as np
+
 import matplotlib
 import matplotlib.pyplot as plt
+
+import nn_learner
+import alInterface
+
 
 def plot_errors(predicted,true,label):
     predicted = predicted.numpy()
@@ -25,6 +28,8 @@ def plot_errors(predicted,true,label):
     plt.show()
 
 
+
+
 if __name__=="__main__":
     nn_learner.CURRENT_DATABASE = "../realTraining.db"
     model = nn_learner.retrain()
@@ -39,14 +44,20 @@ if __name__=="__main__":
 
     #Prediction on individual rows
     for i,row in enumerate(raw_dataset):
-        prediction,errbar = model(row)
+        prediction,errbar = model.process(row)
+        input_bgk = alInterface.BGKInputs(row[0],row[1:5],row[5:9])
+        predict_throughtypes,err_throughtypes = model(input_bgk)
+        out_throughtypes = predict_throughtypes.DiffCoeff[:3]
+
+        assert out_throughtypes == prediction
+
         real_answer = row[output_location]
         isok = model.iserrok(errbar)
         #print("example ")
         #print(prediction,errbar,prediction-real_answer,isok)
 
     # Batched Prediction on multiple rows
-    prediction,errbar = model(raw_dataset)
+    prediction,errbar = model.process(raw_dataset)
     true = raw_dataset[...,output_location]
     error = prediction-true
     okay_prediction = model.iserrok(errbar)

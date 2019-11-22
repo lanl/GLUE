@@ -1,14 +1,20 @@
 import copy
 
+
+import numpy as np
+# Built with numpy '1.16.3'
+
 import torch
 import torch.utils.data
-import numpy as np
+# Built with pytorch 1.0.0, ought to be forwards compatible to later pytorch
+
+import sklearn.metrics
+# Built with sklearn 0.20.1
 
 torch.set_default_dtype(torch.float64)
 
-from alInterface import getAllGNDData, SolverCode
+from alInterface import getAllGNDData, SolverCode, BGKInputs,BGKOutputs
 
-import sklearn.metrics
 
 CURRENT_DATABASE = None
 
@@ -23,9 +29,19 @@ class Model():
 
     def __call__(self,request_params):
         """
-        :param request_params: features for BGK
+        :param request_params: BGKInputs
         :return: result[3], errbar[3]
         """
+        request_params = self.pack_inputs(request_params)
+
+        result_mean,result_error = self.process(request_params)
+
+        result_mean = self.unpack_outputs(request_params)
+        result_error = self.unpack_outputs(request_params)
+        return result_mean,result_error
+
+
+    def process(self,request_params): #as a numpy array
         batched = request_params.ndim>1
         request_params = torch.as_tensor(request_params[...,SOLVER_INDEXES[self.solver]["input_slice"]])
 
@@ -43,8 +59,9 @@ class Model():
 
         return mean, std
 
+
     def calibrate(self,dataset):
-        pred,uncertainty = self(dataset[:][0].numpy())
+        pred,uncertainty = self.process(dataset[:][0].numpy())
         true = dataset[:][-1].numpy()
         abserr = np.abs(pred-true)
 
@@ -62,6 +79,39 @@ class Model():
     def iserrok(self,errbars):
         return errbars < self.err_info
 
+    def pack_inputs(self,request):
+        return NotImplemented
+
+    def unpack_outputs(self,result):
+        return NotImplemented
+
+
+# # BGKInputs
+# #  Temperature: float
+# #  Density: float[4]
+# #  Charges: float[4]
+# BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
+# # BGKoutputs
+# #  Viscosity: float
+# #  ThermalConductivity: float
+# #  DiffCoeff: float[10]
+# BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
+
+class BGKModel(Model):
+    def pack_inputs(self,request):
+        packed_request = np.concatenate([[request.Temperature],request.Density,request.Charges])
+        return packed_request
+
+    def unpack_outputs(self,packed_result):
+
+        #HARDCODING FOR 3 DIFFUSION TERM PROBLEM
+        diff_array = np.zeros(10)
+        print(packed_result,packed_result.shape)
+        diff_array[-3:] = packed_result
+        unpacked_result = BGKOutputs(0,0,diff_array)
+        return unpacked_result
+
+
 # Parameters governing input and outputs to problem
 
 SOLVER_INDEXES = {
@@ -70,6 +120,7 @@ SOLVER_INDEXES = {
                         output_slice=slice(12,15),
                         n_inputs = 9,
                         n_outputs = 3,
+                        model_type = BGKModel,
                     )
     #Other solver codes...
 }
@@ -85,7 +136,7 @@ DEFAULT_NET_CONFIG = dict(
 
 #Parameters for ensemble uncertainty
 DEFAULT_ENSEMBLE_CONFIG = dict(
-    n_members = 10,
+    n_members = 3,#10,
     test_fraction = 0.2,
     score_thresh = 0.75,
     max_model_tries = 100,
@@ -147,9 +198,9 @@ def retrain(learning_config=DEFAULT_LEARNING_CONFIG):
         print("Good models found:",successful_models)
         print("Training ensemble member",i)
 
-        train_data,test_data = torch.utils.data.random_split(full_dataset, (n_train,n_test))
+        train_data, test_data = torch.utils.data.random_split(full_dataset, (n_train, n_test))
 
-        #This is a place where we could trivially parallelize training.
+        # This is a place where we could trivially parallelize training.
 
         this_model = train_single_model(train_data, learning_config=learning_config)
         model_score,model_errors = get_error_info(this_model,test_data)
@@ -168,7 +219,7 @@ def retrain(learning_config=DEFAULT_LEARNING_CONFIG):
     #print("scores",network_scores)
     error_info = np.mean(np.asarray(network_errors),axis=0)
 
-    full_model = Model(solver, networks, error_info)
+    full_model = SOLVER_INDEXES[solver]["model_type"](solver, networks, error_info)
     full_model.calibrate(full_dataset)
 
     return full_model
