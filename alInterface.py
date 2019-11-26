@@ -348,9 +348,8 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
 
     #TODO: Refactor boilerplate/prep work. Likely to seperate process
     # Tell learner where the db is
-    nn_learner.CURRENT_DATABASE = dbPath
     # Generate the initial model from the nn_learner
-    interpModel = nn_learner.retrain()
+    interpModel = nn_learner.retrain(dbPath)
 
     #Spin until file exists
     while not os.path.exists(dbPath):

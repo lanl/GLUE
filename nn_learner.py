@@ -6,17 +6,15 @@ import numpy as np
 
 import torch
 import torch.utils.data
-# Built with pytorch 1.0.0, ought to be forwards compatible to later pytorch
+# Built with pytorch 1.3.1
 
 import sklearn.metrics
 # Built with sklearn 0.20.1
 
 torch.set_default_dtype(torch.float64)
 
-from alInterface import getAllGNDData, SolverCode, BGKInputs,BGKOutputs
+from alInterface import getAllGNDData, SolverCode, BGKInputs, BGKOutputs
 
-
-CURRENT_DATABASE = None
 
 class Model():
     """
@@ -36,14 +34,17 @@ class Model():
 
         result_mean,result_error = self.process(request_params)
 
-        result_mean = self.unpack_outputs(request_params)
-        result_error = self.unpack_outputs(request_params)
+        result_mean = self.unpack_outputs(result_mean)
+        result_error = self.unpack_outputs(result_error)
         return result_mean,result_error
 
 
-    def process(self,request_params): #as a numpy array
+    def process(self,request_params,perform_column_extraction=True): #as a numpy array
         batched = request_params.ndim>1
-        request_params = torch.as_tensor(request_params[...,SOLVER_INDEXES[self.solver]["input_slice"]])
+
+        request_params = torch.as_tensor(request_params)
+        if perform_column_extraction:
+            request_params = request_params[...,SOLVER_INDEXES[self.solver]["input_slice"]]
 
         if not batched:
             request_params = request_params.unsqueeze(0)
@@ -61,7 +62,7 @@ class Model():
 
 
     def calibrate(self,dataset):
-        pred,uncertainty = self.process(dataset[:][0].numpy())
+        pred,uncertainty = self.process(dataset[:][0].numpy(),perform_column_extraction=False)
         true = dataset[:][-1].numpy()
         abserr = np.abs(pred-true)
 
@@ -73,11 +74,27 @@ class Model():
 
         self.err_info /= calibration
 
-    def iserrok_fuzzy(self,errbars):
+
+    def process_iserrok_fuzzy(self,errbars):
         return errbars/self.err_info
 
-    def iserrok(self,errbars):
+    def process_iserrok(self,errbars):
         return errbars < self.err_info
+
+    def iserrok(self,errbars):
+        errbars = self.pack_outputs(errbars)
+        iserrok = self.process_iserrok(errbars)
+        iserrok = self.unpack_outputs(iserrok)
+        return iserrok
+
+    def iserrok_fuzzy(self,errbars):
+        errbars = self.pack_outputs(errbars)
+        iserrok = self.process_iserrok_fuzzy(errbars)
+        iserrok = self.unpack_outputs(iserrok)
+        return iserrok
+
+    def pack_outputs(self,request):
+        return NotImplemented
 
     def pack_inputs(self,request):
         return NotImplemented
@@ -99,27 +116,42 @@ class Model():
 
 class BGKModel(Model):
     def pack_inputs(self,request):
+
         packed_request = np.concatenate([[request.Temperature],request.Density,request.Charges])
+
         return packed_request
 
     def unpack_outputs(self,packed_result):
 
         #HARDCODING FOR 3 DIFFUSION TERM PROBLEM
         diff_array = np.zeros(10)
-        print(packed_result,packed_result.shape)
+        #print(packed_result,packed_result.shape)
         diff_array[-3:] = packed_result
         unpacked_result = BGKOutputs(0,0,diff_array)
+
+        #Full version of problem should look like this:
+        # unpacked_result = BGKOutputs(packed_result[0],packed_result[1],packed_result[2:])
         return unpacked_result
+
+    def pack_outputs(self,outputs):
+        #HARDCODING FOR 3 DIFFUSION TERM PROBLEM.
+        output_vals = outputs.DiffCoeff[-3:]
+
+
+        # Full_version of problem should look like this:
+        # output_vals = np.concatenate([[request.Viscosity], [request.ThermalConductivity], request.DiffCoeff])
+        return output_vals
 
 
 # Parameters governing input and outputs to problem
 
 SOLVER_INDEXES = {
+    #HARDCODED TO 3 DIFFUSION TERM PROBLEM
     SolverCode.BGK:dict(
-                        input_slice=slice(0,9),
-                        output_slice=slice(12,15),
-                        n_inputs = 9,
-                        n_outputs = 3,
+                        input_slice=[0,1,2,5,6],   # For full version: slice(0,9),
+                        output_slice=slice(12,15), # For full version? slice(10,22)?
+                        n_inputs = 5,              # For full version: 9
+                        n_outputs = 3,             # For full version: 12?
                         model_type = BGKModel,
                     )
     #Other solver codes...
@@ -136,10 +168,10 @@ DEFAULT_NET_CONFIG = dict(
 
 #Parameters for ensemble uncertainty
 DEFAULT_ENSEMBLE_CONFIG = dict(
-    n_members = 3,#10,
+    n_members = 10,
     test_fraction = 0.2,
-    score_thresh = 0.75,
-    max_model_tries = 100,
+    score_thresh = 0.7,
+    max_model_tries = 1000,
 )
 
 
@@ -165,16 +197,17 @@ DEFAULT_LEARNING_CONFIG = dict(
 )
 
 def assemble_dataset(raw_dataset,solver_code):
-    # WARNING HARDCODING FOR BGK TEST
+
     features = torch.as_tensor(raw_dataset[:,SOLVER_INDEXES[solver_code]["input_slice"]])
+    print(features.std(axis=0))
     targets = torch.as_tensor(raw_dataset[:,SOLVER_INDEXES[solver_code]["output_slice"]])
     return torch.utils.data.TensorDataset(features,targets)
 
 #prototype, only covers ensemble uncertainties
-def retrain(learning_config=DEFAULT_LEARNING_CONFIG):
+def retrain(db_path,learning_config=DEFAULT_LEARNING_CONFIG):
 
     solver = learning_config["solver_type"]
-    raw_dataset = getAllGNDData(CURRENT_DATABASE,solver)
+    raw_dataset = getAllGNDData(db_path,solver)
     full_dataset = assemble_dataset(raw_dataset,solver)
 
 
@@ -192,6 +225,7 @@ def retrain(learning_config=DEFAULT_LEARNING_CONFIG):
     successful_models = 0
     i=0
     while successful_models < ensemble_config["n_members"]:
+        print("Training model {}".format(i))
         i += 1
         if i > ensemble_config["max_model_tries"]:
             break
@@ -199,6 +233,7 @@ def retrain(learning_config=DEFAULT_LEARNING_CONFIG):
         print("Training ensemble member",i)
 
         train_data, test_data = torch.utils.data.random_split(full_dataset, (n_train, n_test))
+
 
         # This is a place where we could trivially parallelize training.
 
@@ -239,7 +274,12 @@ def train_single_model(train_data, learning_config):
     n_valid = int(training_config["validation_fraction"]*n_total)
     n_valid = max(n_valid,2)
     n_train = n_total-n_valid
+    #print(type(train_data),type(train_data[:]))
+
+    #Stupid fix for now, but this trick doesn't hurt anything and enables the #Normalizing line to work
+    train_data.indices = np.asarray(train_data.indices)
     train_data, valid_data = torch.utils.data.random_split(train_data, (n_train, n_valid))
+    #print(type(train_data),type(train_data[:]))
 
     #Normalizing
     train_features, train_labels = (train_data[:])

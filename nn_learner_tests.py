@@ -31,37 +31,56 @@ def plot_errors(predicted,true,label):
 
 
 if __name__=="__main__":
-    nn_learner.CURRENT_DATABASE = "../realTraining.db"
-    model = nn_learner.retrain()
+    print("PYTORCH VERSION",torch.__version__)
 
-    #Ensure model can be pickled
+    DB_PATH = "../realTraining.db"
+    model = nn_learner.retrain(db_path=DB_PATH)
+
+    #Ensure model can be pickled and unpickled.
     torch.save(model,"__MODEL_TEST.pt")
     model = torch.load("__MODEL_TEST.pt")
 
     #Run model on the data
-    raw_dataset = alInterface.getAllGNDData(nn_learner.CURRENT_DATABASE, alInterface.SolverCode.BGK)
+    raw_dataset = alInterface.getAllGNDData(DB_PATH, alInterface.SolverCode.BGK)
     output_location = nn_learner.SOLVER_INDEXES[alInterface.SolverCode.BGK]["output_slice"]
 
-    #Prediction on individual rows
+    #Prediction on individual rows. Test sending in arrays as well as BGKInputs/BGKOutputs
     for i,row in enumerate(raw_dataset):
+
         prediction,errbar = model.process(row)
         input_bgk = alInterface.BGKInputs(row[0],row[1:5],row[5:9])
+        # MODEL Accepts inputs of input_bgk type as well
         predict_throughtypes,err_throughtypes = model(input_bgk)
-        out_throughtypes = predict_throughtypes.DiffCoeff[:3]
 
-        assert out_throughtypes == prediction
+        #HARDCODE checking last 3 diffusion coefficients
+        out_throughtypes = predict_throughtypes.DiffCoeff[-3:]
+        #print(err_throughtypes)
+
+        assert (out_throughtypes == prediction).all()
+
+        outerr_throughtypes = err_throughtypes.DiffCoeff[-3:]
+        assert (errbar==outerr_throughtypes).all()
 
         real_answer = row[output_location]
-        isok = model.iserrok(errbar)
+
+        isok_array = model.process_iserrok(errbar)
+        isok_result = model.iserrok(err_throughtypes)
+
+        isok_throughtypes = isok_result.DiffCoeff[-3:]
+
+        assert (isok_throughtypes==isok_array).all()
+
         #print("example ")
         #print(prediction,errbar,prediction-real_answer,isok)
+
+    print("Model passed type wrapping checks")
 
     # Batched Prediction on multiple rows
     prediction,errbar = model.process(raw_dataset)
     true = raw_dataset[...,output_location]
     error = prediction-true
-    okay_prediction = model.iserrok(errbar)
-    point_badness = model.iserrok_fuzzy(errbar)
+    okay_prediction = model.process_iserrok(errbar)
+    point_badness = model.process_iserrok_fuzzy(errbar)
 
 
     # Plot thing to see how it is doing.
