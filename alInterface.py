@@ -22,6 +22,7 @@ class ALInterfaceMode(IntEnum):
 class SolverCode(Enum):
     BGK = 0
     LBMZEROD = 1
+    BGKMASSES = 2
 
 class ResultProvenance(IntEnum):
     LAMMPS = 0
@@ -46,6 +47,10 @@ BGKMassesInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charg
 #  ThermalConductivity: float
 #  DiffCoeff: float[10]
 BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
+# BGKMassesoutputs
+#  Viscosity: float
+#  ThermalConductivity: float
+#  DiffCoeff: float[10]
 BGKMassesOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
 
 def getGroundishTruthVersion(packetType):
