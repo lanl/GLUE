@@ -227,6 +227,22 @@ def getAllGNDData(dbPath, solverCode):
     sqlDB.close()
     return np.array(gndResults)
 
+def getGNDCount(dbPath, solverCode):
+    selString = ""
+    if solverCode == SolverCode.BGK:
+        selString = "SELECT COUNT(*)  FROM BGKGND;"
+    else:
+        raise Exception('Using Unsupported Solver Code')
+    sqlDB = sqlite3.connect(dbPath)
+    sqlCursor = sqlDB.cursor()
+    numGND = 0
+    for row in sqlCursor.execute(selString):
+        # Should just be one row with one value
+        numGND = row[0]
+    sqlCursor.close()
+    sqlDB.close()
+    return numGND
+
 def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode):
     if isinstance(lammpsArgs, BGKInputs):
         # Mkdir ./${TAG}_${RANK}_${REQ}
