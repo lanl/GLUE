@@ -174,7 +174,6 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         Inputs_file = os.path.join(dirPath, "inputs.txt")
         np.savetxt(Inputs_file, np.asarray(inputList))
     elif isinstance(lammpsArgs, BGKMassesInputs):
-        m=np.array([3.3210778e-24,6.633365399999999e-23])
         Z=np.array([1,13])
         Teq = 0
         Trun = 0
@@ -198,18 +197,17 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         lammpsDens = np.array(lammpsArgs.Density[0:2]) 
         lammpsTemperature = lammpsArgs.Temperature
         lammpsIonization = np.array(lammpsArgs.Charges[0:2])
+        lammpsMasses = np.array(lammpsArgs.Masses[0:2])
         for s in range(len(lammpsDens)):
             zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
             with open(zbarFile, 'w') as testfile:
                 csv_writer = csv.writer(testfile,delimiter=' ')
                 csv_writer.writerow([lammpsIonization[s]])
-                
         for s in range(len(lammpsDens)):
             massFile = os.path.join(dirPath, "mass." + str(s) + ".csv")
             with open(massFile, 'w') as testfile:
                 csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([m[s]])
-                
+                csv_writer.writerow([lammpsMasses[s]])
         temperatureFile = os.path.join(dirPath, "temperature.csv")
         with open(temperatureFile, 'w') as testfile:
             csv_writer = csv.writer(testfile,delimiter=' ')
@@ -247,6 +245,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         inputList.append(lammpsArgs.Temperature)
         inputList.extend(lammpsArgs.Density)
         inputList.extend(lammpsArgs.Charges)
+        inputList.extend(lammpsArgs.Masses)
         inputList.append(getGroundishTruthVersion(SolverCode.BGK))
         Inputs_file = os.path.join(dirPath, "inputs.txt")
         np.savetxt(Inputs_file, np.asarray(inputList))
