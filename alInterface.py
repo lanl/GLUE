@@ -438,6 +438,9 @@ def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, mod
         if isinstance(inArgs, BGKInputs):
             if row[22] == getGroundishTruthVersion(SolverCode.BGK):
                 outLammps = BGKOutputs(Viscosity=row[10], ThermalConductivity=row[11], DiffCoeff=row[12:22])
+        elif isinstance(inArgs, BGKMassesInputs):
+            if row[26] == getGroundishTruthVersion(SolverCode.BGKMASSES):
+                outLammps = BGKMassesOutputs(Viscosity=row[14], ThermalConductivity=row[15], DiffCoeff=row[16:26])
     if outLammps != None:
         # We had a hit, so send that
         insertResult(rank, tag, dbPath, reqID, outLammps, ResultProvenance.DB)
