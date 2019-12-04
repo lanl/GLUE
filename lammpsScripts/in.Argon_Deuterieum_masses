@@ -1,0 +1,172 @@
+# This script computes the mutual diffusion for a plasma composed of Argon and Deuterium at different concentrations and temperatures.
+# Ionisation state are estimated using Thomas-Fermi approximation.
+# Species interact through a screened-Coulomb potential.
+# We benchmarked the script against the simulations of Haxhimali, Rudd, Cabot, Graziani, Phys. Rev. E 90, 023104 (2014).
+# Physical conditions considered: Deuterium and Argon, total density 1e25 cc, T=100, Z_D=1, Z_Ar=13, Ar concentration at 50%.
+
+
+
+echo both
+
+#############  begin parameters ################################
+# All quantities are in SI units
+
+# Physical Constants (SI):
+
+variable kb          equal        1.3807e-23
+variable hbar2       equal        1.1121811600000002e-68
+variable emass       equal        9.1094e-31
+variable eps0        equal        8.8542e-12
+variable echarge     equal        1.6022e-19
+
+# Simulation box length, taken at least 4 times larger than the mean free path of the D.
+
+variable         T            file temperature.csv
+variable         N_Ar         file Number_part.1.csv
+variable         N_D          file Number_part.0.csv
+variable         l            file box_length.csv
+variable         Zbar_D       file Zbar.0.csv
+variable         Zbar_Ar      file Zbar.1.csv
+variable         mass_D      file  mass.0.csv
+variable         mass_Ar      file   mass.1.csv
+
+
+print         "reference temperature $T [eV]"
+
+# Concentration of Argon
+
+variable N equal ${N_Ar}+${N_D}
+variable c equal ${N_Ar}/$N
+
+# Pair coefficients for Argon and Deuterium interactions
+
+variable prcoeff_DD   equal 2.5077244112372143e-28*${Zbar_D}*${Zbar_D}
+variable prcoeff_ArAr equal 2.5077244112372143e-28*${Zbar_Ar}*${Zbar_Ar}
+variable prcoeff_ArH  equal 2.5077244112372143e-28*${Zbar_D}*${Zbar_Ar}
+
+# Effective Thomas-Fermi screening length
+
+variable dens1       equal        ${N_D}/${l}^3
+variable dens2       equal        ${N_Ar}/${l}^3
+variable dens        equal        ${dens1}+${dens2}
+variable Tempe       equal        $T
+variable edens       equal        ${Zbar_D}*${dens1}+${Zbar_Ar}*${dens2}
+variable Temp1       equal        11600.*$T
+variable Ef          equal        ${hbar2}*(3.*PI^2*${edens})^(2/3)/(2*${emass})
+variable Debye       equal        sqrt(${eps0}*sqrt((${kb}*${Temp1})^2+(2.*${Ef}/3)^2)/(${edens}*${echarge}*${echarge}))
+variable scnlng      equal        1./${Debye}
+
+# Wigner-Seitz radius or interparticle radius.
+
+variable inter   equal        (3./(4.*PI*${dens}))^(1./3.)
+
+variable rc      file cutoff.csv
+variable dbin    equal        0.1*${inter}
+
+
+# Average charge and mass of the mixture
+
+variable Z_av     equal        ${Zbar_D}*(1.-$c)+${Zbar_Ar}*$c
+variable m_av     equal        (${mass_D}*${dens1}+${mass_Ar}*${dens2})/${dens}
+
+# Plasma frequency and screening paramater
+
+variable omega_p  equal        sqrt((1.6022e-19*${Z_av})^2*${dens}/(8.854e-12*${m_av}))
+variable kappa_p  equal        ${scnlng}*${inter}
+
+# Einstein frequency is here used to determine the timestep
+
+variable omega_e   equal        ${omega_p}*exp(-0.2*${kappa_p}^1.62)/sqrt(3)
+variable dtstep    equal        1./(300.*${omega_e})
+variable Tdamp     equal        1.e2*${dtstep}
+variable teq      file equil_time.csv
+variable trun     file prod_time.csv
+variable d         equal        ${teq}/10
+
+print         "equilibration time  ${teq}"
+print         "production time temperature ${trun}"
+
+##############  end parameters #################################
+
+
+##############  Problem setup #################################
+units         si
+boundary      p p p
+atom_style    atomic
+newton        on
+
+# Box size has been chosen large enough with respect to the fastest particle mean free path
+# as to avoid enought size-effect
+
+region            boxid block  0   ${l}       0     ${l}    0      ${l}
+create_box      2 boxid
+create_atoms    1 random      ${N_D}   12349 boxid   # D
+create_atoms    2 random      ${N_Ar}  123492 boxid   # Ar
+
+group atom1 type 1
+group atom2 type 2
+
+# Species masses
+
+mass        1 ${mass_D}             #D
+mass        2 ${mass_Ar}            #Ar
+
+# Interactions: screening-Coulomb potentials and Neighbor list
+
+pair_style      yukawa  ${scnlng} ${rc}
+pair_coeff       1 1    ${prcoeff_DD}
+pair_coeff       1 2    ${prcoeff_ArH}
+pair_coeff       2 2    ${prcoeff_ArAr}
+
+neigh_modify delay 0 every 1 check yes page 500000 one 50000
+neighbor    ${dbin} bin
+
+velocity    all create ${Temp1} 78487  dist gaussian
+
+timestep ${dtstep}
+
+# --------- Equilibration using Nose-Hoover to maintain temperature --------------
+
+fix     NVT1 all nvt temp ${Temp1} ${Temp1} ${Tdamp}
+thermo_style custom step temp pe ke etotal
+
+
+thermo  $d
+
+run ${teq}
+
+reset_timestep 0
+
+unfix NVT1
+
+fix NVE all nve
+
+
+# Compute correlation functions and integrals over time
+
+compute         vacfD  atom1 vacf
+compute         vacfAr atom2 vacf
+fix             5      atom1 vector 1 c_vacfD[4]
+fix             5b     atom2 vector 1 c_vacfAr[4]
+variable        diff_D  equal 1.e4*dt*trap(f_5)/3.
+variable        diff_Ar equal 1.e4*dt*trap(f_5b)/3.
+
+
+# Diffusion coefficients in cm^2/s
+
+variable        D11    equal v_diff_D
+variable        D12    equal ${c}*v_diff_D+(1.-${c})*v_diff_Ar
+variable        D22    equal v_diff_Ar
+
+thermo_style custom step press etotal c_vacfD[4] c_vacfAr[4]
+
+# Write output into file
+
+variable dens1cm equal 1.e-6*${dens1}
+variable dens2cm equal 1.e-6*${dens2}
+
+fix extra all print ${trun} "I $T ${dens1cm} ${dens2cm} ${Zbar_D} ${Zbar_Ar} ${mass_D} ${mass_Ar} ${D11} ${D12} ${D22}" append mutual_diffusion.csv
+
+run ${trun}
+
+
