@@ -54,6 +54,8 @@ struct lbmZeroD_result_s
 
 typedef struct bgk_result_s bgk_result_t;
 typedef struct bgk_request_s bgk_request_t;
+typedef struct bgkmasses_result_s bgkmasses_result_t;
+typedef struct bgkmasses_request_s bgkmasses_request_t;
 typedef struct lbmZeroD_result_s lbmZeroD_result_t;
 typedef struct lbmZeroD_request_s lbmZeroD_request_t;
 
