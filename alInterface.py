@@ -56,6 +56,8 @@ BGKMassesOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConduc
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
         return 1.0
+    elif packetType == SolverCode.BGKMASSES:
+        return 1.0
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -90,6 +92,33 @@ def getGNDStringAndTuple(lammpsArgs):
         #Version
         selString += "INVERSION=?;"
         selTup += (getGroundishTruthVersion(SolverCode.BGK),)
+    elif isinstance(lammpsArgs, BGKMassesInputs):
+        # Optimally find something bigger than machine epsilon
+        epsilon = np.finfo('float64').eps
+        # TODO: DRY this for later use
+        selString += "SELECT * FROM BGKMASSESGND WHERE "
+        #Temperature
+        selString += "TEMPERATURE BETWEEN ? AND ? "
+        selTup += (lammpsArgs.Temperature - epsilon, lammpsArgs.Temperature + epsilon)
+        selString += " AND "
+        #Density
+        for i in range(0, 4):
+            selString += "DENSITY_" + str(i) + " BETWEEN ? AND ? "
+            selTup += (lammpsArgs.Density[i] - epsilon, lammpsArgs.Density[i] + epsilon)
+            selString += " AND "
+        #Charges
+        for i in range(0, 4):
+            selString += "CHARGES_" + str(i) + " BETWEEN ? AND ? "
+            selTup += (lammpsArgs.Charges[i] - epsilon, lammpsArgs.Charges[i] + epsilon)
+            selString += " AND "
+        #Masses
+        for i in range(0, 4):
+            selString += "MASSES_" + str(i) + " BETWEEN ? AND ? "
+            selTup += (lammpsArgs.Masses[i] - epsilon, lammpsArgs.Masses[i] + epsilon)
+            selString += " AND "
+        #Version
+        selString += "INVERSION=?;"
+        selTup += (getGroundishTruthVersion(SolverCode.BGKMASSES),)
     else:
         raise Exception('Using Unsupported Solver Code')
     return (selString, selTup)
@@ -101,6 +130,13 @@ def processReqRow(sqlRow, packetType):
         bgkInput.Density.extend([sqlRow[4], sqlRow[5], sqlRow[6], sqlRow[7]])
         bgkInput.Charges.extend([sqlRow[8], sqlRow[9], sqlRow[10], sqlRow[11]])
         reqType = ALInterfaceMode(sqlRow[12])
+        return (bgkInput, reqType)
+    elif packetType == SolverCode.BGKMASSES:
+        bgkInput = BGKMassesInputs(Temperature=float(sqlRow[3]), Density=[], Charges=[], Masses=[])
+        bgkInput.Density.extend([sqlRow[4], sqlRow[5], sqlRow[6], sqlRow[7]])
+        bgkInput.Charges.extend([sqlRow[8], sqlRow[9], sqlRow[10], sqlRow[11]])
+        bgkInput.Masses.extend([sqlRow[12], sqlRow[13], sqlRow[14], sqlRow[15]])
+        reqType = ALInterfaceMode(sqlRow[16])
         return (bgkInput, reqType)
     else:
         raise Exception('Using Unsupported Solver Code')
@@ -303,6 +339,8 @@ def getAllGNDData(dbPath, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT * FROM BGKGND;"
+    elif solverCode == SolverCode.BGKMASSES:
+        selString = "SELECT * FROM BGKMASSESGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -315,18 +353,23 @@ def getAllGNDData(dbPath, solverCode):
     sqlDB.close()
     return np.array(gndResults)
 
-def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode):
-    if isinstance(lammpsArgs, BGKInputs):
+def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode, solverCode):
+    if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
         outPath = os.path.join(os.getcwd(), outDir)
+        lammpsScript = ""
+        if isinstance(lammpsArgs, BGKInputs):
+            lammpsScript = "in.Argon_Deuterium_plasma"
+        elif isinstance(lammpsArgs, BGKMassesInputs):
+            lammpsScript = "in.Argon_Deuterium_masses"
         if(not os.path.exists(outPath)):
             os.mkdir(outPath)
-            # cp ${SCRIPT_DIR}/lammpsScripts/in.Argon_Deuterium_plasma 
+            # cp ${SCRIPT_DIR}/lammpsScripts/${lammpsScript}
             # Copy scripts and configuration files
             pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
             lammpsPath = os.path.join(pythonScriptDir, "lammpsScripts")
-            ardPlasPath = os.path.join(lammpsPath, "in.Argon_Deuterium_plasma")
+            ardPlasPath = os.path.join(lammpsPath, lammpsScript)
             shutil.copy2(ardPlasPath, outPath)
             slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
             # Prioritize the local jobEnv.sh over the repo jobEnv.sh
@@ -353,9 +396,9 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Actually call lammps
-                slurmFile.write("srun -n 16 " + lammps + " < in.Argon_Deuterium_plasma   \n")
+                slurmFile.write("srun -n 16 " + lammps + " < " + lammpsScript + " \n")
                 # Process the result and write to DB
-                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + "\n")
+                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " + -c " + str(solverCode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
@@ -372,10 +415,19 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
         sqlDB.commit()
         sqlCursor.close()
         sqlDB.close()
+    elif isinstance(lammpsResult, BGKMassesOutputs):
+        sqlDB = sqlite3.connect(dbPath)
+        sqlCursor = sqlDB.cursor()
+        insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
+        sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+        sqlDB.close()
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSwitch):
+def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSwitch, packetType):
     # This is a brute force call. We only want an exact LAMMPS result
     # So first, check if we have already processed this request
     outLammps = None
@@ -397,7 +449,7 @@ def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, mod
             queueState = getSlurmQueue(uname)
             if queueState[0] < maxJobs:
                 print("Processing REQ=" + str(reqID))
-                buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch)
+                buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch, packetType)
                 launchedJob = True
 
 def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType):
@@ -435,7 +487,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                     modeSwitch = task[2]
                 if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch == ALInterfaceMode.FASTLAMMPS:
                     # Submit as LAMMPS job
-                    queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch)
+                    queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
                 elif modeSwitch == ALInterfaceMode.MYSTIC:
                     # call mystic: I think Mystic will handle most of our logic?
                     # TODO

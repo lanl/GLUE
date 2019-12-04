@@ -13,14 +13,14 @@ def genTrainingData(dbPath, uname, lammps, maxJobs, code):
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0])
-            queueLammpsJob(uname, maxJobs, reqid, inArgs, 0, "TRAINING", dbPath, lammps, ALInterfaceMode.LAMMPS)
+            queueLammpsJob(uname, maxJobs, reqid, inArgs, 0, "TRAINING", dbPath, lammps, ALInterfaceMode.LAMMPS, SolverCode.BGK)
             reqid += 1
     elif code == SolverCode.BGKMASSES:
         csv = os.path.join(trainingDir, "bgk_masses.csv")
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKMassesInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0], Masses=[row[5], row[6], 0.0, 0.0])
-            queueLammpsJob(uname, maxJobs, reqid, inArgs, 0, "TRAINING", dbPath, lammps, ALInterfaceMode.LAMMPS)
+            queueLammpsJob(uname, maxJobs, reqid, inArgs, 0, "TRAINING", dbPath, lammps, ALInterfaceMode.LAMMPS, SolverCode.BGKMASSES)
             reqid += 1
     else:
         raise Exception('Using Unsupported Solver Code')
