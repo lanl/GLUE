@@ -362,7 +362,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
         if isinstance(lammpsArgs, BGKInputs):
             lammpsScript = "in.Argon_Deuterium_plasma"
         elif isinstance(lammpsArgs, BGKMassesInputs):
-            lammpsScript = "in.Argon_Deuterium_masses"
+            lammpsScript = "in.Argon_Deuterieum_masses"
         if(not os.path.exists(outPath)):
             os.mkdir(outPath)
             # cp ${SCRIPT_DIR}/lammpsScripts/${lammpsScript}

@@ -1,7 +1,7 @@
 import numpy as np
 import argparse
 import os
-from alInterface import SolverCode, BGKInputs, ALInterfaceMode, getAllGNDData, queueLammpsJob
+from alInterface import SolverCode, BGKInputs, BGKMassesInputs, ALInterfaceMode, getAllGNDData, queueLammpsJob
 
 def genTrainingData(dbPath, uname, lammps, maxJobs, code):
     reqid = 0
