@@ -202,7 +202,14 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
             zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
             with open(zbarFile, 'w') as testfile:
                 csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([lammpsIonization[s-1]])
+                csv_writer.writerow([lammpsIonization[s]])
+                
+        for s in range(len(lammpsDens)):
+            massFile = os.path.join(dirPath, "mass." + str(s) + ".csv")
+            with open(massFile, 'w') as testfile:
+                csv_writer = csv.writer(testfile,delimiter=' ')
+                csv_writer.writerow([m[s]])
+                
         temperatureFile = os.path.join(dirPath, "temperature.csv")
         with open(temperatureFile, 'w') as testfile:
             csv_writer = csv.writer(testfile,delimiter=' ')
