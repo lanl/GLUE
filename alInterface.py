@@ -43,7 +43,7 @@ BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
-        return 1.0
+        return 1.1
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -226,6 +226,22 @@ def getAllGNDData(dbPath, solverCode):
     sqlCursor.close()
     sqlDB.close()
     return np.array(gndResults)
+
+def getGNDCount(dbPath, solverCode):
+    selString = ""
+    if solverCode == SolverCode.BGK:
+        selString = "SELECT COUNT(*)  FROM BGKGND;"
+    else:
+        raise Exception('Using Unsupported Solver Code')
+    sqlDB = sqlite3.connect(dbPath)
+    sqlCursor = sqlDB.cursor()
+    numGND = 0
+    for row in sqlCursor.execute(selString):
+        # Should just be one row with one value
+        numGND = row[0]
+    sqlCursor.close()
+    sqlDB.close()
+    return numGND
 
 def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode):
     if isinstance(lammpsArgs, BGKInputs):
