@@ -55,7 +55,7 @@ BGKMassesOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConduc
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
-        return 1.0
+        return 1.1
     elif packetType == SolverCode.BGKMASSES:
         return 1.0
     else:
@@ -173,7 +173,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
             zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
             with open(zbarFile, 'w') as testfile:
                 csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([lammpsIonization[s-1]])
+                csv_writer.writerow([lammpsIonization[s]])
         temperatureFile = os.path.join(dirPath, "temperature.csv")
         with open(temperatureFile, 'w') as testfile:
             csv_writer = csv.writer(testfile,delimiter=' ')
