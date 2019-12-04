@@ -43,7 +43,7 @@ BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
-        return 1.1
+        return 1.2
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -107,7 +107,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
             # real values of the MD simulations (long MD)
             Teq=50000
             Trun=100000
-            cutoff = 5.5
+            cutoff = 2.5
             box=50
         elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
             # Values for infrastructure test
