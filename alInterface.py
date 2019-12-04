@@ -35,11 +35,18 @@ class ResultProvenance(IntEnum):
 #  Density: float[4]
 #  Charges: float[4]
 BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
+# BGKInputs
+#  Temperature: float
+#  Density: float[4]
+#  Charges: float[4]
+#  Masses: float[4]
+BGKMassesInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges Masses')
 # BGKoutputs
 #  Viscosity: float
 #  ThermalConductivity: float
 #  DiffCoeff: float[10]
 BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
+BGKMassesOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
@@ -97,6 +104,76 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
     # TODO: Refactor constants and general cleanup
     # WARNING: Seems to be restricted to two materials for now
     if isinstance(lammpsArgs, BGKInputs):
+        m=np.array([3.3210778e-24,6.633365399999999e-23])
+        Z=np.array([1,13])
+        Teq = 0
+        Trun = 0
+        cutoff = 0.0
+        box = 0
+        if(lammpsMode == ALInterfaceMode.LAMMPS):
+            # real values of the MD simulations (long MD)
+            Teq=50000
+            Trun=100000
+            cutoff = 5.5
+            box=50
+        elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
+            # Values for infrastructure test
+            Teq=10
+            Trun=10
+            cutoff = 1.0
+            box=20
+        else:
+            raise Exception('Using Unsupported LAMMPS Mode')
+        interparticle_radius = []
+        lammpsDens = np.array(lammpsArgs.Density[0:2]) 
+        lammpsTemperature = lammpsArgs.Temperature
+        lammpsIonization = np.array(lammpsArgs.Charges[0:2])
+        for s in range(len(lammpsDens)):
+            zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
+            with open(zbarFile, 'w') as testfile:
+                csv_writer = csv.writer(testfile,delimiter=' ')
+                csv_writer.writerow([lammpsIonization[s-1]])
+        temperatureFile = os.path.join(dirPath, "temperature.csv")
+        with open(temperatureFile, 'w') as testfile:
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([lammpsTemperature])
+        interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
+        L=box*max(interparticle_radius)  #in cm
+        volume =L**3
+        boxLengthFile = os.path.join(dirPath, "box_length.csv")
+        with open(boxLengthFile, 'w') as testfile:
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([L*1.e-2])
+        N=[]
+        for s in range(len(lammpsDens)):
+            N.append(int(volume*lammpsDens[s]))
+            numberPartFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
+            with open(numberPartFile, 'w') as testfile:
+                csv_writer = csv.writer(testfile,delimiter=' ')
+                csv_writer.writerow([N[s]])
+        # Add here 3 files that contain information regarding cutoff of the force, equilibration and production run times.
+        rc=1.e-2*cutoff*max(interparticle_radius)  #in m
+        CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
+        with open(CutoffradiusFile, 'w') as testfile:
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([rc])
+        EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
+        with open(EquilibrationtimeFile, 'w') as testfile:
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([Teq])
+        Production_timeFile = os.path.join(dirPath, "prod_time.csv")
+        with open(Production_timeFile, 'w') as testfile:
+            csv_writer = csv.writer(testfile,delimiter=' ')
+            csv_writer.writerow([Trun])
+        # And now write the inputs to a specific file for later use
+        inputList = []
+        inputList.append(lammpsArgs.Temperature)
+        inputList.extend(lammpsArgs.Density)
+        inputList.extend(lammpsArgs.Charges)
+        inputList.append(getGroundishTruthVersion(SolverCode.BGK))
+        Inputs_file = os.path.join(dirPath, "inputs.txt")
+        np.savetxt(Inputs_file, np.asarray(inputList))
+    elif isinstance(lammpsArgs, BGKMassesInputs):
         m=np.array([3.3210778e-24,6.633365399999999e-23])
         Z=np.array([1,13])
         Teq = 0
