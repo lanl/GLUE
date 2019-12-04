@@ -212,7 +212,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
             massFile = os.path.join(dirPath, "mass." + str(s) + ".csv")
             with open(massFile, 'w') as testfile:
                 csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([lammpsMasses[s]])
+                csv_writer.writerow([lammpsMasses[s]*1.e-3])     # the factor 1.e-3 here converts the masses from to Kg
         temperatureFile = os.path.join(dirPath, "temperature.csv")
         with open(temperatureFile, 'w') as testfile:
             csv_writer = csv.writer(testfile,delimiter=' ')
