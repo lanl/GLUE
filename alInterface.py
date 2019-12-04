@@ -55,7 +55,7 @@ BGKMassesOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConduc
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
-        return 1.1
+        return 1.2
     elif packetType == SolverCode.BGKMASSES:
         return 1.0
     else:
@@ -155,7 +155,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
             # real values of the MD simulations (long MD)
             Teq=50000
             Trun=100000
-            cutoff = 5.5
+            cutoff = 2.5
             box=50
         elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
             # Values for infrastructure test
@@ -224,7 +224,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
             # real values of the MD simulations (long MD)
             Teq=50000
             Trun=100000
-            cutoff = 5.5
+            cutoff = 2.5
             box=50
         elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
             # Values for infrastructure test
@@ -404,6 +404,24 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             # Then do nothing because the script itself will write the result
     else:
         raise Exception('Using Unsupported Solver Code')
+
+def getGNDCount(dbPath, solverCode):
+    selString = ""
+    if solverCode == SolverCode.BGK:
+        selString = "SELECT COUNT(*)  FROM BGKGND;"
+    elif solverCode == SolverCode.BGKMASSES:
+        selString = "SELECT COUNT(*)  FROM BGKMASSESGND;"
+    else:
+        raise Exception('Using Unsupported Solver Code')
+    sqlDB = sqlite3.connect(dbPath)
+    sqlCursor = sqlDB.cursor()
+    numGND = 0
+    for row in sqlCursor.execute(selString):
+        # Should just be one row with one value
+        numGND = row[0]
+    sqlCursor.close()
+    sqlDB.close()
+    return numGND
 
 def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
     if isinstance(lammpsResult, BGKOutputs):
