@@ -43,7 +43,7 @@ BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
-        return 1.0
+        return 1.1
     else:
         raise Exception('Using Unsupported Solver Code')
 
