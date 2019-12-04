@@ -119,6 +119,7 @@ void bgkmasses_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
 	{
 		req.density[i] = -0.0;
 		req.charges[i] = -0.0;
+		req.masses[i] = -0.0;
 	}
 
 	bgkmasses_req_single_with_reqtype(req, mpiRank, tag, dbHandle, ALInterfaceMode_e::KILL);
