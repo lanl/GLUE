@@ -19,6 +19,23 @@ struct bgk_result_s
 	double diffusionCoefficient[10];
 };
 
+struct bgkmasses_request_s
+{
+	double temperature;
+	//n
+	double density[4];
+	double charges[4];
+	double masses[4];
+};
+
+struct bgkmasses_result_s
+{
+	double viscosity;
+	double thermalConductivity;
+	//n*n+1/2
+	double diffusionCoefficient[10];
+};
+
 struct lbmZeroD_request_s
 {
 	//compute distance, L, from the wall
@@ -49,6 +66,12 @@ extern "C"
 	bgk_result_t* bgk_req_batch(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
 	bgk_result_t* bgk_req_batch_with_reqtype(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
 	void bgk_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
+
+	bgkmasses_result_t bgkmasses_req_single(bgkmasses_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle);
+	bgkmasses_result_t bgkmasses_req_single_with_reqtype(bgkmasses_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
+	bgkmasses_result_t* bgkmasses_req_batch(bgkmasses_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
+	bgkmasses_result_t* bgkmasses_req_batch_with_reqtype(bgkmasses_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
+	void bgkmasses_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
 
 	lbmZeroD_result_t lbmZeroD_req_single(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle);
 	lbmZeroD_result_t lbmZeroD_req_single_with_reqtype(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
