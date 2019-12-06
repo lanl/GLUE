@@ -23,6 +23,7 @@ class SolverCode(Enum):
     BGK = 0
     LBMZEROD = 1
     BGKMASSES = 2
+    BGKARBIT = 3
 
 class ResultProvenance(IntEnum):
     LAMMPS = 0
@@ -42,6 +43,13 @@ BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
 #  Charges: float[4]
 #  Masses: float[4]
 BGKMassesInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges Masses')
+# BGKArbitInputs
+#  Temperature: float
+#  Density: float[4]
+#  Charges: float[4]
+#  Masses: float[4]
+#  Zbars: float[4]
+BGKArbitInputs = collections.namedtuple('BGKInputs', 'Temperature Density Masses Zbars')
 # BGKoutputs
 #  Viscosity: float
 #  ThermalConductivity: float
@@ -52,11 +60,18 @@ BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity
 #  ThermalConductivity: float
 #  DiffCoeff: float[10]
 BGKMassesOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
+# BGKArbitoutputs
+#  Viscosity: float
+#  ThermalConductivity: float
+#  DiffCoeff: float[10]
+BGKArbitOutputs = collections.namedtuple('BGKArbitOutputs', 'Viscosity ThermalConductivity DiffCoeff')
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
         return 1.2
     elif packetType == SolverCode.BGKMASSES:
+        return 1.0
+    elif packetType == SolverCode.BGKARBIT:
         return 1.0
     else:
         raise Exception('Using Unsupported Solver Code')
@@ -135,6 +150,13 @@ def processReqRow(sqlRow, packetType):
         bgkInput = BGKMassesInputs(Temperature=float(sqlRow[3]), Density=[], Charges=[], Masses=[])
         bgkInput.Density.extend([sqlRow[4], sqlRow[5], sqlRow[6], sqlRow[7]])
         bgkInput.Charges.extend([sqlRow[8], sqlRow[9], sqlRow[10], sqlRow[11]])
+        bgkInput.Masses.extend([sqlRow[12], sqlRow[13], sqlRow[14], sqlRow[15]])
+        reqType = ALInterfaceMode(sqlRow[16])
+        return (bgkInput, reqType)
+    elif packetType == SolverCode.BGKARBIT:
+        bgkInput = BGKArbitInputs(Temperature=float(sqlRow[3]), Density=[], Charges=[], Masses=[], Zbars=[])
+        bgkInput.Density.extend([sqlRow[4], sqlRow[5], sqlRow[6], sqlRow[7]])
+        bgkInput.ZBars.extend([sqlRow[8], sqlRow[9], sqlRow[10], sqlRow[11]])
         bgkInput.Masses.extend([sqlRow[12], sqlRow[13], sqlRow[14], sqlRow[15]])
         reqType = ALInterfaceMode(sqlRow[16])
         return (bgkInput, reqType)
@@ -290,6 +312,8 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         inputList.append(getGroundishTruthVersion(SolverCode.BGK))
         Inputs_file = os.path.join(dirPath, "inputs.txt")
         np.savetxt(Inputs_file, np.asarray(inputList))
+    elif isinstance(lammpsArgs, BGKArbitInputs):
+        raise Exception("Not implemented")
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -341,6 +365,8 @@ def getAllGNDData(dbPath, solverCode):
         selString = "SELECT * FROM BGKGND;"
     elif solverCode == SolverCode.BGKMASSES:
         selString = "SELECT * FROM BGKMASSESGND;"
+    elif solverCode == SolverCode.BGKARBIT:
+        selString = "SELECT * FROM BGKARBITGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -402,6 +428,8 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
+    elif solverCode == SolverCode.BGKARBIT:
+        raise Exception("Not implemented")
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -411,6 +439,8 @@ def getGNDCount(dbPath, solverCode):
         selString = "SELECT COUNT(*)  FROM BGKGND;"
     elif solverCode == SolverCode.BGKMASSES:
         selString = "SELECT COUNT(*)  FROM BGKMASSESGND;"
+    elif solverCode == SolverCode.BGKARBIT:
+        selString = "SELECT COUNT(*)  FROM BGKARBITGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -437,6 +467,15 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
+        sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+        sqlDB.close()
+    elif isinstance(lammpsResult, BGKArbitOutputs):
+        sqlDB = sqlite3.connect(dbPath)
+        sqlCursor = sqlDB.cursor()
+        insString = "INSERT INTO BGKARBITRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()

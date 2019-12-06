@@ -48,6 +48,9 @@ def procFileAndInsert(tag, dbPath, rank, reqid, lammpsMode, solverCode):
         outputList.extend(bgkOutput.DiffCoeff)
         outputList.append(getGroundishTruthVersion(SolverCode.BGKMASSES))
         return np.asarray(outputList)
+    elif solverCode == SolverCode.BGKARBIT:
+        # Will need to rewrite this to account for matching species
+        raise Exception('Not Implemented')
 
 def insertGroundishTruth(dbPath, outLammps, solverCode):
     if solverCode == SolverCode.BGK:
@@ -71,6 +74,19 @@ def insertGroundishTruth(dbPath, outLammps, solverCode):
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKMASSESGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+        insArgs = tuple(inLammps.tolist()) + tuple(outLammps.tolist())
+        sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+        sqlDB.close()
+    elif solverCode == SolverCode.BGKARBIT:
+        #Pull data to write
+        inLammps = np.loadtxt("inputs.txt")
+        #np.savetxt("outputs.txt", outLammps)
+        #Connect to DB
+        sqlDB = sqlite3.connect(dbPath)
+        sqlCursor = sqlDB.cursor()
+        insString = "INSERT INTO BGKARBITGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         insArgs = tuple(inLammps.tolist()) + tuple(outLammps.tolist())
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
