@@ -2,8 +2,61 @@ import argparse
 from alInterface import BGKOutputs, insertResult, ResultProvenance, ALInterfaceMode, getGroundishTruthVersion, SolverCode
 import numpy as np
 import sqlite3
+import os
+import re
 
-def procFileAndInsert(tag, dbPath, rank, reqid, lammpsMode, solverCode):
+def speciesNotationToArrayIndex(in0, in1):
+    (spec0, spec1) = sorted(in0, in1)
+    if (spec0, spec1) == (1, 1):
+        return 0
+    elif (spec0, spec1) == (1, 2):
+        return 1
+    elif (spec0, spec1) == (1, 3):
+        return 2
+    elif (spec0, spec1) == (1, 4):
+        return 3
+    elif (spec0, spec1) == (2, 2):
+        return 4
+    elif (spec0, spec1) == (2, 3):
+        return 5
+    elif (spec0, spec1) == (2, 4):
+        return 6
+    elif (spec0, spec1) == (3, 3):
+        return 7
+    elif (spec0, spec1) == (3, 4):
+        return 8
+    elif (spec0, spec1) == (4, 4):
+        return 9
+    else:
+        raise Exception('Improper Species Indices')
+
+def procMutualDiffusuionFile(fname):
+    raise Exception('Unimplemented')
+
+def matchLammpsOutputsToArgs(outputDirectory):
+    # Special thanks to Scot Halverson for figuring out clean solution
+    diffCoeffs = 10*[0.0]
+    # Pull mapping info from file
+    mapFile = os.path.join(outputDirectory, "speciesMapping.txt")
+    # TODO: Actually pull these values
+    mapping = [4, 3]
+    # Iterate over all output files
+    for dirFile in os.listdir(outputDirectory):
+        # Is this a diffusion output file?
+        if re.match("mutual_diffusion_\d+.csv", dirFile):
+            # Pull the diffusion value out first
+            diffVal = procMutualDiffusuionFile(os.path.join(outputDirectory, dirFile))
+            indexString = dirFile.replace("mutual_diffusion_", "")
+            indexString = indexString.replace(".csv", "")
+            # Map LAMMPS indices to species indices
+            mappedIndices =  sorted([mapping[int(x)-1] for x in indexString])
+            # Map species indices to BGK indices
+            outIndex = speciesNotationToArrayIndex(mappedIndices[0], mappedIndices[1])
+            # And write the result to the output array
+            diffCoeffs[outIndex] = diffVal
+    return diffCoeffs
+
+def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
     if solverCode == SolverCode.BGK:
         # Open file
         # Need to remove leading I
@@ -119,6 +172,6 @@ if __name__ == "__main__":
     mode = ALInterfaceMode(args['mode'])
     code = SolverCode(args['code'])
 
-    resultArr = procFileAndInsert(tag, fName, rank, reqid, mode, code)
+    resultArr = procOutputsAndProcess(tag, fName, rank, reqid, mode, code)
     if(mode == ResultProvenance.LAMMPS):
         insertGroundishTruth(fName, resultArr, code)
