@@ -38,8 +38,8 @@ def matchLammpsOutputsToArgs(outputDirectory):
     diffCoeffs = 10*[0.0]
     # Pull mapping info from file
     mapFile = os.path.join(outputDirectory, "speciesMapping.txt")
-    # TODO: Actually pull these values
-    mapping = [4, 3]
+    mapArr = np.loadtxt(mapFile, dtype=int)
+    mapping = mapArr.tolist()
     # Iterate over all output files
     for dirFile in os.listdir(outputDirectory):
         # Is this a diffusion output file?

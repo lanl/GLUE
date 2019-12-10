@@ -430,6 +430,40 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             # Then do nothing because the script itself will write the result
     elif solverCode == SolverCode.BGKARBIT:
         raise Exception("Not implemented")
+        # Mkdir ./${TAG}_${RANK}_${REQ}
+        outDir = tag + "_" + str(rank) + "_" + str(reqid)
+        outPath = os.path.join(os.getcwd(), outDir)
+        if(not os.path.exists(outPath)):
+            os.mkdir(outPath)
+            lammpsScript = ""
+            # Generate (?) Lammps Script and any Config/Input Files
+            # TODO
+            # Specify mapping of species and write to file for later use
+            mapList =  [index for index, val in enumerate(lammpsArgs.Density) if val != 0]
+            mapFile = os.path.join(outPath, "speciesMapping.txt")
+            np.savetxt(mapFile, mapList, fmt='%u')
+            # Prioritize the local jobEnv.sh over the repo jobEnv.sh
+            cwdJobPath = os.path.join(os.getcwd(), "jobEnv.sh")
+            jobEnvFilePath = ""
+            if not os.path.exists(cwdJobPath):
+                jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
+            else:
+                jobEnvFilePath = cwdJobPath
+            shutil.copy2(jobEnvFilePath, outPath)
+            # Generate slurm script by writing to file
+            slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
+            with open(slurmFPath, 'w') as slurmFile:
+                slurmFile.write("#!/bin/bash\n")
+                slurmFile.write("#SBATCH -N 1\n")
+                slurmFile.write("#SBATCH -n 16\n")
+                slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
+                slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
+                slurmFile.write("cd " + outPath + "\n")
+                slurmFile.write("source ./jobEnv.sh\n")
+                # TODO
+            # either syscall or subprocess.run slurm with the script
+            launchSlurmJob(slurmFPath)
+            # Then do nothing because the script itself will write the result
     else:
         raise Exception('Using Unsupported Solver Code')
 
