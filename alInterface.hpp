@@ -74,6 +74,13 @@ template <> std::string getReqSQLString<bgk_request_t>(bgk_request_t input, int 
 	std::string retString(sqlBuf);
 	return retString;
 }
+template <> std::string getReqSQLString<bgkmasses_request_t>(bgkmasses_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
+{
+	char sqlBuf[2048];
+	sprintf(sqlBuf, "INSERT INTO BGKMASSESREQS VALUES(\'%s\', %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f,  %d)", tag, mpiRank, reqNum, input.temperature, input.density[0], input.density[1], input.density[2], input.density[3], input.charges[0], input.charges[1], input.charges[2], input.charges[3], input.masses[0], input.masses[1], input.masses[2], input.masses[3], reqType);
+	std::string retString(sqlBuf);
+	return retString;
+}
 template <> std::string getReqSQLString<lbmZeroD_request_t>(lbmZeroD_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
 {
 	exit(1);
@@ -87,6 +94,13 @@ template <> std::string getResultSQLString<bgk_result_t>(int mpiRank, char * tag
 {
 	char sqlBuf[2048];
 	sprintf(sqlBuf, "SELECT * FROM BGKRESULTS WHERE REQ=%d AND TAG=\'%s\' AND RANK=%d;", reqNum, tag, mpiRank);
+	std::string retString(sqlBuf);
+	return retString;
+}
+template <> std::string getResultSQLString<bgkmasses_result_t>(int mpiRank, char * tag, int reqNum)
+{
+	char sqlBuf[2048];
+	sprintf(sqlBuf, "SELECT * FROM BGKMASSESRESULTS WHERE REQ=%d AND TAG=\'%s\' AND RANK=%d;", reqNum, tag, mpiRank);
 	std::string retString(sqlBuf);
 	return retString;
 }
