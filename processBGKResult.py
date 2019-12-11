@@ -43,13 +43,13 @@ def matchLammpsOutputsToArgs(outputDirectory):
     # Iterate over all output files
     for dirFile in os.listdir(outputDirectory):
         # Is this a diffusion output file?
-        if re.match("mutual_diffusion_\d+.csv", dirFile):
+        if re.match("diffusion_coefficient_\d+.csv", dirFile):
             # Pull the diffusion value out first
             diffVal = procMutualDiffusuionFile(os.path.join(outputDirectory, dirFile))
-            indexString = dirFile.replace("mutual_diffusion_", "")
+            indexString = dirFile.replace("diffusion_coefficient_", "")
             indexString = indexString.replace(".csv", "")
             # Map LAMMPS indices to species indices
-            mappedIndices =  sorted([mapping[int(x)-1] for x in indexString])
+            mappedIndices = sorted([mapping[int(x)] for x in indexString])
             # Map species indices to BGK indices
             outIndex = speciesNotationToArrayIndex(mappedIndices[0], mappedIndices[1])
             # And write the result to the output array

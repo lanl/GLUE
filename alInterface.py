@@ -37,7 +37,7 @@ class ResultProvenance(IntEnum):
 #  Density: float[4]
 #  Charges: float[4]
 BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
-# BGKInputs
+# BGKMassesInputs
 #  Temperature: float
 #  Density: float[4]
 #  Charges: float[4]
@@ -46,7 +46,6 @@ BGKMassesInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charg
 # BGKArbitInputs
 #  Temperature: float
 #  Density: float[4]
-#  Charges: float[4]
 #  Masses: float[4]
 #  Zbars: float[4]
 BGKArbitInputs = collections.namedtuple('BGKInputs', 'Temperature Density Masses Zbars')
