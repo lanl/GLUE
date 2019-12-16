@@ -9,6 +9,7 @@ import numpy as np
 import csv
 import time
 import subprocess
+import getpass
 
 class ALInterfaceMode(IntEnum):
     LAMMPS = 0
@@ -542,7 +543,7 @@ if __name__ == "__main__":
     defaultFName = "testDB.db"
     defaultTag = "DUMMY_TAG_42"
     defaultLammps = "./lmp"
-    defaultUname = "tcg"
+    defaultUname = getpass.getuser()
     defaultSqlite = "sqlite3"
     defaultSbatch = "/usr/bin/sbatch"
     defaultMaxJobs = 4
