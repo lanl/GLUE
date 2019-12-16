@@ -2,6 +2,7 @@ import numpy as np
 import argparse
 import os
 from alInterface import SolverCode, BGKInputs, BGKMassesInputs, ALInterfaceMode, getAllGNDData, queueLammpsJob
+import getpass
 
 def genTrainingData(dbPath, uname, lammps, maxJobs, code):
     reqid = 0
@@ -47,7 +48,7 @@ def printResults(gndTable, code):
 if __name__ == "__main__":
     defaultFName = "testDB.db"
     defaultSolver = SolverCode.BGK
-    defaultUname = "tcg"
+    defaultUname = getpass.getuser()
     defaultLammps = "./lmp"
     defaultMaxJobs = 4
     defaultGenOrRead = 0
