@@ -163,8 +163,14 @@ thermo_style custom step press etotal c_vacfD[4] c_vacfAr[4]
 variable dens1cm equal 1.e-6*${dens1}
 variable dens2cm equal 1.e-6*${dens2}
 
-fix extra all print ${trun} "I $T ${dens1cm} ${dens2cm} ${Zbar_D} ${Zbar_Ar} ${D11} ${D12} ${D22}" append mutual_diffusion.csv
+#This fix somehow prints results at time t=0 and t=trun, instead of only t=trun which is what it is supposed to do. 
+# Something to do with Badger and the glueCode. I got around this by using print instead of fix print.
+
+#fix extra all print ${trun} "I $T ${dens1cm} ${dens2cm} ${Zbar_D} ${Zbar_Ar} ${D11} ${D12} ${D22}" append mutual_diffusion.csv
 
 run ${trun}
 
+
+print "# T dens1cm dens2cm Zbar_ Zbar_Ar D11 D12 D22" append mutual_diffusion.csv
+print "I $T ${dens1cm} ${dens2cm} ${Zbar_D} ${Zbar_Ar} ${D11} ${D12} ${D22}" append mutual_diffusion.csv
 
