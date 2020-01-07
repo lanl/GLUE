@@ -35,9 +35,6 @@ module alinterface_f
 
 contains
 
-! TODO: Need to add handles to probably pass a c_ptr to sqlitedb
-!   Idea being that we'll handle that on the C side to minimize fortran debugging
-!     and maximize dryness
 function lbmToOneDMD_req_single(input, mpiRank, tag, dbHandle) bind(c,name="lbmToOneDMD_req_single") result(res)
 	use iso_c_binding
 	type(lbmToOneDMD_request_f), value :: input
@@ -53,5 +50,12 @@ function initDB(mpiRank,fName) bind(c,name="initDB") result(dbhandle)
 	integer(c_int), value :: mpiRank
 	character(kind=c_char)  :: fName(*)
 end function initDB
+
+subroutine lbmToOneDMD_stop_service(mpiRank, tag, dbHandle) bind(c, name="lbmToOneDMD_stop_service")
+	use iso_c_binding
+	integer(c_int), value :: mpiRank
+	character(kind=c_char) :: tag(*)
+	type(c_ptr) :: dbhandle
+end subroutine lbmToOneDMD_stop_service
 
 end module alinterface_f
