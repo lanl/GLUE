@@ -22,7 +22,7 @@ class ALInterfaceMode(IntEnum):
 
 class SolverCode(Enum):
     BGK = 0
-    LBMZEROD = 1
+    LBMTOONEDMD = 1
     BGKMASSES = 2
 
 class ResultProvenance(IntEnum):

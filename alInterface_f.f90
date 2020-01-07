@@ -2,15 +2,17 @@ module alinterface_f
 	use, intrinsic :: iso_c_binding
 	implicit none
 
-	type, bind(c) :: lbmZeroD_request_f
+	public
+
+	type, bind(c) :: lbmToOneDMD_request_f
 		real(c_double) :: distance
 		real(c_double) :: density
 		real(c_double) :: temperature
-	end type lbmZeroD_request_f
+	end type lbmToOneDMD_request_f
 
-	type, bind(c) :: lbmZeroD_result_f
+	type, bind(c) :: lbmToOneDMD_result_f
 		real(c_double) :: adsorption
-	end type lbmZeroD_result_f
+	end type lbmToOneDMD_result_f
 
 	type, bind(c) :: lbmDemo_request_f
 		real(c_double) :: density
@@ -36,5 +38,22 @@ contains
 ! TODO: Need to add handles to probably pass a c_ptr to sqlitedb
 !   Idea being that we'll handle that on the C side to minimize fortran debugging
 !     and maximize dryness
+function lbmToOneDMD_req_single(input, mpiRank, tag, dbHandle) bind(c,name="lbmToOneDMD_req_single") result(res)
+	use iso_c_binding
+	import lbmToOneDMD_request_f
+	import lbmToOneDMD_result_f
+	type(lbmToOneDMD_request_f), value :: input
+	integer(c_int), value :: mpiRank
+	character(kind=c_char) :: tag(*)
+	type(c_ptr), value :: dbHandle
+	type(lbmToOneDMD_result_f) :: res
+end function lbmToOneDMD_req_single
+
+function initDB(mpiRank,fName) bind(c,name="initDB") result(dbhandle) 
+	use iso_c_binding
+	type(c_ptr) :: dbhandle
+	integer(c_int), value :: mpiRank
+	character(kind=c_char)  :: fName(*)
+end function initDB
 
 end module alinterface_f

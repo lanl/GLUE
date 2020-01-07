@@ -36,7 +36,7 @@ struct bgkmasses_result_s
 	double diffusionCoefficient[10];
 };
 
-struct lbmZeroD_request_s
+struct lbmToOneDMD_request_s
 {
 	//compute distance, L, from the wall
 	double distance;
@@ -46,7 +46,7 @@ struct lbmZeroD_request_s
 	double temperature;
 };
 
-struct lbmZeroD_result_s
+struct lbmToOneDMD_result_s
 {
 	//adsorption
 	double adsorption;
@@ -56,8 +56,8 @@ typedef struct bgk_result_s bgk_result_t;
 typedef struct bgk_request_s bgk_request_t;
 typedef struct bgkmasses_result_s bgkmasses_result_t;
 typedef struct bgkmasses_request_s bgkmasses_request_t;
-typedef struct lbmZeroD_result_s lbmZeroD_result_t;
-typedef struct lbmZeroD_request_s lbmZeroD_request_t;
+typedef struct lbmToOneDMD_result_s lbmToOneDMD_result_t;
+typedef struct lbmToOneDMD_request_s lbmToOneDMD_request_t;
 
 #ifdef __cplusplus
 extern "C"
@@ -75,11 +75,11 @@ extern "C"
 	bgkmasses_result_t* bgkmasses_req_batch_with_reqtype(bgkmasses_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
 	void bgkmasses_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
 
-	lbmZeroD_result_t lbmZeroD_req_single(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle);
-	lbmZeroD_result_t lbmZeroD_req_single_with_reqtype(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
-	lbmZeroD_result_t* lbmZeroD_req_batch(lbmZeroD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
-	lbmZeroD_result_t* lbmZeroD_req_batch_with_reqtype(lbmZeroD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
-	void lbmZeroD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
+	lbmToOneDMD_result_t lbmToOneDMD_req_single(lbmToOneDMD_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle);
+	lbmToOneDMD_result_t lbmToOneDMD_req_single_with_reqtype(lbmToOneDMD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
+	lbmToOneDMD_result_t* lbmToOneDMD_req_batch(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
+	lbmToOneDMD_result_t* lbmToOneDMD_req_batch_with_reqtype(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
+	void lbmToOneDMD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
 	
 	sqlite3 * initDB(int mpiRank, char * fName);
 	void closeDB(sqlite3* dbHandle);

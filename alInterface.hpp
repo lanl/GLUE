@@ -26,7 +26,7 @@ template <typename T> struct AsyncSelectTable_t
 };
 
 extern AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
-extern AsyncSelectTable_t<lbmZeroD_result_t> globalLBMZeroDResultTable;
+extern AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
 
 enum ALInterfaceMode_e
 {
@@ -58,9 +58,9 @@ template <> AsyncSelectTable_t<bgk_result_t>& getGlobalTable<bgk_result_t>()
 {
 	return globalBGKResultTable;
 }
-template <> AsyncSelectTable_t<lbmZeroD_result_t>& getGlobalTable<lbmZeroD_result_t>()
+template <> AsyncSelectTable_t<lbmToOneDMD_result_t>& getGlobalTable<lbmToOneDMD_result_t>()
 {
-	return globalLBMZeroDResultTable;
+	return globallbmToOneDMDResultTable;
 }
 
 template <typename T> std::string getReqSQLString(T input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
@@ -81,7 +81,7 @@ template <> std::string getReqSQLString<bgkmasses_request_t>(bgkmasses_request_t
 	std::string retString(sqlBuf);
 	return retString;
 }
-template <> std::string getReqSQLString<lbmZeroD_request_t>(lbmZeroD_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
+template <> std::string getReqSQLString<lbmToOneDMD_request_t>(lbmToOneDMD_request_t input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
 {
 	exit(1);
 }
@@ -104,7 +104,7 @@ template <> std::string getResultSQLString<bgkmasses_result_t>(int mpiRank, char
 	std::string retString(sqlBuf);
 	return retString;
 }
-template <> std::string getResultSQLString<lbmZeroD_result_t>(int mpiRank, char * tag, int reqNum)
+template <> std::string getResultSQLString<lbmToOneDMD_result_t>(int mpiRank, char * tag, int reqNum)
 {
 	exit(1);
 }
