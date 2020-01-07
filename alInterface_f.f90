@@ -40,8 +40,6 @@ contains
 !     and maximize dryness
 function lbmToOneDMD_req_single(input, mpiRank, tag, dbHandle) bind(c,name="lbmToOneDMD_req_single") result(res)
 	use iso_c_binding
-	import lbmToOneDMD_request_f
-	import lbmToOneDMD_result_f
 	type(lbmToOneDMD_request_f), value :: input
 	integer(c_int), value :: mpiRank
 	character(kind=c_char) :: tag(*)
