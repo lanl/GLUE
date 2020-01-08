@@ -417,11 +417,26 @@ def alModelStub(inArgs):
     else:
         raise Exception('Using Unsupported Solver Code With Interpolation Model')
 
+def uqCheckerStub(err):
+    if err < sys.float_info.max:
+        return True
+    else:
+        return False
+
 def getInterpModel(packetType, alBackend):
     if alBackend == LearnerBackend.FAKE:
-        return alModelStub
+        return InterpModelWrapper(alModelStub, uqCheckerStub)
     else:
         raise Exception('Using Unsupported Active Learning Backewnd')
+
+class InterpModelWrapper:
+    def __init__(self, newModel, uqChecker):
+        self.model = newModel
+        self.uq = uqChecker
+    def __call__(self, inputStruct):
+        (err, output) = self.model(inputStruct)
+        isLegit = self.uq(err)
+        return (isLegit, output)
 
 def getGNDCount(dbPath, solverCode):
     selString = ""
