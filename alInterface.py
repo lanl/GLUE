@@ -9,10 +9,10 @@ import numpy as np
 import csv
 import time
 import subprocess
+import getpass
 
 class ALInterfaceMode(IntEnum):
     LAMMPS = 0
-    MYSTIC = 1
     ACTIVELEARNER=2
     FAKE = 3
     DEFAULT = 4
@@ -26,11 +26,15 @@ class SolverCode(Enum):
 
 class ResultProvenance(IntEnum):
     LAMMPS = 0
-    MYSTIC = 1
     ACTIVELEARNER = 2
     FAKE = 3
     DB = 4
     FASTLAMMPS = 5
+
+class LearnerBackend(IntEnum):
+    MYSTIC = 1
+    PYTORCH = 2
+    FAKE = 3
 
 # BGKInputs
 #  Temperature: float
@@ -56,7 +60,7 @@ BGKMassesOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConduc
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
-        return 1.2
+        return 1.3
     elif packetType == SolverCode.BGKMASSES:
         return 1.0
     else:
@@ -354,13 +358,6 @@ def getAllGNDData(dbPath, solverCode):
     sqlDB.close()
     return np.array(gndResults)
 
-def alModelStub(inArgs):
-    if isinstance(inArgs, BGKInputs):
-        bgkOutput = None
-        return (sys.float_info.max, bgkOutput)
-    else:
-        raise Exception('Using Unsupported Solver Code With Interpolation Model')
-
 def getGNDCount(dbPath, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
@@ -422,12 +419,52 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
                 # Actually call lammps
                 slurmFile.write("srun -n 16 " + lammps + " < " + lammpsScript + " \n")
                 # Process the result and write to DB
-                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " + -c " + str(solverCode.value) + "\n")
+                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -c " + str(solverCode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
     else:
         raise Exception('Using Unsupported Solver Code')
+
+def alModelStub(inArgs):
+    if isinstance(inArgs, BGKInputs):
+        bgkOutput = None
+        return (sys.float_info.max, bgkOutput)
+    else:
+        raise Exception('Using Unsupported Solver Code With Interpolation Model')
+
+def uqCheckerStub(err):
+    if err < sys.float_info.max:
+        return True
+    else:
+        return False
+
+def getInterpModel(packetType, alBackend, dbPath):
+    if alBackend == LearnerBackend.FAKE:
+        return InterpModelWrapper(alModelStub, uqCheckerStub)
+    if alBackend == LearnerBackend.PYTORCH:
+        import nn_learner
+        return BGKPytorchInterpModel(nn_learner.retrain(dbPath))
+    else:
+        raise Exception('Using Unsupported Active Learning Backewnd')
+
+class InterpModelWrapper:
+    def __init__(self, newModel, uqChecker):
+        self.model = newModel
+        self.uq = uqChecker
+    def __call__(self, inputStruct):
+        (err, output) = self.model(inputStruct)
+        isLegit = self.uq(err)
+        return (isLegit, output)
+
+class BGKPytorchInterpModel(InterpModelWrapper):
+    def __init__(self, newModel):
+        # TODO: Asynchrony!
+        self.model = newModel
+    def __call__(self, inputStruct):
+        (err, output) = self.model(inputStruct)
+        isLegit = self.model.iserrok(err)
+        return (isLegit, output)
 
 def getGNDCount(dbPath, solverCode):
     selString = ""
@@ -497,20 +534,8 @@ def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, mod
                 buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch, packetType)
                 launchedJob = True
 
-def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType):
+def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType, alBackend):
     reqNumArr = [0] * len(rankArr)
-
-    #Load any symbols that are only required on a specific code path
-    if defaultMode == ALInterfaceMode.ACTIVELEARNER:
-        import nn_learner
-    interpModel = alModelStub
-    # Query DB for number of GND rows
-    curGrounds = getGNDCount(dbPath, packetType)
-
-    #TODO: Refactor boilerplate/prep work. Likely to seperate process
-    # Tell learner where the db is
-    # Generate the initial model from the nn_learner
-    interpModel = nn_learner.retrain(dbPath)
 
     #Spin until file exists
     while not os.path.exists(dbPath):
@@ -518,6 +543,8 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
 
     keepSpinning = True
     while keepSpinning:
+        # TODO: Consider logic to not hammer DB/learner with unnecessary requests
+        interpModel = getInterpModel(packetType, alBackend, dbPath)
         for i in range(0, len(rankArr)):
             rank = rankArr[i]
             req = reqNumArr[i]
@@ -545,20 +572,21 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                 if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch == ALInterfaceMode.FASTLAMMPS:
                     # Submit as LAMMPS job
                     queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
-                elif modeSwitch == ALInterfaceMode.MYSTIC:
-                    # call mystic: I think Mystic will handle most of our logic?
-                    # TODO
-                    pass
                 elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
-                    # Ask Learner
-                    (prediction, errBar) = interpModel(task[1])
-                    # Check if error is too large
-                    isLegit = interpModel.iserrok(errBar)
+                    # General (Active) Learner
+                    #  model = getLatestModelFromLearners()
+                    #  (isLegitPerUQ, outputs) = model(inputs)
+                    #  if isLegitPerUQ:
+                    #      return outputs
+                    #  else:
+                    #      outputs = fineScaleSim(inputs)
+                    #      queueUpdateModel(inputs, outputs)
+                    #      return outputs
+                    (isLegit, output) = interpModel(task[1])
                     if isLegit:
-                        #Value is legit, so write it
-                        insertResult(rank, tag, dbPath, task[0], prediction, ResultProvenance.ACTIVELEARNER)
-                    else: 
-                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, ALInterfaceMode.LAMMPS)
+                        insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
+                    else:
+                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
@@ -571,27 +599,19 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                         raise Exception('Using Unsupported Solver Code')
                 elif modeSwitch == ALInterfaceMode.KILL:
                     keepSpinning = False
-        #Probably some form of delay?
-        #Determine if a sufficient number of new groundish truths exist
-        newGrounds = getGNDCount(dbPath, packetType)
-        if newGrounds > curGrounds:
-            #Generate new model from training data
-            #TODO: Asynchrony!
-            interpModel = nn_learner.retrain()
-        curGrounds = newGrounds
-
 
 if __name__ == "__main__":
     defaultFName = "testDB.db"
     defaultTag = "DUMMY_TAG_42"
     defaultLammps = "./lmp"
-    defaultUname = "tcg"
+    defaultUname = getpass.getuser()
     defaultSqlite = "sqlite3"
     defaultSbatch = "/usr/bin/sbatch"
     defaultMaxJobs = 4
     defaultProcessing = ALInterfaceMode.LAMMPS
     defaultRanks = [0]
     defaultSolver = SolverCode.BGK
+    defaultALBackend = LearnerBackend.FAKE
 
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
@@ -605,6 +625,7 @@ if __name__ == "__main__":
     argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (LAMMPS=0)")
     argParser.add_argument('-r', '--ranks', nargs='+', default=defaultRanks, type=int,  help="Rank IDs to Listen For")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
+    argParser.add_argument('-a', '--albackend', action='store', type=int, required=False, default=defaultALBackend, help='(Active) Learning Backend to Use')
 
 
     args = vars(argParser.parse_args())
@@ -619,5 +640,6 @@ if __name__ == "__main__":
     ranks = args['ranks']
     mode = ALInterfaceMode(args['mode'])
     code = SolverCode(args['code'])
+    alBackend = LearnerBackend(args['albackend'])
 
-    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code)
+    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code, alBackend)
