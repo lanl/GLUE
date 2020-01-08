@@ -433,7 +433,7 @@ class InterpModelWrapper:
     def __init__(self, newModel, uqChecker):
         self.model = newModel
         self.uq = uqChecker
-    def callModel(inputStruct):
+    def __call__(self, inputStruct):
         (err, output) = self.model(inputStruct)
         isLegit = self.uq(err)
         return (isLegit, output)
@@ -554,7 +554,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                     #      outputs = fineScaleSim(inputs)
                     #      queueUpdateModel(inputs, outputs)
                     #      return outputs
-                    (isLegit, output) = interpModel.callModel(task[1])
+                    (isLegit, output) = interpModel(task[1])
                     if isLegit:
                         insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
                     else:
