@@ -13,7 +13,6 @@ import getpass
 
 class ALInterfaceMode(IntEnum):
     LAMMPS = 0
-    MYSTIC = 1
     ACTIVELEARNER=2
     FAKE = 3
     DEFAULT = 4
@@ -27,10 +26,15 @@ class SolverCode(Enum):
 
 class ResultProvenance(IntEnum):
     LAMMPS = 0
-    MYSTIC = 1
+    ACTIVELEARNER = 2
     FAKE = 3
     DB = 4
     FASTLAMMPS = 5
+
+class LearnerBackend(IntEnum):
+    MYSTIC = 1
+    PYTORCH = 2
+    FAKE = 3
 
 # BGKInputs
 #  Temperature: float
@@ -406,6 +410,19 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
     else:
         raise Exception('Using Unsupported Solver Code')
 
+def alModelStub(inArgs):
+    if isinstance(inArgs, BGKInputs):
+        bgkOutput = None
+        return (sys.float_info.max, bgkOutput)
+    else:
+        raise Exception('Using Unsupported Solver Code With Interpolation Model')
+
+def getInterpModel(packetType, alBackend):
+    if alBackend == LearnerBackend.FAKE:
+        return alModelStub
+    else:
+        raise Exception('Using Unsupported Active Learning Backewnd')
+
 def getGNDCount(dbPath, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
@@ -474,7 +491,7 @@ def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, mod
                 buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch, packetType)
                 launchedJob = True
 
-def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType):
+def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType, alBackend):
     reqNumArr = [0] * len(rankArr)
 
     #Spin until file exists
@@ -483,6 +500,8 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
 
     keepSpinning = True
     while keepSpinning:
+        # TODO: Consider logic to not hammer DB/learner with unnecessary requests
+        interpModel = getInterpModel(packetType, alBackend)
         for i in range(0, len(rankArr)):
             rank = rankArr[i]
             req = reqNumArr[i]
@@ -510,20 +529,21 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                 if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch == ALInterfaceMode.FASTLAMMPS:
                     # Submit as LAMMPS job
                     queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
-                elif modeSwitch == ALInterfaceMode.MYSTIC:
-                    # call mystic: I think Mystic will handle most of our logic?
-                    # TODO
-                    pass
                 elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
-                    # This is probably more for the Nick stuff
-                    #  Ask Learner
-                    #     We good? Return value
-                    #  Check LUT
-                    #     We good? Return value
-                    #  Call LAMMPS
-                    #     Go get a coffee, then return value. And add to LUT (?)
-                    # TODO
-                    pass
+                    # General (Active) Learner
+                    #  model = getLatestModelFromLearners()
+                    #  (isLegitPerUQ, outputs) = model(inputs)
+                    #  if isLegitPerUQ:
+                    #      return outputs
+                    #  else:
+                    #      outputs = fineScaleSim(inputs)
+                    #      queueUpdateModel(inputs, outputs)
+                    #      return outputs
+                    (isLegit, output) = interpModel(task[1])
+                    if isLegit:
+                        insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
+                    else:
+                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
@@ -550,6 +570,7 @@ if __name__ == "__main__":
     defaultProcessing = ALInterfaceMode.LAMMPS
     defaultRanks = [0]
     defaultSolver = SolverCode.BGK
+    defaultALBackend = LearnerBackend.FAKE
 
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
@@ -563,6 +584,7 @@ if __name__ == "__main__":
     argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (LAMMPS=0)")
     argParser.add_argument('-r', '--ranks', nargs='+', default=defaultRanks, type=int,  help="Rank IDs to Listen For")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
+    argParser.add_argument('-a', '--albackend', action='store', type=int, required=False, default=defaultALBackend, help='(Active) Learning Backend to Use')
 
 
     args = vars(argParser.parse_args())
@@ -577,5 +599,6 @@ if __name__ == "__main__":
     ranks = args['ranks']
     mode = ALInterfaceMode(args['mode'])
     code = SolverCode(args['code'])
+    alBackend = LearnerBackend(args['albackend'])
 
-    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code)
+    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code, alBackend)
