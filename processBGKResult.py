@@ -1,5 +1,6 @@
 import argparse
 from alInterface import BGKOutputs, insertResult, ResultProvenance, ALInterfaceMode, getGroundishTruthVersion, SolverCode
+from writeLammpsScript import write_output_coeff
 import numpy as np
 import sqlite3
 import os
@@ -36,10 +37,6 @@ def procMutualDiffusuionFile(fname):
 def matchLammpsOutputsToArgs(outputDirectory):
     # Special thanks to Scot Halverson for figuring out clean solution
     diffCoeffs = 10*[0.0]
-    # Pull mapping info from file
-    mapFile = os.path.join(outputDirectory, "speciesMapping.txt")
-    mapArr = np.loadtxt(mapFile, dtype=int)
-    mapping = mapArr.tolist()
     # Iterate over all output files
     for dirFile in os.listdir(outputDirectory):
         # Is this a diffusion output file?
@@ -48,24 +45,26 @@ def matchLammpsOutputsToArgs(outputDirectory):
             diffVal = procMutualDiffusuionFile(os.path.join(outputDirectory, dirFile))
             indexString = dirFile.replace("diffusion_coefficient_", "")
             indexString = indexString.replace(".csv", "")
-            # Map LAMMPS indices to species indices
-            mappedIndices = sorted([mapping[int(x)] for x in indexString])
+            if len(indexString) != 2:
+                raise Exception(dirFile + " is not mappable to a species index")
             # Map species indices to BGK indices
-            outIndex = speciesNotationToArrayIndex(mappedIndices[0], mappedIndices[1])
+            outIndex = speciesNotationToArrayIndex(indexString[0], indexString[1])
             # And write the result to the output array
             diffCoeffs[outIndex] = diffVal
     return diffCoeffs
 
 def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
     if solverCode == SolverCode.BGK:
-        # Open file
-        # Need to remove leading I
-        resAdd = np.loadtxt("mutual_diffusion.csv", converters = {0: lambda s: -0.0})
+        # Pull densities
+        densities = np.loadtxt("densities.txt")
+        # Pull zeroes
+        zeroDensitiesIndex = np.loadtxt("zeroes.txt")
+        # Generate coefficient files
+        write_output_coeff(densities, zeroDensitiesIndex)
+        # Get coefficients array
+        diffCoeffs = matchLammpsOutputsToArgs(os.getcwd())
         # Write results to an output namedtuple
-        bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
-        bgkOutput.DiffCoeff[0] = resAdd[6]
-        bgkOutput.DiffCoeff[1] = resAdd[7]
-        bgkOutput.DiffCoeff[2] = resAdd[8]
+        bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=diffCoeffs)
         # Write the tuple
         if(lammpsMode == ALInterfaceMode.LAMMPS):
             insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.LAMMPS)
@@ -79,30 +78,8 @@ def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
         outputList.extend(bgkOutput.DiffCoeff)
         outputList.append(getGroundishTruthVersion(SolverCode.BGK))
         return np.asarray(outputList)
-    elif solverCode == SolverCode.BGKMASSES:
-        # Open file
-        # Need to remove leading I
-        resAdd = np.loadtxt("mutual_diffusion.csv", converters = {0: lambda s: -0.0})
-        # Write results to an output namedtuple
-        bgkOutput = BGKMassesOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
-        bgkOutput.DiffCoeff[0] = resAdd[6]
-        bgkOutput.DiffCoeff[1] = resAdd[7]
-        bgkOutput.DiffCoeff[2] = resAdd[8]
-        # Write the tuple
-        if(lammpsMode == ALInterfaceMode.LAMMPS):
-            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.LAMMPS)
-        elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
-            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FASTLAMMPS)
-        else:
-            raise Exception('Using Unsupported LAMMPS Mode')
-        outputList = []
-        outputList.append(bgkOutput.Viscosity)
-        outputList.append(bgkOutput.ThermalConductivity)
-        outputList.extend(bgkOutput.DiffCoeff)
-        outputList.append(getGroundishTruthVersion(SolverCode.BGKMASSES))
-        return np.asarray(outputList)
-    elif solverCode == SolverCode.BGKARBIT:
-        # Will need to rewrite this to account for matching species
+    else:
+        # Unknown solver code
         raise Exception('Not Implemented')
 
 def insertGroundishTruth(dbPath, outLammps, solverCode):
@@ -127,19 +104,6 @@ def insertGroundishTruth(dbPath, outLammps, solverCode):
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKMASSESGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
-        insArgs = tuple(inLammps.tolist()) + tuple(outLammps.tolist())
-        sqlCursor.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlCursor.close()
-        sqlDB.close()
-    elif solverCode == SolverCode.BGKARBIT:
-        #Pull data to write
-        inLammps = np.loadtxt("inputs.txt")
-        #np.savetxt("outputs.txt", outLammps)
-        #Connect to DB
-        sqlDB = sqlite3.connect(dbPath)
-        sqlCursor = sqlDB.cursor()
-        insString = "INSERT INTO BGKARBITGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         insArgs = tuple(inLammps.tolist()) + tuple(outLammps.tolist())
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()

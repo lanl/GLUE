@@ -189,6 +189,8 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         np.savetxt(densFileName, lammpsDens)
         zeroesFileName = os.path.join(dirPah, "zeroes.txt")
         np.savetxt(zeroesFileName, np.asarray(species_with_zeros_LammpsDens_index))
+        # And return the lammps scripts
+        return lammpsScripts
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -259,11 +261,6 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
         outPath = os.path.join(os.getcwd(), outDir)
-        lammpsScript = ""
-        if isinstance(lammpsArgs, BGKInputs):
-            lammpsScript = "in.Argon_Deuterium_plasma"
-        elif isinstance(lammpsArgs, BGKMassesInputs):
-            lammpsScript = "in.Argon_Deuterieum_masses"
         if(not os.path.exists(outPath)):
             os.mkdir(outPath)
             # cp ${SCRIPT_DIR}/lammpsScripts/${lammpsScript}
@@ -283,14 +280,10 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             shutil.copy2(jobEnvFilePath, outPath)
             bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
             # Generate input files
-            writeLammpsInputs(lammpsArgs, outPath, lammpsMode)
+            lammpsScripts = writeLammpsInputs(lammpsArgs, outPath, lammpsMode)
             # Generate slurm script by writing to file
             # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
             # TODO: DRY this
-            
-### We now to do loop over directory, find all the file starting with "lammpsScript_" and run them 
-### as slurmFile.write("srun -n 16 " + lammps + " < " + lammpsScript_* + " \n")
-
             slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
             with open(slurmFPath, 'w') as slurmFile:
                 slurmFile.write("#!/bin/bash\n")
@@ -301,7 +294,8 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Actually call lammps
-                slurmFile.write("srun -n 16 " + lammps + " < " + lammpsScript + " \n")
+                for lammpsScript in lammpsScripts:
+                    slurmFile.write("srun -n 16 " + lammps + " < " + lammpsScript + " \n")
                 # Process the result and write to DB
                 slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -c " + str(solverCode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
