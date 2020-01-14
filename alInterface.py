@@ -172,66 +172,85 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
     # WARNING: Seems to be restricted to two materials for now
     if isinstance(lammpsArgs, BGKInputs):
         m=np.array([3.3210778e-24,6.633365399999999e-23])
-        Z=np.array([1,13])
+        Z=np.array([1,18])
         Teq = 0
         Trun = 0
         cutoff = 0.0
         box = 0
+        eps_traces =1.e-3
         if(lammpsMode == ALInterfaceMode.LAMMPS):
             # real values of the MD simulations (long MD)
             Teq=50000
-            Trun=100000
+            Trun=2000000
             cutoff = 2.5
             box=50
+            p_int=20000
+            s_int=10
+            d_int=s_int*p_int
+            eps_traces =1.e-3
         elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
             # Values for infrastructure test
             Teq=10
             Trun=10
             cutoff = 1.0
             box=20
+            p_int=2
+            s_int=1
+            d_int=s_int*p_int
         else:
             raise Exception('Using Unsupported LAMMPS Mode')
         interparticle_radius = []
         lammpsDens = np.array(lammpsArgs.Density[0:2]) 
         lammpsTemperature = lammpsArgs.Temperature
         lammpsIonization = np.array(lammpsArgs.Charges[0:2])
-        for s in range(len(lammpsDens)):
-            zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
-            with open(zbarFile, 'w') as testfile:
-                csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([lammpsIonization[s]])
-        temperatureFile = os.path.join(dirPath, "temperature.csv")
-        with open(temperatureFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([lammpsTemperature])
-        interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
-        L=box*max(interparticle_radius)  #in cm
-        volume =L**3
-        boxLengthFile = os.path.join(dirPath, "box_length.csv")
-        with open(boxLengthFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([L*1.e-2])
-        N=[]
-        for s in range(len(lammpsDens)):
-            N.append(int(volume*lammpsDens[s]))
-            numberPartFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
-            with open(numberPartFile, 'w') as testfile:
-                csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([N[s]])
-        # Add here 3 files that contain information regarding cutoff of the force, equilibration and production run times.
-        rc=1.e-2*cutoff*max(interparticle_radius)  #in m
-        CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
-        with open(CutoffradiusFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([rc])
-        EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
-        with open(EquilibrationtimeFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([Teq])
-        Production_timeFile = os.path.join(dirPath, "prod_time.csv")
-        with open(Production_timeFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([Trun])
+        lammpsMasses = np.array(lammpsArgs.Masses[0:2])
+        
+        # Make a copy of the inputs
+        LammpsDens0=LammpsDens
+        lammpsMasses0=lammpsMasses
+        lammpsIonization0=lammpsIonization
+        
+        # Finds zeros and trace elements in the densities, then builds LAMMPS scripts.
+        species_with_zeros_LammpsDens_index=w.check_zeros_trace_elements(LammpsTemperature,LammpsDens,lammpsIonization,lammpsMasses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces)
+       
+        # for s in range(len(lammpsDens)):
+        #     zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
+        #     with open(zbarFile, 'w') as testfile:
+        #         csv_writer = csv.writer(testfile,delimiter=' ')
+        #         csv_writer.writerow([lammpsIonization[s]])
+        # temperatureFile = os.path.join(dirPath, "temperature.csv")
+        # with open(temperatureFile, 'w') as testfile:
+        #     csv_writer = csv.writer(testfile,delimiter=' ')
+        #     csv_writer.writerow([lammpsTemperature])
+        # interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
+        # L=box*max(interparticle_radius)  #in cm
+        # volume =L**3
+        # boxLengthFile = os.path.join(dirPath, "box_length.csv")
+        # with open(boxLengthFile, 'w') as testfile:
+        #     csv_writer = csv.writer(testfile,delimiter=' ')
+        #     csv_writer.writerow([L*1.e-2])
+        # N=[]
+        # for s in range(len(lammpsDens)):
+        #     N.append(int(volume*lammpsDens[s]))
+        #     numberPartFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
+        #     with open(numberPartFile, 'w') as testfile:
+        #         csv_writer = csv.writer(testfile,delimiter=' ')
+        #         csv_writer.writerow([N[s]])
+        # # Add here 3 files that contain information regarding cutoff of the force, equilibration and production run times.
+        # rc=1.e-2*cutoff*max(interparticle_radius)  #in m
+        # CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
+        # with open(CutoffradiusFile, 'w') as testfile:
+        #     csv_writer = csv.writer(testfile,delimiter=' ')
+        #     csv_writer.writerow([rc])
+        # EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
+        # with open(EquilibrationtimeFile, 'w') as testfile:
+        #     csv_writer = csv.writer(testfile,delimiter=' ')
+        #     csv_writer.writerow([Teq])
+        # Production_timeFile = os.path.join(dirPath, "prod_time.csv")
+        # with open(Production_timeFile, 'w') as testfile:
+        #     csv_writer = csv.writer(testfile,delimiter=' ')
+        #     csv_writer.writerow([Trun])
+        
         # And now write the inputs to a specific file for later use
         inputList = []
         inputList.append(lammpsArgs.Temperature)
@@ -241,7 +260,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         Inputs_file = os.path.join(dirPath, "inputs.txt")
         np.savetxt(Inputs_file, np.asarray(inputList))
     elif isinstance(lammpsArgs, BGKMassesInputs):
-        Z=np.array([1,13])
+        Z=np.array([1,18])
         Teq = 0
         Trun = 0
         cutoff = 0.0
@@ -265,48 +284,58 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         lammpsTemperature = lammpsArgs.Temperature
         lammpsIonization = np.array(lammpsArgs.Charges[0:2])
         lammpsMasses = np.array(lammpsArgs.Masses[0:2])
-        for s in range(len(lammpsDens)):
-            zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
-            with open(zbarFile, 'w') as testfile:
-                csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([lammpsIonization[s]])
-        for s in range(len(lammpsDens)):
-            massFile = os.path.join(dirPath, "mass." + str(s) + ".csv")
-            with open(massFile, 'w') as testfile:
-                csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([lammpsMasses[s]*1.e-3])     # the factor 1.e-3 here converts the masses from to Kg
-        temperatureFile = os.path.join(dirPath, "temperature.csv")
-        with open(temperatureFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([lammpsTemperature])
-        interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
-        L=box*max(interparticle_radius)  #in cm
-        volume =L**3
-        boxLengthFile = os.path.join(dirPath, "box_length.csv")
-        with open(boxLengthFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([L*1.e-2])
-        N=[]
-        for s in range(len(lammpsDens)):
-            N.append(int(volume*lammpsDens[s]))
-            numberPartFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
-            with open(numberPartFile, 'w') as testfile:
-                csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([N[s]])
-        # Add here 3 files that contain information regarding cutoff of the force, equilibration and production run times.
-        rc=1.e-2*cutoff*max(interparticle_radius)  #in m
-        CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
-        with open(CutoffradiusFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([rc])
-        EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
-        with open(EquilibrationtimeFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([Teq])
-        Production_timeFile = os.path.join(dirPath, "prod_time.csv")
-        with open(Production_timeFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([Trun])
+        
+          # Make a copy of the inputs
+        LammpsDens0=LammpsDens
+        lammpsMasses0=lammpsMasses
+        lammpsIonization0=lammpsIonization
+        
+        # Finds zeros and trace elements in the densities, then builds LAMMPS scripts.
+        species_with_zeros_LammpsDens_index=w.check_zeros_trace_elements(LammpsTemperature,LammpsDens,lammpsIonization,lammpsMasses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces)
+       
+       
+        # for s in range(len(lammpsDens)):
+        #     zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
+        #     with open(zbarFile, 'w') as testfile:
+        #         csv_writer = csv.writer(testfile,delimiter=' ')
+        #         csv_writer.writerow([lammpsIonization[s]])
+        # for s in range(len(lammpsDens)):
+        #     massFile = os.path.join(dirPath, "mass." + str(s) + ".csv")
+        #     with open(massFile, 'w') as testfile:
+        #         csv_writer = csv.writer(testfile,delimiter=' ')
+        #         csv_writer.writerow([lammpsMasses[s]*1.e-3])     # the factor 1.e-3 here converts the masses from to Kg
+        # temperatureFile = os.path.join(dirPath, "temperature.csv")
+        # with open(temperatureFile, 'w') as testfile:
+        #     csv_writer = csv.writer(testfile,delimiter=' ')
+        #     csv_writer.writerow([lammpsTemperature])
+        # interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
+        # L=box*max(interparticle_radius)  #in cm
+        # volume =L**3
+        # boxLengthFile = os.path.join(dirPath, "box_length.csv")
+        # with open(boxLengthFile, 'w') as testfile:
+        #     csv_writer = csv.writer(testfile,delimiter=' ')
+        #     csv_writer.writerow([L*1.e-2])
+        # N=[]
+        # for s in range(len(lammpsDens)):
+        #     N.append(int(volume*lammpsDens[s]))
+        #     numberPartFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
+        #     with open(numberPartFile, 'w') as testfile:
+        #         csv_writer = csv.writer(testfile,delimiter=' ')
+        #         csv_writer.writerow([N[s]])
+        # # Add here 3 files that contain information regarding cutoff of the force, equilibration and production run times.
+        # rc=1.e-2*cutoff*max(interparticle_radius)  #in m
+        # CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
+        # with open(CutoffradiusFile, 'w') as testfile:
+        #     csv_writer = csv.writer(testfile,delimiter=' ')
+        #     csv_writer.writerow([rc])
+        # EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
+        # with open(EquilibrationtimeFile, 'w') as testfile:
+        #     csv_writer = csv.writer(testfile,delimiter=' ')
+        #     csv_writer.writerow([Teq])
+        # Production_timeFile = os.path.join(dirPath, "prod_time.csv")
+        # with open(Production_timeFile, 'w') as testfile:
+        #     csv_writer = csv.writer(testfile,delimiter=' ')
+        #     csv_writer.writerow([Trun])
         # And now write the inputs to a specific file for later use
         inputList = []
         inputList.append(lammpsArgs.Temperature)
@@ -416,6 +445,10 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             # Generate slurm script by writing to file
             # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
             # TODO: DRY this
+            
+### We now to do loop over directory, find all the file starting with "lammpsScript_" and run them 
+### as slurmFile.write("srun -n 16 " + lammps + " < " + lammpsScript_* + " \n")
+
             slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
             with open(slurmFPath, 'w') as slurmFile:
                 slurmFile.write("#!/bin/bash\n")
