@@ -4,7 +4,7 @@ import random
 import csv
 import zbar as z
 
-def write_LammpsScript(Temperature,densities,charges,masses,system_index_species,box,cutoff,Teq,Trun,index_species,s_int,p_int,d_int):
+def write_LammpsScript(Temperature,densities,charges,masses,system_index_species,box,cutoff,Teq,Trun,index_species,s_int,p_int,d_int, dirPrefix):
     
     """
     This script takes thermodynamical conditions of a plasma: temperature, densities, ionisation state (zbars), masses, together with the number of
@@ -14,7 +14,8 @@ def write_LammpsScript(Temperature,densities,charges,masses,system_index_species
         """
     nspec=system_index_species
 
-    with open('lammpsScript_'+str(nspec), 'w') as LammpsScript:
+    lammpsFName = os.path.join(dirPrefix, 'lammpsScript_'+str(nspec))
+    with open(lammpsFName, 'w') as LammpsScript:
         
         
         # Once the zeros are removed estimte the number of species.
@@ -271,7 +272,7 @@ def write_LammpsScript(Temperature,densities,charges,masses,system_index_species
     return 'lammpsScript_'+str(nspec)
 
 
-def check_zeros_trace_elements(Temperature,densities,charges,masses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces):
+def check_zeros_trace_elements(Temperature,densities,charges,masses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces, dirPrefix):
     species_with_zeros_densities_index=[]
     traces_elements_index =[]
     non_traces_elements_index=[]
@@ -293,7 +294,7 @@ def check_zeros_trace_elements(Temperature,densities,charges,masses,box,cutoff,T
         Z=np.array([charges[s]])
         m=np.array([masses[s]])
         b='single_'+str(s)+str(s)
-        traceScript = write_LammpsScript(Temperature,dens,Z,m,b,box,cutoff,Teq,Trun,traces_elements_index,s_int,p_int,d_int)
+        traceScript = write_LammpsScript(Temperature,dens,Z,m,b,box,cutoff,Teq,Trun,traces_elements_index,s_int,p_int,d_int, dirPrefix)
         lammpsScripts.append(traceScript)
     
         ### Build LAMMPS script for the non trace elements.

@@ -10,6 +10,7 @@ import csv
 import time
 import subprocess
 import getpass
+from writeLammpsScript import check_zeros_trace_elements
 
 class ALInterfaceMode(IntEnum):
     LAMMPS = 0
@@ -23,7 +24,6 @@ class SolverCode(Enum):
     BGK = 0
     LBMZEROD = 1
     BGKMASSES = 2
-    BGKARBIT = 3
 
 class ResultProvenance(IntEnum):
     LAMMPS = 0
@@ -47,13 +47,7 @@ BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
 #  Density: float[4]
 #  Charges: float[4]
 #  Masses: float[4]
-BGKMassesInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges Masses')
-# BGKArbitInputs
-#  Temperature: float
-#  Density: float[4]
-#  Masses: float[4]
-#  Zbars: float[4]
-BGKArbitInputs = collections.namedtuple('BGKInputs', 'Temperature Density Masses Zbars')
+BGKMassesInputs = collections.namedtuple('BGKMassesInputs', 'Temperature Density Charges Masses')
 # BGKoutputs
 #  Viscosity: float
 #  ThermalConductivity: float
@@ -63,19 +57,12 @@ BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity
 #  Viscosity: float
 #  ThermalConductivity: float
 #  DiffCoeff: float[10]
-BGKMassesOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
-# BGKArbitoutputs
-#  Viscosity: float
-#  ThermalConductivity: float
-#  DiffCoeff: float[10]
-BGKArbitOutputs = collections.namedtuple('BGKArbitOutputs', 'Viscosity ThermalConductivity DiffCoeff')
+BGKMassesOutputs = collections.namedtuple('BGKMassesOutputs', 'Viscosity ThermalConductivity DiffCoeff')
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
         return 1.3
     elif packetType == SolverCode.BGKMASSES:
-        return 1.0
-    elif packetType == SolverCode.BGKARBIT:
         return 1.0
     else:
         raise Exception('Using Unsupported Solver Code')
@@ -157,27 +144,18 @@ def processReqRow(sqlRow, packetType):
         bgkInput.Masses.extend([sqlRow[12], sqlRow[13], sqlRow[14], sqlRow[15]])
         reqType = ALInterfaceMode(sqlRow[16])
         return (bgkInput, reqType)
-    elif packetType == SolverCode.BGKARBIT:
-        bgkInput = BGKArbitInputs(Temperature=float(sqlRow[3]), Density=[], Charges=[], Masses=[], Zbars=[])
-        bgkInput.Density.extend([sqlRow[4], sqlRow[5], sqlRow[6], sqlRow[7]])
-        bgkInput.ZBars.extend([sqlRow[8], sqlRow[9], sqlRow[10], sqlRow[11]])
-        bgkInput.Masses.extend([sqlRow[12], sqlRow[13], sqlRow[14], sqlRow[15]])
-        reqType = ALInterfaceMode(sqlRow[16])
-        return (bgkInput, reqType)
     else:
         raise Exception('Using Unsupported Solver Code')
 
 def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
     # TODO: Refactor constants and general cleanup
-    # WARNING: Seems to be restricted to two materials for now
     if isinstance(lammpsArgs, BGKInputs):
         m=np.array([3.3210778e-24,6.633365399999999e-23])
-        Z=np.array([1,18])
         Teq = 0
         Trun = 0
         cutoff = 0.0
         box = 0
-        eps_traces =1.e-3
+        eps_traces = 1.e-3
         if(lammpsMode == ALInterfaceMode.LAMMPS):
             # real values of the MD simulations (long MD)
             Teq=50000
@@ -200,153 +178,17 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         else:
             raise Exception('Using Unsupported LAMMPS Mode')
         interparticle_radius = []
-        lammpsDens = np.array(lammpsArgs.Density[0:2]) 
+        lammpsDens = np.array(lammpsArgs.Density) 
         lammpsTemperature = lammpsArgs.Temperature
-        lammpsIonization = np.array(lammpsArgs.Charges[0:2])
-        lammpsMasses = np.array(lammpsArgs.Masses[0:2])
-        
-        # Make a copy of the inputs
-        LammpsDens0=LammpsDens
-        lammpsMasses0=lammpsMasses
-        lammpsIonization0=lammpsIonization
-        
+        lammpsIonization = np.array(lammpsArgs.Charges)
+        lammpsMasses = m
         # Finds zeros and trace elements in the densities, then builds LAMMPS scripts.
-        species_with_zeros_LammpsDens_index=w.check_zeros_trace_elements(LammpsTemperature,LammpsDens,lammpsIonization,lammpsMasses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces)
-       
-        # for s in range(len(lammpsDens)):
-        #     zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
-        #     with open(zbarFile, 'w') as testfile:
-        #         csv_writer = csv.writer(testfile,delimiter=' ')
-        #         csv_writer.writerow([lammpsIonization[s]])
-        # temperatureFile = os.path.join(dirPath, "temperature.csv")
-        # with open(temperatureFile, 'w') as testfile:
-        #     csv_writer = csv.writer(testfile,delimiter=' ')
-        #     csv_writer.writerow([lammpsTemperature])
-        # interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
-        # L=box*max(interparticle_radius)  #in cm
-        # volume =L**3
-        # boxLengthFile = os.path.join(dirPath, "box_length.csv")
-        # with open(boxLengthFile, 'w') as testfile:
-        #     csv_writer = csv.writer(testfile,delimiter=' ')
-        #     csv_writer.writerow([L*1.e-2])
-        # N=[]
-        # for s in range(len(lammpsDens)):
-        #     N.append(int(volume*lammpsDens[s]))
-        #     numberPartFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
-        #     with open(numberPartFile, 'w') as testfile:
-        #         csv_writer = csv.writer(testfile,delimiter=' ')
-        #         csv_writer.writerow([N[s]])
-        # # Add here 3 files that contain information regarding cutoff of the force, equilibration and production run times.
-        # rc=1.e-2*cutoff*max(interparticle_radius)  #in m
-        # CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
-        # with open(CutoffradiusFile, 'w') as testfile:
-        #     csv_writer = csv.writer(testfile,delimiter=' ')
-        #     csv_writer.writerow([rc])
-        # EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
-        # with open(EquilibrationtimeFile, 'w') as testfile:
-        #     csv_writer = csv.writer(testfile,delimiter=' ')
-        #     csv_writer.writerow([Teq])
-        # Production_timeFile = os.path.join(dirPath, "prod_time.csv")
-        # with open(Production_timeFile, 'w') as testfile:
-        #     csv_writer = csv.writer(testfile,delimiter=' ')
-        #     csv_writer.writerow([Trun])
-        
-        # And now write the inputs to a specific file for later use
-        inputList = []
-        inputList.append(lammpsArgs.Temperature)
-        inputList.extend(lammpsArgs.Density)
-        inputList.extend(lammpsArgs.Charges)
-        inputList.append(getGroundishTruthVersion(SolverCode.BGK))
-        Inputs_file = os.path.join(dirPath, "inputs.txt")
-        np.savetxt(Inputs_file, np.asarray(inputList))
-    elif isinstance(lammpsArgs, BGKMassesInputs):
-        Z=np.array([1,18])
-        Teq = 0
-        Trun = 0
-        cutoff = 0.0
-        box = 0
-        if(lammpsMode == ALInterfaceMode.LAMMPS):
-            # real values of the MD simulations (long MD)
-            Teq=50000
-            Trun=100000
-            cutoff = 2.5
-            box=50
-        elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
-            # Values for infrastructure test
-            Teq=10
-            Trun=10
-            cutoff = 1.0
-            box=20
-        else:
-            raise Exception('Using Unsupported LAMMPS Mode')
-        interparticle_radius = []
-        lammpsDens = np.array(lammpsArgs.Density[0:2]) 
-        lammpsTemperature = lammpsArgs.Temperature
-        lammpsIonization = np.array(lammpsArgs.Charges[0:2])
-        lammpsMasses = np.array(lammpsArgs.Masses[0:2])
-        
-          # Make a copy of the inputs
-        LammpsDens0=LammpsDens
-        lammpsMasses0=lammpsMasses
-        lammpsIonization0=lammpsIonization
-        
-        # Finds zeros and trace elements in the densities, then builds LAMMPS scripts.
-        species_with_zeros_LammpsDens_index=w.check_zeros_trace_elements(LammpsTemperature,LammpsDens,lammpsIonization,lammpsMasses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces)
-       
-       
-        # for s in range(len(lammpsDens)):
-        #     zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
-        #     with open(zbarFile, 'w') as testfile:
-        #         csv_writer = csv.writer(testfile,delimiter=' ')
-        #         csv_writer.writerow([lammpsIonization[s]])
-        # for s in range(len(lammpsDens)):
-        #     massFile = os.path.join(dirPath, "mass." + str(s) + ".csv")
-        #     with open(massFile, 'w') as testfile:
-        #         csv_writer = csv.writer(testfile,delimiter=' ')
-        #         csv_writer.writerow([lammpsMasses[s]*1.e-3])     # the factor 1.e-3 here converts the masses from to Kg
-        # temperatureFile = os.path.join(dirPath, "temperature.csv")
-        # with open(temperatureFile, 'w') as testfile:
-        #     csv_writer = csv.writer(testfile,delimiter=' ')
-        #     csv_writer.writerow([lammpsTemperature])
-        # interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
-        # L=box*max(interparticle_radius)  #in cm
-        # volume =L**3
-        # boxLengthFile = os.path.join(dirPath, "box_length.csv")
-        # with open(boxLengthFile, 'w') as testfile:
-        #     csv_writer = csv.writer(testfile,delimiter=' ')
-        #     csv_writer.writerow([L*1.e-2])
-        # N=[]
-        # for s in range(len(lammpsDens)):
-        #     N.append(int(volume*lammpsDens[s]))
-        #     numberPartFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
-        #     with open(numberPartFile, 'w') as testfile:
-        #         csv_writer = csv.writer(testfile,delimiter=' ')
-        #         csv_writer.writerow([N[s]])
-        # # Add here 3 files that contain information regarding cutoff of the force, equilibration and production run times.
-        # rc=1.e-2*cutoff*max(interparticle_radius)  #in m
-        # CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
-        # with open(CutoffradiusFile, 'w') as testfile:
-        #     csv_writer = csv.writer(testfile,delimiter=' ')
-        #     csv_writer.writerow([rc])
-        # EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
-        # with open(EquilibrationtimeFile, 'w') as testfile:
-        #     csv_writer = csv.writer(testfile,delimiter=' ')
-        #     csv_writer.writerow([Teq])
-        # Production_timeFile = os.path.join(dirPath, "prod_time.csv")
-        # with open(Production_timeFile, 'w') as testfile:
-        #     csv_writer = csv.writer(testfile,delimiter=' ')
-        #     csv_writer.writerow([Trun])
-        # And now write the inputs to a specific file for later use
-        inputList = []
-        inputList.append(lammpsArgs.Temperature)
-        inputList.extend(lammpsArgs.Density)
-        inputList.extend(lammpsArgs.Charges)
-        inputList.extend(lammpsArgs.Masses)
-        inputList.append(getGroundishTruthVersion(SolverCode.BGK))
-        Inputs_file = os.path.join(dirPath, "inputs.txt")
-        np.savetxt(Inputs_file, np.asarray(inputList))
-    elif isinstance(lammpsArgs, BGKArbitInputs):
-        raise Exception("Not implemented")
+        (species_with_zeros_LammpsDens_index, lammpsScripts)=w.check_zeros_trace_elements(lammpsTemperature,lammpsDens,lammpsIonization,lammpsMasses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces, dirPath)
+        # And now write the densities and zeroes information to files
+        densFileName = os.path.join(dirPath, "densities.txt")
+        np.savetxt(densFileName, lammpsDens)
+        zeroesFileName = os.path.join(dirPah, "zeroes.txt")
+        np.savetxt(zeroesFileName, np.asarray(species_with_zeros_LammpsDens_index))
     else:
         raise Exception('Using Unsupported Solver Code')
 
