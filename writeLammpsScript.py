@@ -29,7 +29,7 @@ def write_LammpsScript(Temperature,densities,charges,masses,system_index_species
         eps0=8.8542e-12
         echarge= 1.6022e-19
         
-        zbars=z.zBar(densities,charges, Temperature)
+        zbars=charges
         edens = 1.e6*sum(zbars*densities)
         Ef    = hbar2*(3.*np.pi**2*edens)**(2/3)/(2*emass)
         Debye = np.sqrt(eps0*np.sqrt((kb*Temperature*11600)**2+(2.*Ef/3)**2)/(edens*echarge*echarge))
