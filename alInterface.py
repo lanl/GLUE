@@ -288,7 +288,7 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
             # TODO: DRY this
             
-### We now to do loop over directory, find all the file starting with "lammpsScript_" and run them 
+### Find all the file starting with "lammpsScript_" and run them 
 ### as slurmFile.write("srun -n 16 " + lammps + " < " + lammpsScript_* + " \n")
 
             slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
