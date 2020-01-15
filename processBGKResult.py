@@ -7,29 +7,29 @@ import os
 import re
 
 def speciesNotationToArrayIndex(in0, in1):
-    (spec0, spec1) = sorted(in0, in1)
-    if (spec0, spec1) == (1, 1):
+    (spec0, spec1) = sorted( (in0, in1) )
+    if (spec0, spec1) == (0, 0):
         return 0
-    elif (spec0, spec1) == (1, 2):
+    elif (spec0, spec1) == (0, 1):
         return 1
-    elif (spec0, spec1) == (1, 3):
+    elif (spec0, spec1) == (0, 2):
         return 2
-    elif (spec0, spec1) == (1, 4):
+    elif (spec0, spec1) == (0, 3):
         return 3
-    elif (spec0, spec1) == (2, 2):
+    elif (spec0, spec1) == (1, 1):
         return 4
-    elif (spec0, spec1) == (2, 3):
+    elif (spec0, spec1) == (1, 2):
         return 5
-    elif (spec0, spec1) == (2, 4):
+    elif (spec0, spec1) == (1, 3):
         return 6
-    elif (spec0, spec1) == (3, 3):
+    elif (spec0, spec1) == (2, 2):
         return 7
-    elif (spec0, spec1) == (3, 4):
+    elif (spec0, spec1) == (2, 3):
         return 8
-    elif (spec0, spec1) == (4, 4):
+    elif (spec0, spec1) == (3, 3):
         return 9
     else:
-        raise Exception('Improper Species Indices')
+        raise Exception('Improper Species Indices:' + str(spec0) + ',' + str(spec1))
 
 def procBGKCSVFile(char, fname):
     retVal = -0.0
@@ -56,7 +56,7 @@ def matchLammpsOutputsToArgs(outputDirectory):
             if len(indexString) != 2:
                 raise Exception(dirFile + " is not mappable to a species index")
             # Map species indices to BGK indices
-            outIndex = speciesNotationToArrayIndex(indexString[0], indexString[1])
+            outIndex = speciesNotationToArrayIndex( int(indexString[0]), int(indexString[1]) )
             # And write the result to the output array
             diffCoeffs[outIndex] = diffVal
         # Or is it a viscosity file?
@@ -71,8 +71,8 @@ def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
     if solverCode == SolverCode.BGK:
         # Pull densities
         densities = np.loadtxt("densities.txt")
-        # Pull zeroes
-        zeroDensitiesIndex = np.loadtxt("zeroes.txt")
+        # Pull zeroes indices
+        zeroDensitiesIndex = np.loadtxt("zeroes.txt").astype(int)
         # Generate coefficient files
         write_output_coeff(densities, zeroDensitiesIndex)
         # Get outputs array(s)

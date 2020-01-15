@@ -314,7 +314,7 @@ def check_zeros_trace_elements(Temperature,densities,charges,masses,box,cutoff,T
 
     # Generate LAMMPS script after removing zeros and trace elements
 
-    mixtureScript = write_LammpsScript(Temperature,densities[non_traces_elements_index],charges[non_traces_elements_index],masses[non_traces_elements_index],b,box,cutoff,Teq,Trun,non_traces_elements_index,s_int,p_int,d_int)
+    mixtureScript = write_LammpsScript(Temperature,densities[non_traces_elements_index],charges[non_traces_elements_index],masses[non_traces_elements_index],b,box,cutoff,Teq,Trun,non_traces_elements_index,s_int,p_int,d_int, dirPrefix)
     lammpsScripts.append(mixtureScript)
 
     return (species_with_zeros_densities_index, lammpsScripts)

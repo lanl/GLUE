@@ -61,7 +61,7 @@ BGKMassesOutputs = collections.namedtuple('BGKMassesOutputs', 'Viscosity Thermal
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
-        return 1.3
+        return 2.0
     elif packetType == SolverCode.BGKMASSES:
         return 1.0
     else:
@@ -187,8 +187,16 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         # And now write the densities and zeroes information to files
         densFileName = os.path.join(dirPath, "densities.txt")
         np.savetxt(densFileName, lammpsDens)
-        zeroesFileName = os.path.join(dirPah, "zeroes.txt")
+        zeroesFileName = os.path.join(dirPath, "zeroes.txt")
         np.savetxt(zeroesFileName, np.asarray(species_with_zeros_LammpsDens_index))
+        # And now write the inputs to a specific file for later use
+        inputList = []
+        inputList.append(lammpsArgs.Temperature)
+        inputList.extend(lammpsArgs.Density)
+        inputList.extend(lammpsArgs.Charges)
+        inputList.append(getGroundishTruthVersion(SolverCode.BGK))
+        Inputs_file = os.path.join(dirPath, "inputs.txt")
+        np.savetxt(Inputs_file, np.asarray(inputList))
         # And return the lammps scripts
         return lammpsScripts
     else:
@@ -266,9 +274,6 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             # cp ${SCRIPT_DIR}/lammpsScripts/${lammpsScript}
             # Copy scripts and configuration files
             pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
-            lammpsPath = os.path.join(pythonScriptDir, "lammpsScripts")
-            ardPlasPath = os.path.join(lammpsPath, lammpsScript)
-            shutil.copy2(ardPlasPath, outPath)
             slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
             # Prioritize the local jobEnv.sh over the repo jobEnv.sh
             cwdJobPath = os.path.join(os.getcwd(), "jobEnv.sh")
