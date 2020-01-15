@@ -183,7 +183,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         lammpsIonization = np.array(lammpsArgs.Charges)
         lammpsMasses = m
         # Finds zeros and trace elements in the densities, then builds LAMMPS scripts.
-        (species_with_zeros_LammpsDens_index, lammpsScripts)=w.check_zeros_trace_elements(lammpsTemperature,lammpsDens,lammpsIonization,lammpsMasses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces, dirPath)
+        (species_with_zeros_LammpsDens_index, lammpsScripts)=check_zeros_trace_elements(lammpsTemperature,lammpsDens,lammpsIonization,lammpsMasses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces, dirPath)
         # And now write the densities and zeroes information to files
         densFileName = os.path.join(dirPath, "densities.txt")
         np.savetxt(densFileName, lammpsDens)

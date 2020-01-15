@@ -31,18 +31,26 @@ def speciesNotationToArrayIndex(in0, in1):
     else:
         raise Exception('Improper Species Indices')
 
-def procMutualDiffusuionFile(fname):
-    raise Exception('Unimplemented')
+def procBGKCSVFile(char, fname):
+    retVal = -0.0
+    stripString = char + '='
+    with open(fname) as f:
+        for line in f:
+            stripString = line.strip(stripString)
+            retVal = float(stripString)
+    return retVal
 
 def matchLammpsOutputsToArgs(outputDirectory):
     # Special thanks to Scot Halverson for figuring out clean solution
     diffCoeffs = 10*[0.0]
+    visco = -0.0
+    thermoCond = 0.0
     # Iterate over all output files
     for dirFile in os.listdir(outputDirectory):
         # Is this a diffusion output file?
         if re.match("diffusion_coefficient_\d+.csv", dirFile):
             # Pull the diffusion value out first
-            diffVal = procMutualDiffusuionFile(os.path.join(outputDirectory, dirFile))
+            diffVal = procBGKCSVFile('D', os.path.join(outputDirectory, dirFile))
             indexString = dirFile.replace("diffusion_coefficient_", "")
             indexString = indexString.replace(".csv", "")
             if len(indexString) != 2:
@@ -51,7 +59,13 @@ def matchLammpsOutputsToArgs(outputDirectory):
             outIndex = speciesNotationToArrayIndex(indexString[0], indexString[1])
             # And write the result to the output array
             diffCoeffs[outIndex] = diffVal
-    return diffCoeffs
+        # Or is it a viscosity file?
+        if re.match("viscosity_coefficient.csv", dirFile):
+            visco = procBGKCSVFile('v', os.path.join(outputDirectory, dirFile))
+        # Or a thermal conductivity file
+        if re.match("conductivity_coefficient.csv", dirFile):
+            thermoCond = procBGKCSVFile('k', os.path.join(outputDirectory, dirFile))
+    return (diffCoeffs, visco, thermoCond)
 
 def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
     if solverCode == SolverCode.BGK:
@@ -61,10 +75,10 @@ def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
         zeroDensitiesIndex = np.loadtxt("zeroes.txt")
         # Generate coefficient files
         write_output_coeff(densities, zeroDensitiesIndex)
-        # Get coefficients array
-        diffCoeffs = matchLammpsOutputsToArgs(os.getcwd())
+        # Get outputs array(s)
+        (diffCoeffs, viscosity, thermalConductivity) = matchLammpsOutputsToArgs(os.getcwd())
         # Write results to an output namedtuple
-        bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=diffCoeffs)
+        bgkOutput = BGKOutputs(Viscosity=viscosity, ThermalConductivity=thermalConductivity, DiffCoeff=diffCoeffs)
         # Write the tuple
         if(lammpsMode == ALInterfaceMode.LAMMPS):
             insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.LAMMPS)
