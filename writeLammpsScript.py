@@ -349,7 +349,7 @@ def write_output_coeff(densities0,species_with_zeros_densities_index):
             if i!=j:
                 with open('diffusion_coefficient_'+str(i)+str(j)+'.csv', 'w') as f:
                     csv_writer = csv.writer(f,delimiter=' ')
-                    csv_writer.writerow(['D=',concentrations[i]*d_ii[j]+concentrations[j]* d_ii[i]])
+                    csv_writer.writerow(['D='+str(concentrations[i]*d_ii[j]+concentrations[j]* d_ii[i])])
 
 
 
