@@ -158,12 +158,12 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         eps_traces = 1.e-3
         if(lammpsMode == ALInterfaceMode.LAMMPS):
             # real values of the MD simulations (long MD)
-            Teq=50000
-            Trun=2000000
+            Teq=20000
+            Trun=1000000
             cutoff = 2.5
-            box=50
-            p_int=20000
-            s_int=10
+            box=40.
+            p_int=10000
+            s_int=5
             d_int=s_int*p_int
             eps_traces =1.e-3
         elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
@@ -292,15 +292,15 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
             with open(slurmFPath, 'w') as slurmFile:
                 slurmFile.write("#!/bin/bash\n")
-                slurmFile.write("#SBATCH -N 1\n")
-                slurmFile.write("#SBATCH -n 16\n")
+                slurmFile.write("#SBATCH -N 3\n")
+                slurmFile.write("#SBATCH -n 108\n")
                 slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
                 slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Actually call lammps
                 for lammpsScript in lammpsScripts:
-                    slurmFile.write("srun -n 16 " + lammps + " < " + lammpsScript + " \n")
+                    slurmFile.write("srun -n 108 " + lammps + " < " + lammpsScript + " \n")
                 # Process the result and write to DB
                 slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -c " + str(solverCode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
@@ -332,8 +332,8 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
             with open(slurmFPath, 'w') as slurmFile:
                 slurmFile.write("#!/bin/bash\n")
-                slurmFile.write("#SBATCH -N 1\n")
-                slurmFile.write("#SBATCH -n 16\n")
+                slurmFile.write("#SBATCH -N 3\n")
+                slurmFile.write("#SBATCH -n 108\n")
                 slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
                 slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
                 slurmFile.write("cd " + outPath + "\n")
