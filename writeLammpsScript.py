@@ -41,7 +41,7 @@ def write_LammpsScript(Temperature,densities,charges,masses,system_index_species
         Z_av=       sum(zbars*densities/sum(densities))
         m_av=       sum(densities*masses/sum(densities))
         omega_p=    np.sqrt((echarge*Z_av)**2*sum(1.e6*densities)/(eps0*1.e-3*m_av))
-        dtstep =    1./(100.*omega_p)
+        dtstep =    1./(1000.*omega_p)
         Tdamp  =    1.e2*dtstep
         
         # Simulations box and particles number
@@ -149,7 +149,7 @@ def write_LammpsScript(Temperature,densities,charges,masses,system_index_species
         csv_writer.writerow(['variable','T', 'equal', Temp1])
         csv_writer.writerow('')
         csv_writer.writerow(['variable','scale_factor_v', 'equal', '1./(${kb}*$T)*vol*${s_int}*dt'])
-        csv_writer.writerow(['variable','scale_factor_k', 'equal', '${s_int}*dt/(${kb}*$T*$T)/vol'])
+        csv_writer.writerow(['variable','scale_factor_k', 'equal', '1.e-2*${s_int}*dt/(${kb}*$T*$T)/vol'])
         csv_writer.writerow(S1)
         csv_writer.writerow(S2)
         csv_writer.writerow(S3)
