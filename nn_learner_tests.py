@@ -33,7 +33,7 @@ def plot_errors(predicted,true,label):
 if __name__=="__main__":
     print("PYTORCH VERSION",torch.__version__)
 
-    DB_PATH = "../realTraining.db"
+    DB_PATH = "../realtraining.db"
     model = nn_learner.retrain(db_path=DB_PATH)
 
     #Ensure model can be pickled and unpickled.
@@ -52,13 +52,17 @@ if __name__=="__main__":
         # MODEL Accepts inputs of input_bgk type as well
         predict_throughtypes,err_throughtypes = model(input_bgk)
 
-        #HARDCODE checking last 3 diffusion coefficients
-        out_throughtypes = predict_throughtypes.DiffCoeff[-3:]
+        # #HARDCODE checking last 3 diffusion coefficients
+        # out_throughtypes = predict_throughtypes.DiffCoeff[-3:]
+        out_throughtypes = np.concatenate([[predict_throughtypes.Viscosity], [predict_throughtypes.ThermalConductivity], predict_throughtypes.DiffCoeff])
+
         #print(err_throughtypes)
 
         assert (out_throughtypes == prediction).all()
 
-        outerr_throughtypes = err_throughtypes.DiffCoeff[-3:]
+        outerr_throughtypes = np.concatenate([[err_throughtypes.Viscosity], [err_throughtypes.ThermalConductivity], err_throughtypes.DiffCoeff])
+
+        #outerr_throughtypes = err_throughtypes.DiffCoeff[-3:]
         assert (errbar==outerr_throughtypes).all()
 
         real_answer = row[output_location]
@@ -66,7 +70,11 @@ if __name__=="__main__":
         isok_array = model.process_iserrok(errbar)
         isok_result = model.iserrok(err_throughtypes)
 
-        isok_throughtypes = isok_result.DiffCoeff[-3:]
+        #print(isok_array)
+
+        #isok_throughtypes = isok_result.DiffCoeff[-3:]
+        isok_throughtypes = np.concatenate([[isok_result.Viscosity], [isok_result.ThermalConductivity], isok_result.DiffCoeff])
+
 
         assert (isok_throughtypes==isok_array).all()
 
@@ -82,6 +90,9 @@ if __name__=="__main__":
     okay_prediction = model.process_iserrok(errbar)
     point_badness = model.process_iserrok_fuzzy(errbar)
 
+    #print(point_badness)
+    #print(okay_prediction)
+
 
     # Plot thing to see how it is doing.
 
@@ -91,10 +102,14 @@ if __name__=="__main__":
     fig,axarr=plt.subplots(1,n_targets,figsize=(4*n_targets,4))
     for relerr,ax in zip(point_badness.T,axarr):
         plt.sca(ax)
-        plt.hist(relerr,bins=30)
+        #print("BAD STD:",relerr.std(),relerr.max(),relerr.min())
+        try:
+            plt.hist(relerr,bins=30)
+        except ValueError:
+            pass
     plt.show()
 
-    fig,axarr=plt.subplots(1,n_targets,figsize=(4*n_targets,4))
+    fig,axarr=plt.subplots(1,n_targets,figsize=(5*n_targets,4))
 
     print("Bad points:",(point_badness>=1).any(axis=1).sum(axis=0))
 

@@ -1,5 +1,5 @@
 import copy
-
+import warnings
 
 import numpy as np
 # Built with numpy '1.16.3'
@@ -68,11 +68,24 @@ class Model():
 
         calibration = np.mean(abserr,axis=0)/np.mean(uncertainty,axis=0)
 
-        # Factor 2 is somewhat arbitrary... larger -> less fussy model.
+        # Factor 3 is somewhat arbitrary... larger -> less fussy model.
         # Roughly corresponds to a number of standard deviations
-        calibration /= 2
+        calibration /= 3
+
+
+        # print("net uncertainties:", np.mean(uncertainty, axis=0))
+        # print("std:",)
+        # print("net errors:", np.mean(abserr,axis=0))
+        # print("net calibration factors:",calibration)
 
         self.err_info /= calibration
+
+        inactive_columns = (np.std(abserr,axis=0)==0) & (np.std(uncertainty,axis=0)==0)
+
+        warnings.warn("Inactive columns detected: {} , they will not be included in isokay.".format(np.where(inactive_columns)))
+        self.err_info[inactive_columns]=np.inf
+
+
 
 
     def process_iserrok_fuzzy(self,errbars):
@@ -123,23 +136,28 @@ class BGKModel(Model):
 
     def unpack_outputs(self,packed_result):
 
-        #HARDCODING FOR 3 DIFFUSION TERM PROBLEM
-        diff_array = np.zeros(10)
-        #print(packed_result,packed_result.shape)
-        diff_array[-3:] = packed_result
-        unpacked_result = BGKOutputs(0,0,diff_array)
+        # OLD: #HARDCODING FOR 3 DIFFUSION TERM PROBLEM
+        # diff_array = np.zeros(10)
+        # #print(packed_result,packed_result.shape)
+        # diff_array[-3:] = packed_result
+
+        # All things predicted
+        v = packed_result[0]
+        tc = packed_result[1]
+        diff = packed_result[2:]
+        unpacked_result = BGKOutputs(v,tc,diff)
 
         #Full version of problem should look like this:
         # unpacked_result = BGKOutputs(packed_result[0],packed_result[1],packed_result[2:])
         return unpacked_result
 
     def pack_outputs(self,outputs):
-        #HARDCODING FOR 3 DIFFUSION TERM PROBLEM.
-        output_vals = outputs.DiffCoeff[-3:]
+        # OLD: #HARDCODING FOR 3 DIFFUSION TERM PROBLEM.
+        # output_vals = outputs.DiffCoeff[-3:]
 
 
         # Full_version of problem should look like this:
-        # output_vals = np.concatenate([[request.Viscosity], [request.ThermalConductivity], request.DiffCoeff])
+        output_vals = np.concatenate([[outputs.Viscosity], [outputs.ThermalConductivity], outputs.DiffCoeff])
         return output_vals
 
 
@@ -148,11 +166,11 @@ class BGKModel(Model):
 SOLVER_INDEXES = {
     #HARDCODED TO 3 DIFFUSION TERM PROBLEM
     SolverCode.BGK:dict(
-                        input_slice=[0,1,2,5,6],   # For full version: slice(0,9),
-                        output_slice=slice(12,15), # For full version? slice(10,22)?
-                        n_inputs = 5,              # For full version: 9
-                        n_outputs = 3,             # For full version: 12?
-                        model_type = BGKModel,
+                        input_slice=slice(0,9),    # For full version: slice(0,9),
+                        output_slice=slice(10,22), # For full version? slice(10,22)?
+                        n_inputs = 9,              # For full version: 9
+                        n_outputs = 12,            # For full version: 12?
+                        model_type = BGKModel,     #
                     )
     #Other solver codes...
 }
@@ -168,10 +186,10 @@ DEFAULT_NET_CONFIG = dict(
 
 #Parameters for ensemble uncertainty
 DEFAULT_ENSEMBLE_CONFIG = dict(
-    n_members = 10,
-    test_fraction = 0.2,
+    n_members = 5,
+    test_fraction = 0.1,
     score_thresh = 0.7,
-    max_model_tries = 1000,
+    max_model_tries = 200,
 )
 
 
@@ -179,10 +197,10 @@ DEFAULT_ENSEMBLE_CONFIG = dict(
 DEFAULT_TRAINING_CONFIG = dict(
     n_epochs=2000,
     optimizer_type=torch.optim.Adam,
-    validation_fraction=0.2,
+    validation_fraction=0.1,
     lr=1e-3,
     patience=20,
-    batch_size=5,
+    batch_size=50,
     eval_batch_size=10000,
     scheduler_type = torch.optim.lr_scheduler.ReduceLROnPlateau,
     cost_type = torch.nn.MSELoss
@@ -199,8 +217,11 @@ DEFAULT_LEARNING_CONFIG = dict(
 def assemble_dataset(raw_dataset,solver_code):
 
     features = torch.as_tensor(raw_dataset[:,SOLVER_INDEXES[solver_code]["input_slice"]])
-    print(features.std(axis=0))
+    #print("Feature shape:",features.shape)
+    #print(features.std(axis=0))
     targets = torch.as_tensor(raw_dataset[:,SOLVER_INDEXES[solver_code]["output_slice"]])
+    #print("Targets shape:",targets.shape)
+    #print(targets.std(axis=0))
     return torch.utils.data.TensorDataset(features,targets)
 
 #prototype, only covers ensemble uncertainties
@@ -406,9 +427,16 @@ def get_score(predicted,true):
     score = []
     rmse_list = []
     for i,(p,t) in enumerate(zip(predicted.T,true.T)):
+
         rmse = np.sqrt(sklearn.metrics.mean_squared_error(t,p))
-        rsq = sklearn.metrics.r2_score(t,p)
-        l1resid = l1_score(t,p)
+
+        if p.std() < 1e-300 and t.std() < 1e-300:
+            #print("divide by zero error for column",i)
+            rsq = 1.
+            l1resid = 1.
+        else:
+            rsq = sklearn.metrics.r2_score(t,p)
+            l1resid = l1_score(t,p)
 
         #HARDCODED: SCORE FOR EACH THING TO PREDICT IS RSQ
         score.append(rsq)
@@ -422,7 +450,7 @@ def get_score(predicted,true):
     return score,rmse_list
 
 class Scaler(torch.nn.Module):
-    def __init__(self,means,stds,eps=1e-100):
+    def __init__(self,means,stds,eps=1e-300):
         super().__init__()
         self.means = torch.nn.Parameter(means,requires_grad=False)
         self.stds = torch.nn.Parameter(stds,requires_grad=False)
@@ -436,8 +464,8 @@ class Scaler(torch.nn.Module):
 
     @classmethod
     def from_inversion(cls,other):
-        new_means = -other.means/other.stds
-        new_stds = 1/other.stds
+        new_stds = 1/(other.stds+other.eps)
+        new_means = -other.means/(other.stds+other.eps)
         return cls(new_means,new_stds)
 
     def forward(self,tensor):
