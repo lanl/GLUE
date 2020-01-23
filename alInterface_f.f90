@@ -89,7 +89,6 @@ function bgk_req_batch(input, numInputs, mpiRank, tag, dbHandle) result(res)
 	call c_f_pointer(intermediate, res, [numInputs])
 end function bgk_req_batch
 
-
 function initDB(mpiRank,fName) bind(c,name="initDB") result(dbhandle) 
 	use iso_c_binding
 	type(c_ptr) :: dbhandle
