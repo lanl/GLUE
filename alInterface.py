@@ -10,10 +10,10 @@ import csv
 import time
 import subprocess
 import getpass
+from writeLammpsScript import check_zeros_trace_elements
 
 class ALInterfaceMode(IntEnum):
     LAMMPS = 0
-    MYSTIC = 1
     ACTIVELEARNER=2
     FAKE = 3
     DEFAULT = 4
@@ -27,22 +27,27 @@ class SolverCode(Enum):
 
 class ResultProvenance(IntEnum):
     LAMMPS = 0
-    MYSTIC = 1
+    ACTIVELEARNER = 2
     FAKE = 3
     DB = 4
     FASTLAMMPS = 5
+
+class LearnerBackend(IntEnum):
+    MYSTIC = 1
+    PYTORCH = 2
+    FAKE = 3
 
 # BGKInputs
 #  Temperature: float
 #  Density: float[4]
 #  Charges: float[4]
 BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
-# BGKInputs
+# BGKMassesInputs
 #  Temperature: float
 #  Density: float[4]
 #  Charges: float[4]
 #  Masses: float[4]
-BGKMassesInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges Masses')
+BGKMassesInputs = collections.namedtuple('BGKMassesInputs', 'Temperature Density Charges Masses')
 # BGKoutputs
 #  Viscosity: float
 #  ThermalConductivity: float
@@ -52,11 +57,11 @@ BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity
 #  Viscosity: float
 #  ThermalConductivity: float
 #  DiffCoeff: float[10]
-BGKMassesOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
+BGKMassesOutputs = collections.namedtuple('BGKMassesOutputs', 'Viscosity ThermalConductivity DiffCoeff')
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
-        return 1.3
+        return 2.0
     elif packetType == SolverCode.BGKMASSES:
         return 1.0
     else:
@@ -144,69 +149,46 @@ def processReqRow(sqlRow, packetType):
 
 def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
     # TODO: Refactor constants and general cleanup
-    # WARNING: Seems to be restricted to two materials for now
     if isinstance(lammpsArgs, BGKInputs):
         m=np.array([3.3210778e-24,6.633365399999999e-23])
-        Z=np.array([1,13])
         Teq = 0
         Trun = 0
         cutoff = 0.0
         box = 0
+        eps_traces = 1.e-3
         if(lammpsMode == ALInterfaceMode.LAMMPS):
             # real values of the MD simulations (long MD)
-            Teq=50000
-            Trun=100000
+            Teq=20000
+            Trun=1000000
             cutoff = 2.5
-            box=50
+            box=40.
+            p_int=10000
+            s_int=5
+            d_int=s_int*p_int
+            eps_traces =1.e-3
         elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
             # Values for infrastructure test
             Teq=10
             Trun=10
             cutoff = 1.0
             box=20
+            p_int=2
+            s_int=1
+            d_int=s_int*p_int
         else:
             raise Exception('Using Unsupported LAMMPS Mode')
         interparticle_radius = []
-        lammpsDens = np.array(lammpsArgs.Density[0:2]) 
+        lammpsDens = np.array(lammpsArgs.Density) 
         lammpsTemperature = lammpsArgs.Temperature
-        lammpsIonization = np.array(lammpsArgs.Charges[0:2])
-        for s in range(len(lammpsDens)):
-            zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
-            with open(zbarFile, 'w') as testfile:
-                csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([lammpsIonization[s]])
-        temperatureFile = os.path.join(dirPath, "temperature.csv")
-        with open(temperatureFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([lammpsTemperature])
-        interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
-        L=box*max(interparticle_radius)  #in cm
-        volume =L**3
-        boxLengthFile = os.path.join(dirPath, "box_length.csv")
-        with open(boxLengthFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([L*1.e-2])
-        N=[]
-        for s in range(len(lammpsDens)):
-            N.append(int(volume*lammpsDens[s]))
-            numberPartFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
-            with open(numberPartFile, 'w') as testfile:
-                csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([N[s]])
-        # Add here 3 files that contain information regarding cutoff of the force, equilibration and production run times.
-        rc=1.e-2*cutoff*max(interparticle_radius)  #in m
-        CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
-        with open(CutoffradiusFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([rc])
-        EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
-        with open(EquilibrationtimeFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([Teq])
-        Production_timeFile = os.path.join(dirPath, "prod_time.csv")
-        with open(Production_timeFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([Trun])
+        lammpsIonization = np.array(lammpsArgs.Charges)
+        lammpsMasses = m
+        # Finds zeros and trace elements in the densities, then builds LAMMPS scripts.
+        (species_with_zeros_LammpsDens_index, lammpsScripts)=check_zeros_trace_elements(lammpsTemperature,lammpsDens,lammpsIonization,lammpsMasses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces, dirPath)
+        # And now write the densities and zeroes information to files
+        densFileName = os.path.join(dirPath, "densities.txt")
+        np.savetxt(densFileName, lammpsDens)
+        zeroesFileName = os.path.join(dirPath, "zeroes.txt")
+        np.savetxt(zeroesFileName, np.asarray(species_with_zeros_LammpsDens_index))
         # And now write the inputs to a specific file for later use
         inputList = []
         inputList.append(lammpsArgs.Temperature)
@@ -215,82 +197,8 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         inputList.append(getGroundishTruthVersion(SolverCode.BGK))
         Inputs_file = os.path.join(dirPath, "inputs.txt")
         np.savetxt(Inputs_file, np.asarray(inputList))
-    elif isinstance(lammpsArgs, BGKMassesInputs):
-        Z=np.array([1,13])
-        Teq = 0
-        Trun = 0
-        cutoff = 0.0
-        box = 0
-        if(lammpsMode == ALInterfaceMode.LAMMPS):
-            # real values of the MD simulations (long MD)
-            Teq=50000
-            Trun=100000
-            cutoff = 2.5
-            box=50
-        elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
-            # Values for infrastructure test
-            Teq=10
-            Trun=10
-            cutoff = 1.0
-            box=20
-        else:
-            raise Exception('Using Unsupported LAMMPS Mode')
-        interparticle_radius = []
-        lammpsDens = np.array(lammpsArgs.Density[0:2]) 
-        lammpsTemperature = lammpsArgs.Temperature
-        lammpsIonization = np.array(lammpsArgs.Charges[0:2])
-        lammpsMasses = np.array(lammpsArgs.Masses[0:2])
-        for s in range(len(lammpsDens)):
-            zbarFile = os.path.join(dirPath, "Zbar." + str(s) + ".csv")
-            with open(zbarFile, 'w') as testfile:
-                csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([lammpsIonization[s]])
-        for s in range(len(lammpsDens)):
-            massFile = os.path.join(dirPath, "mass." + str(s) + ".csv")
-            with open(massFile, 'w') as testfile:
-                csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([lammpsMasses[s]*1.e-3])     # the factor 1.e-3 here converts the masses from to Kg
-        temperatureFile = os.path.join(dirPath, "temperature.csv")
-        with open(temperatureFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([lammpsTemperature])
-        interparticle_radius.append(Wigner_Seitz_radius(sum(lammpsDens)))
-        L=box*max(interparticle_radius)  #in cm
-        volume =L**3
-        boxLengthFile = os.path.join(dirPath, "box_length.csv")
-        with open(boxLengthFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([L*1.e-2])
-        N=[]
-        for s in range(len(lammpsDens)):
-            N.append(int(volume*lammpsDens[s]))
-            numberPartFile = os.path.join(dirPath, "Number_part." + str(s) + ".csv")
-            with open(numberPartFile, 'w') as testfile:
-                csv_writer = csv.writer(testfile,delimiter=' ')
-                csv_writer.writerow([N[s]])
-        # Add here 3 files that contain information regarding cutoff of the force, equilibration and production run times.
-        rc=1.e-2*cutoff*max(interparticle_radius)  #in m
-        CutoffradiusFile = os.path.join(dirPath, "cutoff.csv")
-        with open(CutoffradiusFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([rc])
-        EquilibrationtimeFile = os.path.join(dirPath, "equil_time.csv")
-        with open(EquilibrationtimeFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([Teq])
-        Production_timeFile = os.path.join(dirPath, "prod_time.csv")
-        with open(Production_timeFile, 'w') as testfile:
-            csv_writer = csv.writer(testfile,delimiter=' ')
-            csv_writer.writerow([Trun])
-        # And now write the inputs to a specific file for later use
-        inputList = []
-        inputList.append(lammpsArgs.Temperature)
-        inputList.extend(lammpsArgs.Density)
-        inputList.extend(lammpsArgs.Charges)
-        inputList.extend(lammpsArgs.Masses)
-        inputList.append(getGroundishTruthVersion(SolverCode.BGK))
-        Inputs_file = os.path.join(dirPath, "inputs.txt")
-        np.savetxt(Inputs_file, np.asarray(inputList))
+        # And return the lammps scripts
+        return lammpsScripts
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -342,6 +250,8 @@ def getAllGNDData(dbPath, solverCode):
         selString = "SELECT * FROM BGKGND;"
     elif solverCode == SolverCode.BGKMASSES:
         selString = "SELECT * FROM BGKMASSESGND;"
+    elif solverCode == SolverCode.BGKARBIT:
+        selString = "SELECT * FROM BGKARBITGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -359,19 +269,11 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
         outPath = os.path.join(os.getcwd(), outDir)
-        lammpsScript = ""
-        if isinstance(lammpsArgs, BGKInputs):
-            lammpsScript = "in.Argon_Deuterium_plasma"
-        elif isinstance(lammpsArgs, BGKMassesInputs):
-            lammpsScript = "in.Argon_Deuterieum_masses"
         if(not os.path.exists(outPath)):
             os.mkdir(outPath)
             # cp ${SCRIPT_DIR}/lammpsScripts/${lammpsScript}
             # Copy scripts and configuration files
             pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
-            lammpsPath = os.path.join(pythonScriptDir, "lammpsScripts")
-            ardPlasPath = os.path.join(lammpsPath, lammpsScript)
-            shutil.copy2(ardPlasPath, outPath)
             slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
             # Prioritize the local jobEnv.sh over the repo jobEnv.sh
             cwdJobPath = os.path.join(os.getcwd(), "jobEnv.sh")
@@ -383,28 +285,93 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             shutil.copy2(jobEnvFilePath, outPath)
             bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
             # Generate input files
-            writeLammpsInputs(lammpsArgs, outPath, lammpsMode)
+            lammpsScripts = writeLammpsInputs(lammpsArgs, outPath, lammpsMode)
             # Generate slurm script by writing to file
             # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
             # TODO: DRY this
             slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
             with open(slurmFPath, 'w') as slurmFile:
                 slurmFile.write("#!/bin/bash\n")
-                slurmFile.write("#SBATCH -N 1\n")
-                slurmFile.write("#SBATCH -n 16\n")
+                slurmFile.write("#SBATCH -N 3\n")
+                slurmFile.write("#SBATCH -n 108\n")
                 slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
                 slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Actually call lammps
-                slurmFile.write("srun -n 16 " + lammps + " < " + lammpsScript + " \n")
+                for lammpsScript in lammpsScripts:
+                    slurmFile.write("srun -n 108 " + lammps + " < " + lammpsScript + " \n")
                 # Process the result and write to DB
                 slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -c " + str(solverCode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
+    elif solverCode == SolverCode.BGKARBIT:
+        raise Exception("Not implemented")
+        # Mkdir ./${TAG}_${RANK}_${REQ}
+        outDir = tag + "_" + str(rank) + "_" + str(reqid)
+        outPath = os.path.join(os.getcwd(), outDir)
+        if(not os.path.exists(outPath)):
+            os.mkdir(outPath)
+            lammpsScript = ""
+            # Generate (?) Lammps Script and any Config/Input Files
+            # TODO
+            # Specify mapping of species and write to file for later use
+            mapList =  [index for index, val in enumerate(lammpsArgs.Density) if val != 0]
+            mapFile = os.path.join(outPath, "speciesMapping.txt")
+            np.savetxt(mapFile, mapList, fmt='%u')
+            # Prioritize the local jobEnv.sh over the repo jobEnv.sh
+            cwdJobPath = os.path.join(os.getcwd(), "jobEnv.sh")
+            jobEnvFilePath = ""
+            if not os.path.exists(cwdJobPath):
+                jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
+            else:
+                jobEnvFilePath = cwdJobPath
+            shutil.copy2(jobEnvFilePath, outPath)
+            # Generate slurm script by writing to file
+            slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
+            with open(slurmFPath, 'w') as slurmFile:
+                slurmFile.write("#!/bin/bash\n")
+                slurmFile.write("#SBATCH -N 3\n")
+                slurmFile.write("#SBATCH -n 108\n")
+                slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
+                slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
+                slurmFile.write("cd " + outPath + "\n")
+                slurmFile.write("source ./jobEnv.sh\n")
+                # TODO
+            # either syscall or subprocess.run slurm with the script
+            launchSlurmJob(slurmFPath)
+            # Then do nothing because the script itself will write the result
     else:
         raise Exception('Using Unsupported Solver Code')
+
+def alModelStub(inArgs):
+    if isinstance(inArgs, BGKInputs):
+        bgkOutput = None
+        return (sys.float_info.max, bgkOutput)
+    else:
+        raise Exception('Using Unsupported Solver Code With Interpolation Model')
+
+def uqCheckerStub(err):
+    if err < sys.float_info.max:
+        return True
+    else:
+        return False
+
+def getInterpModel(packetType, alBackend):
+    if alBackend == LearnerBackend.FAKE:
+        return InterpModelWrapper(alModelStub, uqCheckerStub)
+    else:
+        raise Exception('Using Unsupported Active Learning Backewnd')
+
+class InterpModelWrapper:
+    def __init__(self, newModel, uqChecker):
+        self.model = newModel
+        self.uq = uqChecker
+    def __call__(self, inputStruct):
+        (err, output) = self.model(inputStruct)
+        isLegit = self.uq(err)
+        return (isLegit, output)
 
 def getGNDCount(dbPath, solverCode):
     selString = ""
@@ -412,6 +379,8 @@ def getGNDCount(dbPath, solverCode):
         selString = "SELECT COUNT(*)  FROM BGKGND;"
     elif solverCode == SolverCode.BGKMASSES:
         selString = "SELECT COUNT(*)  FROM BGKMASSESGND;"
+    elif solverCode == SolverCode.BGKARBIT:
+        selString = "SELECT COUNT(*)  FROM BGKARBITGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -438,6 +407,15 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
+        sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+        sqlDB.close()
+    elif isinstance(lammpsResult, BGKArbitOutputs):
+        sqlDB = sqlite3.connect(dbPath)
+        sqlCursor = sqlDB.cursor()
+        insString = "INSERT INTO BGKARBITRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
@@ -474,7 +452,7 @@ def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, mod
                 buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch, packetType)
                 launchedJob = True
 
-def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType):
+def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType, alBackend):
     reqNumArr = [0] * len(rankArr)
 
     #Spin until file exists
@@ -483,6 +461,8 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
 
     keepSpinning = True
     while keepSpinning:
+        # TODO: Consider logic to not hammer DB/learner with unnecessary requests
+        interpModel = getInterpModel(packetType, alBackend)
         for i in range(0, len(rankArr)):
             rank = rankArr[i]
             req = reqNumArr[i]
@@ -510,20 +490,21 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                 if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch == ALInterfaceMode.FASTLAMMPS:
                     # Submit as LAMMPS job
                     queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
-                elif modeSwitch == ALInterfaceMode.MYSTIC:
-                    # call mystic: I think Mystic will handle most of our logic?
-                    # TODO
-                    pass
                 elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
-                    # This is probably more for the Nick stuff
-                    #  Ask Learner
-                    #     We good? Return value
-                    #  Check LUT
-                    #     We good? Return value
-                    #  Call LAMMPS
-                    #     Go get a coffee, then return value. And add to LUT (?)
-                    # TODO
-                    pass
+                    # General (Active) Learner
+                    #  model = getLatestModelFromLearners()
+                    #  (isLegitPerUQ, outputs) = model(inputs)
+                    #  if isLegitPerUQ:
+                    #      return outputs
+                    #  else:
+                    #      outputs = fineScaleSim(inputs)
+                    #      queueUpdateModel(inputs, outputs)
+                    #      return outputs
+                    (isLegit, output) = interpModel(task[1])
+                    if isLegit:
+                        insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
+                    else:
+                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
@@ -550,6 +531,7 @@ if __name__ == "__main__":
     defaultProcessing = ALInterfaceMode.LAMMPS
     defaultRanks = [0]
     defaultSolver = SolverCode.BGK
+    defaultALBackend = LearnerBackend.FAKE
 
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
@@ -563,6 +545,7 @@ if __name__ == "__main__":
     argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (LAMMPS=0)")
     argParser.add_argument('-r', '--ranks', nargs='+', default=defaultRanks, type=int,  help="Rank IDs to Listen For")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
+    argParser.add_argument('-a', '--albackend', action='store', type=int, required=False, default=defaultALBackend, help='(Active) Learning Backend to Use')
 
 
     args = vars(argParser.parse_args())
@@ -577,5 +560,6 @@ if __name__ == "__main__":
     ranks = args['ranks']
     mode = ALInterfaceMode(args['mode'])
     code = SolverCode(args['code'])
+    alBackend = LearnerBackend(args['albackend'])
 
-    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code)
+    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code, alBackend)
