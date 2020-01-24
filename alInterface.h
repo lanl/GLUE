@@ -59,6 +59,16 @@ typedef struct bgkmasses_request_s bgkmasses_request_t;
 typedef struct lbmZeroD_result_s lbmZeroD_result_t;
 typedef struct lbmZeroD_request_s lbmZeroD_request_t;
 
+enum ALInterfaceMode_e
+{
+	LAMMPS = 0,
+	MYSTIC = 1,
+	ACTIVELEARNER = 2,
+	FAKE = 3,
+	DEFAULT = 4,
+	KILL = 9
+};
+
 #ifdef __cplusplus
 extern "C"
 {
