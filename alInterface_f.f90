@@ -6,6 +6,7 @@ module alinterface_f
 		real(c_double) :: distance
 		real(c_double) :: density
 		real(c_double) :: temperature
+		integer(c_int) :: provenance
 	end type lbmZeroD_request_f
 
 	type, bind(c) :: lbmZeroD_result_f
