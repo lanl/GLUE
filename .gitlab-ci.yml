@@ -50,22 +50,6 @@ build:clang:
     - sniffTest_mpi
     expire_in: 1 day
 
-build:pgi:
-  stage: build
-  tags:
-    - darwin-slurm-shared
-  script:
-    - source slurmScripts/darwin-pgi.sh
-    - make all CC=pgcc CXX=pgc++ FC=pgfortran
-    - make test CC=pgcc CXX=pgc++ FC=pgfortran
-  artifacts:
-    paths:
-    - alinterface_f.mod
-    - libalGlue.a
-    - sniffTest_serial
-    - sniffTest_mpi
-    expire_in: 1 day
-
 test:gnu:
   stage: test
   tags:
@@ -98,14 +82,3 @@ test:clang:
     - bash ../sniffTest_serial.sh
   dependencies:
     - build:clang
-
-test:pgi:
-  stage: test
-  tags:
-   - darwin-slurm-shared
-  script:
-    - source slurmScripts/darwin-pgi.sh
-    - mkdir serial && cd serial
-    - bash ../sniffTest_serial.sh
-  dependencies:
-    - build:pgi
