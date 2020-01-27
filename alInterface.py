@@ -61,7 +61,7 @@ BGKMassesOutputs = collections.namedtuple('BGKMassesOutputs', 'Viscosity Thermal
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
-        return 2.0
+        return 2.1
     elif packetType == SolverCode.BGKMASSES:
         return 1.0
     else:

@@ -3,6 +3,16 @@
 
 #include <sqlite3.h>
 
+enum ALInterfaceMode_e
+{
+	LAMMPS = 0,
+	MYSTIC = 1,
+	ACTIVELEARNER = 2,
+	FAKE = 3,
+	DEFAULT = 4,
+	KILL = 9
+};
+
 struct bgk_request_s
 {
 	double temperature;
@@ -17,6 +27,7 @@ struct bgk_result_s
 	double thermalConductivity;
 	//n*n+1/2
 	double diffusionCoefficient[10];
+	enum ALInterfaceMode_e provenance;
 };
 
 struct bgkmasses_request_s
@@ -58,16 +69,6 @@ typedef struct bgkmasses_result_s bgkmasses_result_t;
 typedef struct bgkmasses_request_s bgkmasses_request_t;
 typedef struct lbmZeroD_result_s lbmZeroD_result_t;
 typedef struct lbmZeroD_request_s lbmZeroD_request_t;
-
-enum ALInterfaceMode_e
-{
-	LAMMPS = 0,
-	MYSTIC = 1,
-	ACTIVELEARNER = 2,
-	FAKE = 3,
-	DEFAULT = 4,
-	KILL = 9
-};
 
 #ifdef __cplusplus
 extern "C"

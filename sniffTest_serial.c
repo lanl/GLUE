@@ -1,5 +1,6 @@
 #include "alInterface.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 struct GridPoint_s
 {
@@ -38,6 +39,8 @@ int main(int argc, char ** argv)
 			expected[i].val = 100.0;
 		}
 	}
+
+	int provenanceError = 0;
 
 	//Initialize DB
 	sqlite3 *dbHandle = initDB(0, fName);
@@ -91,6 +94,10 @@ int main(int argc, char ** argv)
 		{
 			//Individual
 			bgk_result_t result = bgk_req_single(input[i], 0, tag, dbHandle);
+			if(result.provenance != FAKE)
+			{
+				provenanceError = 1;
+			}
 			grid[i].val =  result.diffusionCoefficient[7];
 		}
 		//Batch
@@ -98,6 +105,10 @@ int main(int argc, char ** argv)
 		for(int i = 0; i < dimX/2; i++)
 		{
 			grid[i+dimX/2].val =  result[i].diffusionCoefficient[7];
+			if(result[i].provenance != FAKE)
+			{
+				provenanceError = 1;
+			}
 		}
 		free(result);
 		//Control
@@ -116,13 +127,19 @@ int main(int argc, char ** argv)
 	}
 	if(diff > tolerance)
 	{
+		fprintf(stderr, "Error: Diff > Tolerance\n");
 		retVal = 1;
 	}
 	else
 	{
 		retVal = 0;
 	}
-	
+
+	if(provenanceError != 0)
+	{
+		fprintf(stderr, "Error: Provenance is too real\n");
+		retVal = 1;
+	}
 
 	//Terminate Service
 	bgk_stop_service(0, tag, dbHandle);
