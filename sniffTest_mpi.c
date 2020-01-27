@@ -1,6 +1,7 @@
 #include "alInterface.h"
 #include <stdlib.h>
 #include <mpi.h>
+#include <stdio.h>
 
 struct GridPoint_s
 {
@@ -26,6 +27,7 @@ int main(int argc, char ** argv)
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 	int testRes;
+	int provenanceError = 0;
 
 	if(rank == 0 || rank == 4)
 	{
@@ -102,12 +104,20 @@ int main(int argc, char ** argv)
 				//Individual
 				bgk_result_t result = bgk_req_single(input[i], 0, tag, dbHandle);
 				grid[i].val =  result.diffusionCoefficient[7];
+				if(result.provenance != FAKE)
+				{
+					provenanceError = 1;
+				}
 			}
 			//Batch
 			bgk_result_t *result = bgk_req_batch(&input[dimX/2], dimX/2, 0, tag, dbHandle);
 			for(int i = 0; i < dimX/2; i++)
 			{
 				grid[i+dimX/2].val =  result[i].diffusionCoefficient[7];
+				if(result[i].provenance != FAKE)
+				{
+					provenanceError = 1;
+				}
 			}
 			free(result);
 			//Control
@@ -150,6 +160,18 @@ int main(int argc, char ** argv)
 	int retVal;
 	//Allreduce the diff result and return
 	MPI_Allreduce(&testRes, &retVal, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if(retVal != 0)
+	{
+		fprintf(stderr, "Error: Diff > Tolerance\n");
+	}
+	else
+	{
+		if(provenanceError != 0)
+		{
+			fprintf(stderr, "Error: Provenance is too real\n");
+			retVal = 1;
+		}
+	}
 
 	MPI_Finalize();
 
