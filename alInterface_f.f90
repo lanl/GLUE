@@ -8,16 +8,17 @@ module alinterface_f
 		real(c_double) :: distance
 		real(c_double) :: density
 		real(c_double) :: temperature
+		integer(c_int) :: provenance
 	end type lbmToOneDMD_request_f
 
-	type, bind(c) :: lbmToOneDMD_result_f
-		real(c_double) :: adsorption
-	end type lbmToOneDMD_result_f
-
-	type, bind(c) :: lbmDemo_request_f
-		real(c_double) :: density
-		integer(c_int) :: channelWidth
-	end type lbmDemo_request_f
+		type, bind(c) :: lbmToOneDMD_result_f
+			real(c_double) :: adsorption
+		end type lbmToOneDMD_result_f
+	
+		type, bind(c) :: lbmDemo_request_f
+			real(c_double) :: density
+			integer(c_int) :: channelWidth
+		end type lbmDemo_request_f
 
 	type, bind(c) :: lbmDemo_result_f
 		real(c_double) :: adsorption
@@ -27,6 +28,7 @@ module alinterface_f
 		real(c_double) :: temperature
 		real(c_double) :: density(4)
 		real(c_double) :: charges(4)
+		integer(c_int) :: provenance
 	end type bgk_request_f
 
 	type, bind(c) :: bgk_result_f

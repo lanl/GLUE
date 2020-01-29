@@ -28,16 +28,6 @@ template <typename T> struct AsyncSelectTable_t
 extern AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
 extern AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
 
-enum ALInterfaceMode_e
-{
-	LAMMPS = 0,
-	MYSTIC = 1,
-	ACTIVELEARNER = 2,
-	FAKE = 3,
-	DEFAULT = 4,
-	KILL = 9
-};
-
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName);
 static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColName);
 

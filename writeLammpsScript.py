@@ -149,7 +149,7 @@ def write_LammpsScript(Temperature,densities,charges,masses,system_index_species
         csv_writer.writerow(['variable','T', 'equal', Temp1])
         csv_writer.writerow('')
         csv_writer.writerow(['variable','scale_factor_v', 'equal', '1./(${kb}*$T)*vol*${s_int}*dt'])
-        csv_writer.writerow(['variable','scale_factor_k', 'equal', '1.e-2*${s_int}*dt/(${kb}*$T*$T)/vol'])
+        csv_writer.writerow(['variable','scale_factor_k', 'equal', '${s_int}*dt/(${kb}*$T*$T)/vol'])
         csv_writer.writerow(S1)
         csv_writer.writerow(S2)
         csv_writer.writerow(S3)
@@ -210,7 +210,7 @@ def write_LammpsScript(Temperature,densities,charges,masses,system_index_species
         
         s=1
         csv_writer.writerow(['fix',str(s+1+len(densities)),'all','ave/correlate',s_int,p_int,d_int,'&'])
-        csv_writer.writerow(['c_flux[3]', 'c_flux[4]', 'c_flux[5]', 'type', 'auto', 'file', 'profile.heatflux.dat', 'ave', 'running'])
+        csv_writer.writerow(['c_flux[1]', 'c_flux[2]', 'c_flux[3]', 'type', 'auto', 'file', 'profile.heatflux.dat', 'ave', 'running'])
         csv_writer.writerow(['variable','k11','equal', 'trap(f_'+str(s+1+len(densities))+'[3]'+')'+'*${scale_factor_k}'])
         csv_writer.writerow(['variable','k22','equal', 'trap(f_'+str(s+1+len(densities))+'[4]'+')'+'*${scale_factor_k}'])
         csv_writer.writerow(['variable','k33','equal', 'trap(f_'+str(s+1+len(densities))+'[5]'+')'+'*${scale_factor_k}'])
