@@ -13,7 +13,8 @@ import sklearn.metrics
 
 torch.set_default_dtype(torch.float64)
 
-from alInterface import getAllGNDData, SolverCode, BGKInputs, BGKOutputs
+from alInterface import getAllGNDData
+from glueCodeTypes import SolverCode, BGKInputs, BGKOutputs
 
 
 class Model():

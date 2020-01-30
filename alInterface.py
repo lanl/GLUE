@@ -11,53 +11,7 @@ import time
 import subprocess
 import getpass
 from writeLammpsScript import check_zeros_trace_elements
-
-class ALInterfaceMode(IntEnum):
-    LAMMPS = 0
-    ACTIVELEARNER=2
-    FAKE = 3
-    DEFAULT = 4
-    FASTLAMMPS = 5
-    KILL = 9
-
-class SolverCode(Enum):
-    BGK = 0
-    LBMZEROD = 1
-    BGKMASSES = 2
-
-class ResultProvenance(IntEnum):
-    LAMMPS = 0
-    ACTIVELEARNER = 2
-    FAKE = 3
-    DB = 4
-    FASTLAMMPS = 5
-
-class LearnerBackend(IntEnum):
-    MYSTIC = 1
-    PYTORCH = 2
-    FAKE = 3
-
-# BGKInputs
-#  Temperature: float
-#  Density: float[4]
-#  Charges: float[4]
-BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
-# BGKMassesInputs
-#  Temperature: float
-#  Density: float[4]
-#  Charges: float[4]
-#  Masses: float[4]
-BGKMassesInputs = collections.namedtuple('BGKMassesInputs', 'Temperature Density Charges Masses')
-# BGKoutputs
-#  Viscosity: float
-#  ThermalConductivity: float
-#  DiffCoeff: float[10]
-BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
-# BGKMassesoutputs
-#  Viscosity: float
-#  ThermalConductivity: float
-#  DiffCoeff: float[10]
-BGKMassesOutputs = collections.namedtuple('BGKMassesOutputs', 'Viscosity ThermalConductivity DiffCoeff')
+from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
@@ -371,8 +325,6 @@ def getGNDCount(dbPath, solverCode):
         selString = "SELECT COUNT(*)  FROM BGKGND;"
     elif solverCode == SolverCode.BGKMASSES:
         selString = "SELECT COUNT(*)  FROM BGKMASSESGND;"
-    elif solverCode == SolverCode.BGKARBIT:
-        selString = "SELECT COUNT(*)  FROM BGKARBITGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -399,15 +351,6 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
-        sqlCursor.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlCursor.close()
-        sqlDB.close()
-    elif isinstance(lammpsResult, BGKArbitOutputs):
-        sqlDB = sqlite3.connect(dbPath)
-        sqlCursor = sqlDB.cursor()
-        insString = "INSERT INTO BGKARBITRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()

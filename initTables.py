@@ -2,7 +2,7 @@ import sqlite3
 import argparse
 import os
 import time
-from alInterface import SolverCode
+from glueCodeTypes import SolverCode
 
 
 
