@@ -51,4 +51,4 @@ alTester_serial: libalGlue.a alTester.o
 	${CXX} alTester.o ${LDFLAGS} -o alTester_serial
 
 clean:
-	rm -f ./*.o ./*.a ./*.mod ./sniffTest_serial ./sniffTest_mpi
+	rm -f ./*.o ./*.a ./*.mod ./sniffTest_serial ./sniffTest_mpi ./alTester_serial

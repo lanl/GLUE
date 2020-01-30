@@ -4,7 +4,7 @@
 
 int main(int argc, char ** argv)
 {
-	const char * fName = "realTraining.db";
+	const char * fName = "testDB.db";
 	const char * tag = "makeMeOptionalAlready";
 
 	//Initialize DB
@@ -84,7 +84,7 @@ int main(int argc, char ** argv)
 		{
 			std::cout << "DIFF: diffusionCoefficient[" << j << "]=" << abs(alReq.diffusionCoefficient[j] - gndReq.diffusionCoefficient[j]) << std::endl;
 		}
-		std::cout << "PROVENANCE: AL=" << alReq.provenance << std::endl;
+		std::cout << "PROVENANCE: AL=" << alReq.provenance << std::endl << std::endl;
 	}
 
 	//Terminate Service

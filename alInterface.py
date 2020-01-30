@@ -250,8 +250,6 @@ def getAllGNDData(dbPath, solverCode):
         selString = "SELECT * FROM BGKGND;"
     elif solverCode == SolverCode.BGKMASSES:
         selString = "SELECT * FROM BGKMASSESGND;"
-    elif solverCode == SolverCode.BGKARBIT:
-        selString = "SELECT * FROM BGKARBITGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -322,42 +320,6 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
-    elif solverCode == SolverCode.BGKARBIT:
-        raise Exception("Not implemented")
-        # Mkdir ./${TAG}_${RANK}_${REQ}
-        outDir = tag + "_" + str(rank) + "_" + str(reqid)
-        outPath = os.path.join(os.getcwd(), outDir)
-        if(not os.path.exists(outPath)):
-            os.mkdir(outPath)
-            lammpsScript = ""
-            # Generate (?) Lammps Script and any Config/Input Files
-            # TODO
-            # Specify mapping of species and write to file for later use
-            mapList =  [index for index, val in enumerate(lammpsArgs.Density) if val != 0]
-            mapFile = os.path.join(outPath, "speciesMapping.txt")
-            np.savetxt(mapFile, mapList, fmt='%u')
-            # Prioritize the local jobEnv.sh over the repo jobEnv.sh
-            cwdJobPath = os.path.join(os.getcwd(), "jobEnv.sh")
-            jobEnvFilePath = ""
-            if not os.path.exists(cwdJobPath):
-                jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
-            else:
-                jobEnvFilePath = cwdJobPath
-            shutil.copy2(jobEnvFilePath, outPath)
-            # Generate slurm script by writing to file
-            slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
-            with open(slurmFPath, 'w') as slurmFile:
-                slurmFile.write("#!/bin/bash\n")
-                slurmFile.write("#SBATCH -N 3\n")
-                slurmFile.write("#SBATCH -n 108\n")
-                slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
-                slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
-                slurmFile.write("cd " + outPath + "\n")
-                slurmFile.write("source ./jobEnv.sh\n")
-                # TODO
-            # either syscall or subprocess.run slurm with the script
-            launchSlurmJob(slurmFPath)
-            # Then do nothing because the script itself will write the result
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -398,7 +360,9 @@ class BGKPytorchInterpModel(InterpModelWrapper):
         self.model = newModel
     def __call__(self, inputStruct):
         (err, output) = self.model(inputStruct)
-        isLegit = self.model.iserrok(err)
+        modErr = self.model.iserrok(err)
+        # TODO: need logic to check every field of isLegit to see if it was actually legit
+        isLegit = True
         return (isLegit, output)
 
 def getGNDCount(dbPath, solverCode):
