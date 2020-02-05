@@ -10,6 +10,7 @@ enum ALInterfaceMode_e
 	ACTIVELEARNER = 2,
 	FAKE = 3,
 	DEFAULT = 4,
+	FASTLAMMPS = 5,
 	KILL = 9
 };
 

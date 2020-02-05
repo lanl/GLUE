@@ -2,6 +2,7 @@ from enum import Enum, IntEnum
 import sqlite3
 import argparse
 import collections
+from collections.abc import Iterable
 from SM import Wigner_Seitz_radius
 import os
 import shutil
@@ -299,6 +300,17 @@ def getInterpModel(packetType, alBackend, dbPath):
     else:
         raise Exception('Using Unsupported Active Learning Backewnd')
 
+def simpleALErrorChecker(inputStruct):
+    retVal = True
+    for i in inputStruct:
+        if isinstance(i, Iterable):
+            if not all(i):
+                retVal = False
+        else:
+            if not i:
+                retVal = False
+    return retVal
+
 class InterpModelWrapper:
     def __init__(self, newModel, uqChecker):
         self.model = newModel
@@ -315,8 +327,7 @@ class BGKPytorchInterpModel(InterpModelWrapper):
     def __call__(self, inputStruct):
         (err, output) = self.model(inputStruct)
         modErr = self.model.iserrok(err)
-        # TODO: need logic to check every field of isLegit to see if it was actually legit
-        isLegit = True
+        isLegit = simpleALErrorChecker(modErr)
         return (isLegit, output)
 
 def getGNDCount(dbPath, solverCode):
@@ -439,7 +450,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                     if isLegit:
                         insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
                     else:
-                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
+                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, ALInterfaceMode.LAMMPS, packetType)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
