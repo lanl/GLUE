@@ -13,6 +13,7 @@ import subprocess
 import getpass
 from writeLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
+from contextlib import redirect_stdout, redirect_stderr
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
@@ -427,7 +428,9 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
         # logic to not hammer DB/learner with unnecessary requests
         nuGNDcnt = getGNDCount(dbPath, packetType)
         if (nuGNDcnt - GNDcnt) > GNDthreshold:
-            interpModel = getInterpModel(packetType, alBackend, dbPath)
+            with open('alLog.out', 'w') as alOut, open('alLog.err', 'w') as alErr:
+                with redirect_stdout(alOut), redirect_stdout(alErr):
+                    interpModel = getInterpModel(packetType, alBackend, dbPath)
             GNDcnt = nuGNDcnt
         for i in range(0, len(rankArr)):
             rank = rankArr[i]
