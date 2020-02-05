@@ -339,7 +339,7 @@ class BGKPytorchInterpModel(InterpModelWrapper):
         # TODO: Asynchrony!
         self.model = newModel
     def __call__(self, inputStruct):
-        (err, output) = self.model(inputStruct)
+        (output,err) = self.model(inputStruct)
         modErr = self.model.iserrok(err)
         isLegit = simpleALErrorChecker(modErr)
         return (isLegit, output)
