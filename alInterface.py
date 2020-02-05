@@ -300,6 +300,19 @@ def getInterpModel(packetType, alBackend, dbPath):
     else:
         raise Exception('Using Unsupported Active Learning Backewnd')
 
+def insertALPrediction(dbPath, inLammps, outLammps, solverCode):
+    if solverCode == SolverCode.BGK:
+        sqlDB = sqlite3.connect(dbPath)
+        sqlCursor = sqlDB.cursor()
+        insString = "INSERT INTO BGKALLOGS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+        insArgs = (inLammps.Temperature,) + tuple(inLammps.Density) + tuple(inLammps.Charges) + (getGroundishTruthVersion(solverCode),) + (outLammps.Viscosity, outLammps.ThermalConductivity) + tuple(outLammps.DiffCoeff) + (getGroundishTruthVersion(solverCode),)
+        sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+        sqlDB.close()
+    else:
+        raise Exception("Using Unsupported Solver Code")
+
 def simpleALErrorChecker(inputStruct):
     retVal = True
     for i in inputStruct:
@@ -454,6 +467,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                     #      queueUpdateModel(inputs, outputs)
                     #      return outputs
                     (isLegit, output) = interpModel(task[1])
+                    insertALPrediction(dbPath, task[1], output, packetType)
                     if isLegit:
                         insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
                     else:
