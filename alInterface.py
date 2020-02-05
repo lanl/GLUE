@@ -404,11 +404,18 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
     #Spin until file exists
     while not os.path.exists(dbPath):
         time.sleep(1)
-
+    #Get starting GNDCount of 0
+    GNDcnt = 0
+    #TODO: Parameterize this
+    GNDthreshold = 5
+    #And start the glue loop
     keepSpinning = True
     while keepSpinning:
-        # TODO: Consider logic to not hammer DB/learner with unnecessary requests
-        interpModel = getInterpModel(packetType, alBackend, dbPath)
+        # logic to not hammer DB/learner with unnecessary requests
+        nuGNDcnt = getGNDCount(dbPath, packetType)
+        if (nuGNDcnt - GNDcnt) > GNDthreshold:
+            interpModel = getInterpModel(packetType, alBackend, dbPath)
+            GNDcnt = nuGNDcnt
         for i in range(0, len(rankArr)):
             rank = rankArr[i]
             req = reqNumArr[i]
