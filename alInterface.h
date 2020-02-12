@@ -92,6 +92,8 @@ extern "C"
 	lbmToOneDMD_result_t* lbmToOneDMD_req_batch(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
 	lbmToOneDMD_result_t* lbmToOneDMD_req_batch_with_reqtype(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
 	void lbmToOneDMD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
+
+	void resFreeWrapper(void * buffer);
 	
 	sqlite3 * initDB(int mpiRank, char * fName);
 	void closeDB(sqlite3* dbHandle);

@@ -175,3 +175,8 @@ void closeDB(sqlite3* dbHandle)
 {
 	sqlite3_close(dbHandle);
 }
+
+void resFreeWrapper(void * buffer)
+{
+	free(buffer);
+}

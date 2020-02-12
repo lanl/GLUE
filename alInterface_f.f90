@@ -112,4 +112,9 @@ subroutine bgk_stop_service(mpiRank, tag, dbHandle) bind(c, name="bgk_stop_servi
 	type(c_ptr) :: dbhandle
 end subroutine bgk_stop_service
 
+subroutine resFreeWrapper(buffer) bind(c, name="resFreeWrapper")
+	use iso_c_binding
+	type(c_ptr) :: buffer
+end subroutine resFreeWrapper
+
 end module alinterface_f
