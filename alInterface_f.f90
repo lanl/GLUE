@@ -28,13 +28,13 @@ module alinterface_f
 		real(c_double) :: temperature
 		real(c_double) :: density(4)
 		real(c_double) :: charges(4)
-		integer(c_int) :: provenance
 	end type bgk_request_f
 
 	type, bind(c) :: bgk_result_f
 		real(c_double) :: viscosity
 		real(c_double) :: thermalConductivity
 		real(c_double) :: diffusionCoefficient(10)
+		integer(c_int) :: provenance
 	end type bgk_result_f
 
 	enum, bind(c)
