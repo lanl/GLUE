@@ -21,7 +21,7 @@ endif
 
 all: libalGlue.a
 
-test: sniffTest_mpi sniffTest_serial
+test: sniffTest_mpi sniffTest_serial alTester_serial
 
 libalGlue.a: alInterface.o alInterface_f.o
 	${AR} ${AR_FLAGS} libalGlue.a alInterface.o alInterface_f.o
@@ -44,5 +44,11 @@ sniffTest_mpi.o: sniffTest_mpi.c
 sniffTest_mpi: libalGlue.a sniffTest_mpi.o
 	${MPICXX} sniffTest_mpi.o ${LDFLAGS} -o  sniffTest_mpi
 
+alTester.o: alTester.cpp
+	${CXX} -c alTester.cpp
+
+alTester_serial: libalGlue.a alTester.o
+	${CXX} alTester.o ${LDFLAGS} -o alTester_serial
+
 clean:
-	rm -f ./*.o ./*.a ./*.mod ./sniffTest_serial ./sniffTest_mpi
+	rm -f ./*.o ./*.a ./*.mod ./sniffTest_serial ./sniffTest_mpi ./alTester_serial

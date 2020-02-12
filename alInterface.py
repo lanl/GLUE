@@ -2,6 +2,7 @@ from enum import Enum, IntEnum
 import sqlite3
 import argparse
 import collections
+from collections.abc import Iterable
 from SM import Wigner_Seitz_radius
 import os
 import shutil
@@ -11,53 +12,8 @@ import time
 import subprocess
 import getpass
 from writeLammpsScript import check_zeros_trace_elements
-
-class ALInterfaceMode(IntEnum):
-    LAMMPS = 0
-    ACTIVELEARNER=2
-    FAKE = 3
-    DEFAULT = 4
-    FASTLAMMPS = 5
-    KILL = 9
-
-class SolverCode(Enum):
-    BGK = 0
-    LBMTOONEDMD = 1
-    BGKMASSES = 2
-
-class ResultProvenance(IntEnum):
-    LAMMPS = 0
-    ACTIVELEARNER = 2
-    FAKE = 3
-    DB = 4
-    FASTLAMMPS = 5
-
-class LearnerBackend(IntEnum):
-    MYSTIC = 1
-    PYTORCH = 2
-    FAKE = 3
-
-# BGKInputs
-#  Temperature: float
-#  Density: float[4]
-#  Charges: float[4]
-BGKInputs = collections.namedtuple('BGKInputs', 'Temperature Density Charges')
-# BGKMassesInputs
-#  Temperature: float
-#  Density: float[4]
-#  Charges: float[4]
-#  Masses: float[4]
-BGKMassesInputs = collections.namedtuple('BGKMassesInputs', 'Temperature Density Charges Masses')
-# BGKoutputs
-#  Viscosity: float
-#  ThermalConductivity: float
-#  DiffCoeff: float[10]
-BGKOutputs = collections.namedtuple('BGKOutputs', 'Viscosity ThermalConductivity DiffCoeff')
-# BGKMassesoutputs
-#  Viscosity: float
-#  ThermalConductivity: float
-#  DiffCoeff: float[10]
-BGKMassesOutputs = collections.namedtuple('BGKMassesOutputs', 'Viscosity ThermalConductivity DiffCoeff')
+from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
+from contextlib import redirect_stdout, redirect_stderr
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
@@ -250,8 +206,6 @@ def getAllGNDData(dbPath, solverCode):
         selString = "SELECT * FROM BGKGND;"
     elif solverCode == SolverCode.BGKMASSES:
         selString = "SELECT * FROM BGKMASSESGND;"
-    elif solverCode == SolverCode.BGKARBIT:
-        selString = "SELECT * FROM BGKARBITGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -263,6 +217,22 @@ def getAllGNDData(dbPath, solverCode):
     sqlCursor.close()
     sqlDB.close()
     return np.array(gndResults)
+
+def getGNDCount(dbPath, solverCode):
+    selString = ""
+    if solverCode == SolverCode.BGK:
+        selString = "SELECT COUNT(*)  FROM BGKGND;"
+    else:
+        raise Exception('Using Unsupported Solver Code')
+    sqlDB = sqlite3.connect(dbPath)
+    sqlCursor = sqlDB.cursor()
+    numGND = 0
+    for row in sqlCursor.execute(selString):
+        # Should just be one row with one value
+        numGND = row[0]
+    sqlCursor.close()
+    sqlDB.close()
+    return numGND
 
 def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode, solverCode):
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
@@ -306,42 +276,6 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
-    elif solverCode == SolverCode.BGKARBIT:
-        raise Exception("Not implemented")
-        # Mkdir ./${TAG}_${RANK}_${REQ}
-        outDir = tag + "_" + str(rank) + "_" + str(reqid)
-        outPath = os.path.join(os.getcwd(), outDir)
-        if(not os.path.exists(outPath)):
-            os.mkdir(outPath)
-            lammpsScript = ""
-            # Generate (?) Lammps Script and any Config/Input Files
-            # TODO
-            # Specify mapping of species and write to file for later use
-            mapList =  [index for index, val in enumerate(lammpsArgs.Density) if val != 0]
-            mapFile = os.path.join(outPath, "speciesMapping.txt")
-            np.savetxt(mapFile, mapList, fmt='%u')
-            # Prioritize the local jobEnv.sh over the repo jobEnv.sh
-            cwdJobPath = os.path.join(os.getcwd(), "jobEnv.sh")
-            jobEnvFilePath = ""
-            if not os.path.exists(cwdJobPath):
-                jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
-            else:
-                jobEnvFilePath = cwdJobPath
-            shutil.copy2(jobEnvFilePath, outPath)
-            # Generate slurm script by writing to file
-            slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
-            with open(slurmFPath, 'w') as slurmFile:
-                slurmFile.write("#!/bin/bash\n")
-                slurmFile.write("#SBATCH -N 3\n")
-                slurmFile.write("#SBATCH -n 108\n")
-                slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
-                slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
-                slurmFile.write("cd " + outPath + "\n")
-                slurmFile.write("source ./jobEnv.sh\n")
-                # TODO
-            # either syscall or subprocess.run slurm with the script
-            launchSlurmJob(slurmFPath)
-            # Then do nothing because the script itself will write the result
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -358,11 +292,38 @@ def uqCheckerStub(err):
     else:
         return False
 
-def getInterpModel(packetType, alBackend):
+def getInterpModel(packetType, alBackend, dbPath):
     if alBackend == LearnerBackend.FAKE:
         return InterpModelWrapper(alModelStub, uqCheckerStub)
+    if alBackend == LearnerBackend.PYTORCH:
+        import nn_learner
+        return BGKPytorchInterpModel(nn_learner.retrain(dbPath))
     else:
         raise Exception('Using Unsupported Active Learning Backewnd')
+
+def insertALPrediction(dbPath, inLammps, outLammps, solverCode):
+    if solverCode == SolverCode.BGK:
+        sqlDB = sqlite3.connect(dbPath)
+        sqlCursor = sqlDB.cursor()
+        insString = "INSERT INTO BGKALLOGS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+        insArgs = (inLammps.Temperature,) + tuple(inLammps.Density) + tuple(inLammps.Charges) + (getGroundishTruthVersion(solverCode),) + (outLammps.Viscosity, outLammps.ThermalConductivity) + tuple(outLammps.DiffCoeff) + (getGroundishTruthVersion(solverCode),)
+        sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+        sqlDB.close()
+    else:
+        raise Exception("Using Unsupported Solver Code")
+
+def simpleALErrorChecker(inputStruct):
+    retVal = True
+    for i in inputStruct:
+        if isinstance(i, Iterable):
+            if not all(i):
+                retVal = False
+        else:
+            if not i:
+                retVal = False
+    return retVal
 
 class InterpModelWrapper:
     def __init__(self, newModel, uqChecker):
@@ -373,14 +334,22 @@ class InterpModelWrapper:
         isLegit = self.uq(err)
         return (isLegit, output)
 
+class BGKPytorchInterpModel(InterpModelWrapper):
+    def __init__(self, newModel):
+        # TODO: Asynchrony!
+        self.model = newModel
+    def __call__(self, inputStruct):
+        (output,err) = self.model(inputStruct)
+        modErr = self.model.iserrok(err)
+        isLegit = simpleALErrorChecker(modErr)
+        return (isLegit, output)
+
 def getGNDCount(dbPath, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT COUNT(*)  FROM BGKGND;"
     elif solverCode == SolverCode.BGKMASSES:
         selString = "SELECT COUNT(*)  FROM BGKMASSESGND;"
-    elif solverCode == SolverCode.BGKARBIT:
-        selString = "SELECT COUNT(*)  FROM BGKARBITGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -407,15 +376,6 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
-        sqlCursor.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlCursor.close()
-        sqlDB.close()
-    elif isinstance(lammpsResult, BGKArbitOutputs):
-        sqlDB = sqlite3.connect(dbPath)
-        sqlCursor = sqlDB.cursor()
-        insString = "INSERT INTO BGKARBITRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
@@ -458,11 +418,20 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
     #Spin until file exists
     while not os.path.exists(dbPath):
         time.sleep(1)
-
+    #Get starting GNDCount of 0
+    GNDcnt = 0
+    #TODO: Parameterize this
+    GNDthreshold = 5
+    #And start the glue loop
     keepSpinning = True
     while keepSpinning:
-        # TODO: Consider logic to not hammer DB/learner with unnecessary requests
-        interpModel = getInterpModel(packetType, alBackend)
+        # logic to not hammer DB/learner with unnecessary requests
+        nuGNDcnt = getGNDCount(dbPath, packetType)
+        if (nuGNDcnt - GNDcnt) > GNDthreshold:
+            with open('alLog.out', 'w') as alOut, open('alLog.err', 'w') as alErr:
+                with redirect_stdout(alOut), redirect_stdout(alErr):
+                    interpModel = getInterpModel(packetType, alBackend, dbPath)
+            GNDcnt = nuGNDcnt
         for i in range(0, len(rankArr)):
             rank = rankArr[i]
             req = reqNumArr[i]
@@ -501,10 +470,11 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                     #      queueUpdateModel(inputs, outputs)
                     #      return outputs
                     (isLegit, output) = interpModel(task[1])
+                    insertALPrediction(dbPath, task[1], output, packetType)
                     if isLegit:
                         insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
                     else:
-                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
+                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, ALInterfaceMode.LAMMPS, packetType)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
@@ -517,8 +487,6 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                         raise Exception('Using Unsupported Solver Code')
                 elif modeSwitch == ALInterfaceMode.KILL:
                     keepSpinning = False
-        #Probably some form of delay?
-
 
 if __name__ == "__main__":
     defaultFName = "testDB.db"
