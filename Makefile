@@ -12,6 +12,7 @@ SQLITE_LIBDIR=${SQLITE_DIR}/lib
 
 AR_FLAGS=-rcs
 CXXFLAGS=-std=c++14
+FFLAGS=
 LDFLAGS=libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3
 
 FORTLDFLAGS=
@@ -62,7 +63,7 @@ sniffTest_mpi: libalGlue.a sniffTest_mpi.o
 	${MPICXX} sniffTest_mpi.o ${LDFLAGS} -o  sniffTest_mpi
 
 sniffTest_fortranBGK.o: sniffTest_fortranBGK.f90 alInterface_f.o
-	${FC} -c sniffTest_fortranBGK.f90
+	${FC} ${FFLAGS} -c sniffTest_fortranBGK.f90
 
 sniffTest_fortranBGK: sniffTest_fortranBGK.o libalGlue.a
 	${CXX} sniffTest_fortranBGK.f90 ${LDFLAGS} ${FORTLDFLAGS} -o sniffTest_fortranBGK

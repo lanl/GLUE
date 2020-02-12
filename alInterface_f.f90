@@ -117,4 +117,9 @@ subroutine resFreeWrapper(buffer) bind(c, name="resFreeWrapper")
 	type(c_ptr) :: buffer
 end subroutine resFreeWrapper
 
+subroutine closeDB(dbHandle) bind(c, name="closeDB")
+	use iso_c_binding
+	type(c_ptr) :: dbHandle
+end subroutine closeDB
+
 end module alinterface_f

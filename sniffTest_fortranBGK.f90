@@ -11,13 +11,15 @@ program sniff
 	mpiHandle = 0
 
 	req%temperature = 4.0
-	req%density(1) = 1.0
-	req%density(2) = 2.0
+	req%density(1) = 6.0
+	req%charges(4) = 5.0
 
 	dbHandle = initDB(mpiHandle, "foo.db"//CHAR(0))
 
 	ret = bgk_req_single(req, 0, "TAG"//CHAR(0), dbHandle)
-	print *,ret%viscosity
+	print *,ret%diffusionCoefficient(8)
 
+	call bgk_stop_service(0, "TAG"//CHAR(0), dbHandle)
+	call closeDB(dbHandle)
 
 end program sniff
