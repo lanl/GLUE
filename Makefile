@@ -41,13 +41,16 @@ all: libalGlue.a
 
 test: sniffTest_mpi sniffTest_serial alTester_serial sniffTest_fortranBGK
 
-libalGlue.a: alInterface.o alInterface_f.o
+libalGlue.a: alInterface.o alInterface_f.o alGlueTypes_f.o
 	${AR} ${AR_FLAGS} libalGlue.a alInterface.o alInterface_f.o
 
 alInterface.o: alInterface.cpp alInterface.h alInterface.hpp
-	${CXX} ${CXXFLAGS} -I${SQLITE_INCLUDE} -c alInterface.cpp 
+	${CXX} ${CXXFLAGS} -I${SQLITE_INCLUDE} -c alInterface.cpp
 
-alInterface_f.o: alInterface_f.f90
+alGlueTypes_f.o: alGlueTypes_f.f90
+	${FC} -c alGlueTypes_f.f90
+
+alInterface_f.o: alInterface_f.f90 alGlueTypes_f.o
 	${FC} -c alInterface_f.f90
 
 sniffTest_serial.o: sniffTest_serial.c
@@ -65,8 +68,8 @@ sniffTest_mpi: libalGlue.a sniffTest_mpi.o
 sniffTest_fortranBGK.o: sniffTest_fortranBGK.f90 alInterface_f.o
 	${FC} ${FFLAGS} -c sniffTest_fortranBGK.f90
 
-sniffTest_fortranBGK: sniffTest_fortranBGK.o libalGlue.a
-	${CXX} sniffTest_fortranBGK.f90 ${LDFLAGS} ${FORTLDFLAGS} -o sniffTest_fortranBGK
+sniffTest_fortranBGK: libalGlue.a sniffTest_fortranBGK.o
+	${CXX} sniffTest_fortranBGK.o ${LDFLAGS} ${FORTLDFLAGS} -o sniffTest_fortranBGK
 
 alTester.o: alTester.cpp
 	${CXX} -c alTester.cpp
