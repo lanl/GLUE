@@ -66,11 +66,14 @@ sniffTest_mpi.o: sniffTest_mpi.c
 sniffTest_mpi: libalGlue.a sniffTest_mpi.o
 	${MPICXX} sniffTest_mpi.o ${LDFLAGS} -o  sniffTest_mpi
 
-sniffTest_fortranBGK.o: sniffTest_fortranBGK.f90 alInterface_f.o
-	${FC} ${FFLAGS} -c sniffTest_fortranBGK.f90
+sniffTest_fortranBGK_f.o: sniffTest_fortranBGK_f.f90 alInterface_f.o
+	${FC} ${FFLAGS} -c sniffTest_fortranBGK_f.f90
 
-sniffTest_fortranBGK: libalGlue.a sniffTest_fortranBGK.o
-	${CXX} sniffTest_fortranBGK.o ${LDFLAGS} ${FORTLDFLAGS} -o sniffTest_fortranBGK
+sniffTest_fortranBGK_c.o: sniffTest_fortranBGK_c.cpp
+	${CXX} ${CXXFLAGS} -c sniffTest_fortranBGK_c.cpp
+
+sniffTest_fortranBGK: libalGlue.a sniffTest_fortranBGK_f.o sniffTest_fortranBGK_c.o
+	${CXX} sniffTest_fortranBGK_f.o sniffTest_fortranBGK_c.o ${LDFLAGS} ${FORTLDFLAGS} -o sniffTest_fortranBGK
 
 alTester.o: alTester.cpp
 	${CXX} -c alTester.cpp
