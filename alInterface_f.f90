@@ -65,7 +65,7 @@ module alinterface_f
 			use iso_c_binding
 			integer(c_int), value :: mpiRank
 			character(kind=c_char) :: tag(*)
-			type(c_ptr) :: dbhandle
+			type(c_ptr), value :: dbhandle
 		end subroutine bgk_stop_service_f
 	end interface
 
@@ -79,7 +79,7 @@ module alinterface_f
 	interface
 		subroutine closeDB_f(dbHandle) bind(c, name="closeDB")
 			use iso_c_binding
-			type(c_ptr) :: dbHandle
+			type(c_ptr), value :: dbHandle
 		end subroutine closeDB_f
 	end interface
 
