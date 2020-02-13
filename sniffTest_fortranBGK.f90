@@ -36,8 +36,7 @@ program sniff
 	batchReq(7)%density(1) = 22.0
 	batchReq(7)%charges(4) = 3.0
 
-	batchRet = bgk_req_batch_f(batchReq, 12,  mpiHandle, "TAG"//CHAR(0), dbHandle)
-	! batchRet = bgk_req_batch_subroutine_f(batchReq, 12,  mpiHandle, "TAG"//CHAR(0), dbHandle)
+	batchRet => bgk_req_batch_f(batchReq, 12,  mpiHandle, "TAG"//CHAR(0), dbHandle)
 	print *,batchRet(7)%diffusionCoefficient(8)
 	print *,"Should have been 10"
 	call bgk_resFreeWrapper_f(batchRet)

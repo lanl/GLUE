@@ -72,7 +72,7 @@ module alinterface_f
 	interface 
 		subroutine resFreeWrapper_internal_f(buffer) bind(c, name="resFreeWrapper")
 			use iso_c_binding
-			type(c_ptr) :: buffer
+			type(c_ptr), value :: buffer
 		end subroutine resFreeWrapper_internal_f
 	end interface
 
