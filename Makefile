@@ -12,6 +12,7 @@ SQLITE_LIBDIR=${SQLITE_DIR}/lib
 
 AR_FLAGS=-rcs
 CXXFLAGS=-std=c++14
+CFLAGS =
 FFLAGS=
 LDFLAGS=libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3
 
@@ -48,19 +49,19 @@ alInterface.o: alInterface.cpp alInterface.h alInterface.hpp
 	${CXX} ${CXXFLAGS} -I${SQLITE_INCLUDE} -c alInterface.cpp
 
 alGlueTypes_f.o: alGlueTypes_f.f90
-	${FC} -c alGlueTypes_f.f90
+	${FC} ${FFLAGS} -c alGlueTypes_f.f90
 
 alInterface_f.o: alInterface_f.f90 alGlueTypes_f.o
-	${FC} -c alInterface_f.f90
+	${FC} ${FFLAGS} -c alInterface_f.f90
 
 sniffTest_serial.o: sniffTest_serial.c
-	${CC} -c sniffTest_serial.c
+	${CC} ${CFLAGS} -c sniffTest_serial.c
 
 sniffTest_serial: libalGlue.a sniffTest_serial.o
-	${CXX}  sniffTest_serial.o ${LDFLAGS} -o sniffTest_serial
+	${CXX} ${CXXFLAGS} sniffTest_serial.o ${LDFLAGS} -o sniffTest_serial
 
 sniffTest_mpi.o: sniffTest_mpi.c
-	${MPICC} -c sniffTest_mpi.c
+	${MPICC} ${CFLAGS} -c sniffTest_mpi.c
 
 sniffTest_mpi: libalGlue.a sniffTest_mpi.o
 	${MPICXX} sniffTest_mpi.o ${LDFLAGS} -o  sniffTest_mpi

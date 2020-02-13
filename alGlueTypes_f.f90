@@ -8,7 +8,6 @@ module algluetypes_f
 		real(c_double) :: distance
 		real(c_double) :: density
 		real(c_double) :: temperature
-		integer(c_int) :: provenance
 	end type lbmToOneDMD_request_f
 
 	type, bind(c) :: lbmToOneDMD_result_f
@@ -22,6 +21,7 @@ module algluetypes_f
 
 	type, bind(c) :: lbmDemo_result_f
 		real(c_double) :: adsorption
+		integer(c_int) :: provenance
 	end type lbmDemo_result_f
 
 	type, bind(c) :: bgk_request_f

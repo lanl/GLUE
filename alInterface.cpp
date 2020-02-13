@@ -33,7 +33,7 @@ static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColNa
 	{
 		result.diffusionCoefficient[i] = atof(argv[i+5]);
 	}
-	result.provenance = (ALInterfaceMode_e)atoi(argv[15]);
+	result.provenance = atoi(argv[15]);
 
 	//Get global select table of type bgk_result_t
 	globalBGKResultTable.tableMutex.lock();

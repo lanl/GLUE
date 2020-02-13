@@ -38,7 +38,7 @@ module alinterface_f
 			integer(c_int), value :: mpiRank
 			character(kind=c_char) :: tag(*)
 			type(c_ptr), value :: dbHandle
-			type(c_ptr) res
+			type(c_ptr) ::  res
 		end function bgk_req_batch_internal_f
 	end interface
 
@@ -70,10 +70,10 @@ module alinterface_f
 	end interface
 
 	interface 
-		subroutine resFreeWrapper_f(buffer) bind(c, name="resFreeWrapper")
+		subroutine resFreeWrapper_internal_f(buffer) bind(c, name="resFreeWrapper")
 			use iso_c_binding
 			type(c_ptr) :: buffer
-		end subroutine resFreeWrapper_f
+		end subroutine resFreeWrapper_internal_f
 	end interface
 
 	interface
@@ -91,13 +91,22 @@ module alinterface_f
 		integer(c_int), value :: numInputs
 		integer(c_int), value :: mpiRank
 		character(kind=c_char) :: tag(*)
-		type(c_ptr), value :: dbHandle
-		type(c_ptr) intermediate
+		type(c_ptr) :: dbHandle
+		type(c_ptr) :: intermediate
 		type(bgk_result_f), pointer :: res(:)
 
 		! TODO: Verify this kludge is safe
 		intermediate = bgk_req_batch_internal_f(input, numInputs, mpiRank, tag, dbHandle)
 		call c_f_pointer(intermediate, res, [numInputs])
 	end function bgk_req_batch_f
+
+	subroutine bgk_resFreeWrapper_f(ptr)
+		use iso_c_binding
+		type(bgk_result_f), pointer :: ptr(:)
+		type(c_ptr) :: intermediate
+
+		intermediate = c_loc(ptr)
+		call resFreeWrapper_internal_f(intermediate)
+	end subroutine bgk_resFreeWrapper_f
 
 end module alinterface_f

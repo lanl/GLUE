@@ -28,7 +28,7 @@ struct bgk_result_s
 	double thermalConductivity;
 	//n*n+1/2
 	double diffusionCoefficient[10];
-	enum ALInterfaceMode_e provenance;
+	int provenance;
 };
 
 struct bgkmasses_request_s
@@ -62,6 +62,7 @@ struct lbmToOneDMD_result_s
 {
 	//adsorption
 	double adsorption;
+	int provenance;
 };
 
 typedef struct bgk_result_s bgk_result_t;
