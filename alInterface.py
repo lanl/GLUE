@@ -17,7 +17,7 @@ from contextlib import redirect_stdout, redirect_stderr
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
-        return 2.1
+        return 2.2
     elif packetType == SolverCode.BGKMASSES:
         return 1.0
     else:
