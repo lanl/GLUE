@@ -14,3 +14,4 @@ batchReqs
 sniffTest_serial
 sniffTest_mpi
 alTester_serial
+sniffTest_fortranBGK
