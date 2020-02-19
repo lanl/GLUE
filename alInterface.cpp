@@ -12,7 +12,7 @@
 
 ///TODO: Verify this is the correct way to do a global variable
 AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
-AsyncSelectTable_t<lbmZeroD_result_t> globalLBMZeroDResultTable;
+AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
 {
@@ -33,7 +33,7 @@ static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColNa
 	{
 		result.diffusionCoefficient[i] = atof(argv[i+5]);
 	}
-	result.provenance = (ALInterfaceMode_e)atoi(argv[15]);
+	result.provenance = atoi(argv[15]);
 
 	//Get global select table of type bgk_result_t
 	globalBGKResultTable.tableMutex.lock();
@@ -127,34 +127,34 @@ void bgkmasses_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
 	return;
 }
 
-lbmZeroD_result_t lbmZeroD_req_single(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
+lbmToOneDMD_result_t lbmToOneDMD_req_single(lbmToOneDMD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle)
 {
-	return lbmZeroD_req_single_with_reqtype(input, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
+	return lbmToOneDMD_req_single_with_reqtype(input, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
 }
 
-lbmZeroD_result_t lbmZeroD_req_single_with_reqtype(lbmZeroD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+lbmToOneDMD_result_t lbmToOneDMD_req_single_with_reqtype(lbmToOneDMD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
-	return req_single_with_reqtype<lbmZeroD_request_t, lbmZeroD_result_t>(input, mpiRank, tag, dbHandle, reqType);
+	return req_single_with_reqtype<lbmToOneDMD_request_t, lbmToOneDMD_result_t>(input, mpiRank, tag, dbHandle, reqType);
 }
 
-lbmZeroD_result_t* lbmZeroD_req_batch_with_reqtype(lbmZeroD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+lbmToOneDMD_result_t* lbmToOneDMD_req_batch_with_reqtype(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
-	return req_batch_with_reqtype<lbmZeroD_request_t, lbmZeroD_result_t>(input, numInputs, mpiRank, tag, dbHandle, reqType);
+	return req_batch_with_reqtype<lbmToOneDMD_request_t, lbmToOneDMD_result_t>(input, numInputs, mpiRank, tag, dbHandle, reqType);
 }
 
-lbmZeroD_result_t* lbmZeroD_req_batch(lbmZeroD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
+lbmToOneDMD_result_t* lbmToOneDMD_req_batch(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle)
 {
-	return lbmZeroD_req_batch_with_reqtype(input, numInputs, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
+	return lbmToOneDMD_req_batch_with_reqtype(input, numInputs, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
 }
 
-void lbmZeroD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
+void lbmToOneDMD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle)
 {
-	lbmZeroD_request_t req;
+	lbmToOneDMD_request_t req;
 	req.distance = -0.0;
 	req.density = -0.0;
 	req.temperature = -0.0;
 
-	lbmZeroD_req_single_with_reqtype(req, mpiRank, tag, dbHandle, ALInterfaceMode_e::KILL);
+	lbmToOneDMD_req_single_with_reqtype(req, mpiRank, tag, dbHandle, ALInterfaceMode_e::KILL);
 	return;
 }
 
@@ -174,4 +174,9 @@ sqlite3* initDB(int mpiRank, char * fName)
 void closeDB(sqlite3* dbHandle)
 {
 	sqlite3_close(dbHandle);
+}
+
+void resFreeWrapper(void * buffer)
+{
+	free(buffer);
 }
