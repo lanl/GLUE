@@ -271,6 +271,8 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
                 # Actually call lammps
                 for lammpsScript in lammpsScripts:
                     slurmFile.write("srun -n 108 " + lammps + " < " + lammpsScript + " \n")
+                # And delete unnecessary files to save disk space
+                slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
                 slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -c " + str(solverCode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
