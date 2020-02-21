@@ -270,10 +270,10 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Call Spack to install lammps if needed
                 # TODO: Genralize this
-                slurmFile.write("spack install lammps+mpi %gcc@8.2.0 ^openmpi@2.1.3%gcc@8.2.0\n")
+                slurmFile.write("spack install lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0\n")
                 # Load lammps
                 # TODO: Genralize this
-                slurmFile.write("spack load lammps+mpi %gcc@8.2.0 ^openmpi@2.1.3%gcc@8.2.0\n")
+                slurmFile.write("spack load lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0 arch=`spack arch`\n")
                 # Actually call lammps
                 for lammpsScript in lammpsScripts:
                     slurmFile.write("srun -n 108 lmp < " + lammpsScript + " \n")
