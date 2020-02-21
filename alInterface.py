@@ -268,9 +268,15 @@ def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs,
                 slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
+                # Call Spack to install lammps if needed
+                # TODO: Genralize this
+                slurmFile.write("spack install lammps+mpi %gcc@8.2.0 ^openmpi@2.1.3%gcc@8.2.0\n")
+                # Load lammps
+                # TODO: Genralize this
+                slurmFile.write("spack load lammps+mpi %gcc@8.2.0 ^openmpi@2.1.3%gcc@8.2.0\n")
                 # Actually call lammps
                 for lammpsScript in lammpsScripts:
-                    slurmFile.write("srun -n 108 " + lammps + " < " + lammpsScript + " \n")
+                    slurmFile.write("srun -n 108 lmp < " + lammpsScript + " \n")
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
