@@ -11,6 +11,7 @@ import csv
 import time
 import subprocess
 import getpass
+import sys
 from writeLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
 from contextlib import redirect_stdout, redirect_stderr
@@ -530,7 +531,7 @@ if __name__ == "__main__":
     mode = ALInterfaceMode(args['mode'])
     code = SolverCode(args['code'])
     alBackend = LearnerBackend(args['albackend'])
-    GNDthreshold = LearnerBackend(args['retrainthreshold'])
+    GNDthreshold = args['retrainthreshold']
     if(GNDthreshold < 0):
         GNDthreshold = sys.maxsize
 
