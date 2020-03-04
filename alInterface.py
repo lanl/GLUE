@@ -428,7 +428,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
     while keepSpinning:
         # logic to not hammer DB/learner with unnecessary requests
         nuGNDcnt = getGNDCount(dbPath, packetType)
-        if (nuGNDcnt - GNDcnt) > GNDthreshold:
+        if (nuGNDcnt - GNDcnt) > GNDthreshold or GNDcnt == 0:
             with open('alLog.out', 'w') as alOut, open('alLog.err', 'w') as alErr:
                 with redirect_stdout(alOut), redirect_stdout(alErr):
                     interpModel = getInterpModel(packetType, alBackend, dbPath)
