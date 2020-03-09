@@ -11,6 +11,7 @@ import csv
 import time
 import subprocess
 import getpass
+import sys
 from writeLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
 from contextlib import redirect_stdout, redirect_stderr
@@ -414,7 +415,7 @@ def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, mod
                 buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch, packetType)
                 launchedJob = True
 
-def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType, alBackend):
+def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType, alBackend, GNDthreshold):
     reqNumArr = [0] * len(rankArr)
 
     #Spin until file exists
@@ -422,14 +423,12 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
         time.sleep(1)
     #Get starting GNDCount of 0
     GNDcnt = 0
-    #TODO: Parameterize this
-    GNDthreshold = 5
     #And start the glue loop
     keepSpinning = True
     while keepSpinning:
         # logic to not hammer DB/learner with unnecessary requests
         nuGNDcnt = getGNDCount(dbPath, packetType)
-        if (nuGNDcnt - GNDcnt) > GNDthreshold:
+        if (nuGNDcnt - GNDcnt) > GNDthreshold or GNDcnt == 0:
             with open('alLog.out', 'w') as alOut, open('alLog.err', 'w') as alErr:
                 with redirect_stdout(alOut), redirect_stdout(alErr):
                     interpModel = getInterpModel(packetType, alBackend, dbPath)
@@ -502,6 +501,7 @@ if __name__ == "__main__":
     defaultRanks = [0]
     defaultSolver = SolverCode.BGK
     defaultALBackend = LearnerBackend.FAKE
+    defaultGNDThresh = 5
 
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
@@ -516,7 +516,7 @@ if __name__ == "__main__":
     argParser.add_argument('-r', '--ranks', nargs='+', default=defaultRanks, type=int,  help="Rank IDs to Listen For")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
     argParser.add_argument('-a', '--albackend', action='store', type=int, required=False, default=defaultALBackend, help='(Active) Learning Backend to Use')
-
+    argParser.add_argument('-g', '--retrainthreshold', action='store', type=int, required=False, default=defaultGNDThresh, help='Number of New GND Results to Trigger an AL Retrain')
 
     args = vars(argParser.parse_args())
 
@@ -531,5 +531,8 @@ if __name__ == "__main__":
     mode = ALInterfaceMode(args['mode'])
     code = SolverCode(args['code'])
     alBackend = LearnerBackend(args['albackend'])
+    GNDthreshold = args['retrainthreshold']
+    if(GNDthreshold < 0):
+        GNDthreshold = sys.maxsize
 
-    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code, alBackend)
+    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code, alBackend, GNDthreshold)
