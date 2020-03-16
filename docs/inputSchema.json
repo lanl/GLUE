@@ -39,6 +39,10 @@
 		"LAMMPSPath":{
 			"description": "Optional path to LAMMPS Binary (if not using Spack)",
 			"type": "string"
+		},
+		"ExpectedMPIRanks":{
+			"description": "Number of MPI Ranks ",
+			"type": "integer"
 		}
 	},
 	"required": ["tag", "dbFileName", "solverCode", "glueCodeMode"]

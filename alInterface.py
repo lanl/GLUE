@@ -416,8 +416,18 @@ def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, mod
                 buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch, packetType)
                 launchedJob = True
 
-def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType, alBackend, GNDthreshold):
-    reqNumArr = [0] * len(rankArr)
+def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
+    numRanks = configStruct['ExpectedMPIRanks']
+    defaultMode = configStruct['glueCodeMode']
+    dbPath = configStruct['dbFileName']
+    tag = configStruct['tag']
+    lammps = configStruct['LAMMPSPath']
+    sbatch = configStruct['SBatchPath']
+    packetType = configStruct['solverCode']
+    alBackend = configStruct['alBackend']
+    GNDthreshold = configStruct['GNDthreshold']
+
+    reqNumArr = [0] * len(numRanks)
 
     #Spin until file exists
     while not os.path.exists(dbPath):
@@ -434,8 +444,8 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                 with redirect_stdout(alOut), redirect_stdout(alErr):
                     interpModel = getInterpModel(packetType, alBackend, dbPath)
             GNDcnt = nuGNDcnt
-        for i in range(0, len(rankArr)):
-            rank = rankArr[i]
+        for i in range(0, len(numRanks)):
+            rank = i
             req = reqNumArr[i]
             sqlDB = sqlite3.connect(dbPath)
             # SELECT request
@@ -549,6 +559,8 @@ if __name__ == "__main__":
     if not 'SBatchPath' in configStruct:
         configStruct['SBatchPath'] = sbatch
     ranks = args['ranks']
+    if not 'ExpectedMPIRanks' in configStruct:
+        configStruct['ExpectedMPIRanks'] = ranks
     mode = ALInterfaceMode(args['mode'])
     if not 'glueCodeMode' in configStruct:
         configStruct['glueCodeMode'] = mode
@@ -570,4 +582,4 @@ if __name__ == "__main__":
     if(configStruct['GNDthreshold'] < 0):
         configStruct['GNDthreshold'] = sys.maxsize
 
-    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code, alBackend, GNDthreshold)
+    pollAndProcessFGSRequests(configStruct, uname, jobs)
