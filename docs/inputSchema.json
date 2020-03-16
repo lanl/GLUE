@@ -1,0 +1,45 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Input Schema for GLUE Code",
+	"description": "A configuration to run GLUE code with",
+	"type": "object",
+	"properties": {
+		"tag": {
+			"description": "Tag to expect from solver code",
+			"type": "string"
+		},
+		"dbFileName": {
+			"description": "Filename to use for filesystem SQL database",
+			"type": "string"
+		},
+		"solverCode": {
+			"description": "Solver Code packets expected Corresponding to SolverCode Enum",
+			"type": "integer"
+		},
+		"glueCodeMode": {
+			"description": "Mode to Run GLUE Code in Corresponding to ALInterfaceMode Enum",
+			"type": "integer"
+		},
+		"alBackend": {
+			"description": "Active Learning Backend to use Corresponding to LearnerBackend Enum",
+			"type": "integer"
+		},
+		"GNDthreshold":{
+			"description": "Threshold for number of fine grain simulations before retraining active learning models",
+			"type": "integer"
+		},
+		"SQLitePath":{
+			"description": "Optional Path to SQLite binary",
+			"type": "string"
+		},
+		"SBatchPath":{
+			"description": "Optional path to sbatch binary",
+			"type": "string"
+		},
+		"LAMMPSPath":{
+			"description": "Optional path to LAMMPS Binary (if not using Spack)",
+			"type": "string"
+		}
+	},
+	"required": ["tag", "dbFileName", "solverCode", "glueCodeMode"]
+}

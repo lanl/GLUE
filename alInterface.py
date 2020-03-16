@@ -12,6 +12,7 @@ import time
 import subprocess
 import getpass
 import sys
+import json
 from writeLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
 from contextlib import redirect_stdout, redirect_stderr
@@ -492,7 +493,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
 if __name__ == "__main__":
     defaultFName = "testDB.db"
     defaultTag = "DUMMY_TAG_42"
-    defaultLammps = "./lmp"
+    defaultLammps = ""
     defaultUname = getpass.getuser()
     defaultSqlite = "sqlite3"
     defaultSbatch = "/usr/bin/sbatch"
@@ -502,9 +503,11 @@ if __name__ == "__main__":
     defaultSolver = SolverCode.BGK
     defaultALBackend = LearnerBackend.FAKE
     defaultGNDThresh = 5
+    defaultJsonFile = ""
 
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
+    argParser.add_argument('-i', '--inputfile', action='store', type=str, required=False, default=defaultJsonFile, help="(JSON) Input File")
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
     argParser.add_argument('-l', '--lammps', action='store', type=str, required=False, default=defaultLammps, help="Path to LAMMPS Binary")
     argParser.add_argument('-q', '--sqlite', action='store', type=str, required=False, default=defaultSqlite, help="Path to sqlite3 Binary")
@@ -520,19 +523,51 @@ if __name__ == "__main__":
 
     args = vars(argParser.parse_args())
 
+    jsonFile = args['inputfile']
+    configStruct = {}
+    if jsonFile != "":
+        with open(jsonFile) as j:
+            configStruct = json.load(j)
+
     tag = args['tag']
+    if not 'tag' in configStruct:
+        configStruct['tag'] = tag
     fName = args['db']
+    if not 'dbFileName' in configStruct:
+        configStruct['dbFileName'] = fName
     lammps = args['lammps']
+    if not 'LAMMPSPath' in configStruct:
+        configStruct['LAMMPSPath'] = lammps
     uname = args['uname']
+    # We will not pass in uname via the json file
     jobs = args['maxjobs']
+    # We will likely revamp how we handle job limits
     sqlite = args['sqlite']
+    if not 'SQLitePath' in configStruct:
+        configStruct['SQLitePath'] = sqlite
     sbatch = args['sbatch']
+    if not 'SBatchPath' in configStruct:
+        configStruct['SBatchPath'] = sbatch
     ranks = args['ranks']
     mode = ALInterfaceMode(args['mode'])
+    if not 'glueCodeMode' in configStruct:
+        configStruct['glueCodeMode'] = mode
+    else:
+        configStruct['glueCodeMode'] = ALInterfaceMode(configStruct['glueCodeMode'])
     code = SolverCode(args['code'])
+    if not 'solverCode' in configStruct:
+        configStruct['solverCode'] = code
+    else:
+        configStruct['solverCode'] = SolverCode(configStruct['solverCode'])
     alBackend = LearnerBackend(args['albackend'])
+    if not 'alBackend' in configStruct:
+        configStruct['alBackend'] = alBackend
+    else:
+        configStruct['alBackend'] = LearnerBackend(configStruct['alBackend'])
     GNDthreshold = args['retrainthreshold']
-    if(GNDthreshold < 0):
-        GNDthreshold = sys.maxsize
+    if not 'GNDthreshold' in configStruct:
+        configStruct['GNDthreshold'] = GNDthreshold
+    if(configStruct['GNDthreshold'] < 0):
+        configStruct['GNDthreshold'] = sys.maxsize
 
     pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code, alBackend, GNDthreshold)
