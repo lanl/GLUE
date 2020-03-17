@@ -427,7 +427,7 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
     alBackend = configStruct['alBackend']
     GNDthreshold = configStruct['GNDthreshold']
 
-    reqNumArr = [0] * len(numRanks)
+    reqNumArr = [0] * numRanks
 
     #Spin until file exists
     while not os.path.exists(dbPath):
@@ -444,7 +444,7 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
                 with redirect_stdout(alOut), redirect_stdout(alErr):
                     interpModel = getInterpModel(packetType, alBackend, dbPath)
             GNDcnt = nuGNDcnt
-        for i in range(0, len(numRanks)):
+        for i in range(0, numRanks):
             rank = i
             req = reqNumArr[i]
             sqlDB = sqlite3.connect(dbPath)
@@ -509,7 +509,7 @@ if __name__ == "__main__":
     defaultSbatch = "/usr/bin/sbatch"
     defaultMaxJobs = 4
     defaultProcessing = ALInterfaceMode.LAMMPS
-    defaultRanks = [0]
+    defaultRanks = 1
     defaultSolver = SolverCode.BGK
     defaultALBackend = LearnerBackend.FAKE
     defaultGNDThresh = 5
@@ -526,7 +526,7 @@ if __name__ == "__main__":
     argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
     argParser.add_argument('-j', '--maxjobs', action='store', type=int, required=False, default=defaultMaxJobs, help="Maximum Number of Slurm Jobs To Enqueue")
     argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (LAMMPS=0)")
-    argParser.add_argument('-r', '--ranks', nargs='+', default=defaultRanks, type=int,  help="Rank IDs to Listen For")
+    argParser.add_argument('-r', '--ranks', action='store', type=int, required=False, default=defaultRanks, help="Number of MPI Ranks to Listen For")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
     argParser.add_argument('-a', '--albackend', action='store', type=int, required=False, default=defaultALBackend, help='(Active) Learning Backend to Use')
     argParser.add_argument('-g', '--retrainthreshold', action='store', type=int, required=False, default=defaultGNDThresh, help='Number of New GND Results to Trigger an AL Retrain')
