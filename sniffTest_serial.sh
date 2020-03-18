@@ -1,5 +1,5 @@
 #!/bin/bash
-python $(dirname $BASH_SOURCE)/initTables.py --db testDB.db
+python $(dirname $BASH_SOURCE)/initTables.py -i $(dirname $BASH_SOURCE)/jsonFiles/sniffTest_serial.json
 python $(dirname $BASH_SOURCE)/alInterface.py -i $(dirname $BASH_SOURCE)/jsonFiles/sniffTest_serial.json &
 $(dirname $BASH_SOURCE)/sniffTest_serial
 if [ $? -eq 0 ]
