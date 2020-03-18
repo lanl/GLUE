@@ -43,6 +43,14 @@
 		"ExpectedMPIRanks":{
 			"description": "Number of MPI Ranks ",
 			"type": "integer"
+		},
+		"GenerateTrainingData":{
+			"description": "Generate Training Data if Running Appropriate Script",
+			"type": "boolean"
+		},
+		"ReadTrainingData":{
+			"description": "Read Out Training Data to CLI if Running Appropriate Script",
+			"type": "boolean"
 		}
 	},
 	"required": ["tag", "dbFileName", "solverCode", "glueCodeMode"]
