@@ -49,7 +49,7 @@ def initSQLTables(dbPath, packetType):
 if __name__ == "__main__":
     defaultFName = "testDB.db"
     defaultSolver = SolverCode.BGK
-    argParser = argparse.ArgumentParser(description='Python To Create DB Files for LAMMPS and AL')
+    argParser = argparse.ArgumentParser(description='Python To Create DB Files for FGS and AL')
 
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")

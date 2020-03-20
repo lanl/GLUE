@@ -113,7 +113,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         cutoff = 0.0
         box = 0
         eps_traces = 1.e-3
-        if(lammpsMode == ALInterfaceMode.LAMMPS):
+        if(lammpsMode == ALInterfaceMode.FGS):
             # real values of the MD simulations (long MD)
             Teq=20000
             Trun=1000000
@@ -123,7 +123,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
             s_int=5
             d_int=s_int*p_int
             eps_traces =1.e-3
-        elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
+        elif(lammpsMode == ALInterfaceMode.FASTFGS):
             # Values for infrastructure test
             Teq=10
             Trun=10
@@ -133,7 +133,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
             s_int=1
             d_int=s_int*p_int
         else:
-            raise Exception('Using Unsupported LAMMPS Mode')
+            raise Exception('Using Unsupported FGS Mode')
         interparticle_radius = []
         lammpsDens = np.array(lammpsArgs.Density) 
         lammpsTemperature = lammpsArgs.Temperature
@@ -235,7 +235,7 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
-def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode, solverCode):
+def buildAndLaunchFGSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode, solverCode):
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -387,8 +387,8 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSwitch, packetType):
-    # This is a brute force call. We only want an exact LAMMPS result
+def queueFGSJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSwitch, packetType):
+    # This is a brute force call. We only want an exact FGS result
     # So first, check if we have already processed this request
     outLammps = None
     selQuery = getGNDStringAndTuple(inArgs)
@@ -412,7 +412,7 @@ def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, mod
             queueState = getSlurmQueue(uname)
             if queueState[0] < maxJobs:
                 print("Processing REQ=" + str(reqID))
-                buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch, packetType)
+                buildAndLaunchFGSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch, packetType)
                 launchedJob = True
 
 def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType, alBackend, GNDthreshold):
@@ -457,9 +457,9 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                 modeSwitch = defaultMode
                 if task[2] != ALInterfaceMode.DEFAULT:
                     modeSwitch = task[2]
-                if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch == ALInterfaceMode.FASTLAMMPS:
-                    # Submit as LAMMPS job
-                    queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
+                if modeSwitch == ALInterfaceMode.FGS or modeSwitch == ALInterfaceMode.FASTFGS:
+                    # Submit as FGS job
+                    queueFGSJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
                 elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                     # General (Active) Learner
                     #  model = getLatestModelFromLearners()
@@ -475,7 +475,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                     if isLegit:
                         insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
                     else:
-                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, ALInterfaceMode.LAMMPS, packetType)
+                        queueFGSJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, ALInterfaceMode.FGS, packetType)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
@@ -497,13 +497,13 @@ if __name__ == "__main__":
     defaultSqlite = "sqlite3"
     defaultSbatch = "/usr/bin/sbatch"
     defaultMaxJobs = 4
-    defaultProcessing = ALInterfaceMode.LAMMPS
+    defaultProcessing = ALInterfaceMode.FGS
     defaultRanks = [0]
     defaultSolver = SolverCode.BGK
     defaultALBackend = LearnerBackend.FAKE
     defaultGNDThresh = 5
 
-    argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
+    argParser = argparse.ArgumentParser(description='Python Shim for FGS and AL')
 
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
     argParser.add_argument('-l', '--lammps', action='store', type=str, required=False, default=defaultLammps, help="Path to LAMMPS Binary")
@@ -512,7 +512,7 @@ if __name__ == "__main__":
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
     argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
     argParser.add_argument('-j', '--maxjobs', action='store', type=int, required=False, default=defaultMaxJobs, help="Maximum Number of Slurm Jobs To Enqueue")
-    argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (LAMMPS=0)")
+    argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (FGS=0)")
     argParser.add_argument('-r', '--ranks', nargs='+', default=defaultRanks, type=int,  help="Rank IDs to Listen For")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
     argParser.add_argument('-a', '--albackend', action='store', type=int, required=False, default=defaultALBackend, help='(Active) Learning Backend to Use')

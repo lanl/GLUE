@@ -81,12 +81,12 @@ def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
         # Write results to an output namedtuple
         bgkOutput = BGKOutputs(Viscosity=viscosity, ThermalConductivity=thermalConductivity, DiffCoeff=diffCoeffs)
         # Write the tuple
-        if(lammpsMode == ALInterfaceMode.LAMMPS):
-            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.LAMMPS)
-        elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
-            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FASTLAMMPS)
+        if(lammpsMode == ALInterfaceMode.FGS):
+            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FGS)
+        elif(lammpsMode == ALInterfaceMode.FASTFGS):
+            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FASTFGS)
         else:
-            raise Exception('Using Unsupported LAMMPS Mode')
+            raise Exception('Using Unsupported FGS Mode')
         outputList = []
         outputList.append(bgkOutput.Viscosity)
         outputList.append(bgkOutput.ThermalConductivity)
@@ -130,16 +130,16 @@ if __name__ == "__main__":
     defaultTag = "DUMMY_TAG_42"
     defaultRank = 0
     defaultID = 0
-    defaultProcessing = ALInterfaceMode.LAMMPS
+    defaultProcessing = ALInterfaceMode.FGS
     defaultSolver = SolverCode.BGK
 
-    argParser = argparse.ArgumentParser(description='Python Driver to Convert LAMMPS BGK Result into DB Entry')
+    argParser = argparse.ArgumentParser(description='Python Driver to Convert FGS BGK Result into DB Entry')
 
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
     argParser.add_argument('-r', '--rank', action='store', type=int, required=False, default=defaultRank, help="MPI Rank of Requester")
     argParser.add_argument('-i', '--id', action='store', type=int, required=False, default=defaultID, help="Request ID")
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
-    argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (LAMMPS=0)")
+    argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (FGS=0)")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
 
     args = vars(argParser.parse_args())
@@ -152,5 +152,5 @@ if __name__ == "__main__":
     code = SolverCode(args['code'])
 
     resultArr = procOutputsAndProcess(tag, fName, rank, reqid, mode, code)
-    if(mode == ResultProvenance.LAMMPS):
+    if(mode == ResultProvenance.FGS):
         insertGroundishTruth(fName, resultArr, code)
