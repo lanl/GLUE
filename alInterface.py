@@ -30,54 +30,54 @@ def getSelString(packetType):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def getGNDStringAndTuple(lammpsArgs):
+def getGNDStringAndTuple(fgsArgs):
     selString = ""
     selTup = ()
-    if isinstance(lammpsArgs, BGKInputs):
+    if isinstance(fgsArgs, BGKInputs):
         # Optimally find something bigger than machine epsilon
         epsilon = np.finfo('float64').eps
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKGND WHERE "
         #Temperature
         selString += "TEMPERATURE BETWEEN ? AND ? "
-        selTup += (lammpsArgs.Temperature - epsilon, lammpsArgs.Temperature + epsilon)
+        selTup += (fgsArgs.Temperature - epsilon, fgsArgs.Temperature + epsilon)
         selString += " AND "
         #Density
         for i in range(0, 4):
             selString += "DENSITY_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (lammpsArgs.Density[i] - epsilon, lammpsArgs.Density[i] + epsilon)
+            selTup += (fgsArgs.Density[i] - epsilon, fgsArgs.Density[i] + epsilon)
             selString += " AND "
         #Charges
         for i in range(0, 4):
             selString += "CHARGES_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (lammpsArgs.Charges[i] - epsilon, lammpsArgs.Charges[i] + epsilon)
+            selTup += (fgsArgs.Charges[i] - epsilon, fgsArgs.Charges[i] + epsilon)
             selString += " AND "
         #Version
         selString += "INVERSION=?;"
         selTup += (getGroundishTruthVersion(SolverCode.BGK),)
-    elif isinstance(lammpsArgs, BGKMassesInputs):
+    elif isinstance(fgsArgs, BGKMassesInputs):
         # Optimally find something bigger than machine epsilon
         epsilon = np.finfo('float64').eps
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKMASSESGND WHERE "
         #Temperature
         selString += "TEMPERATURE BETWEEN ? AND ? "
-        selTup += (lammpsArgs.Temperature - epsilon, lammpsArgs.Temperature + epsilon)
+        selTup += (fgsArgs.Temperature - epsilon, fgsArgs.Temperature + epsilon)
         selString += " AND "
         #Density
         for i in range(0, 4):
             selString += "DENSITY_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (lammpsArgs.Density[i] - epsilon, lammpsArgs.Density[i] + epsilon)
+            selTup += (fgsArgs.Density[i] - epsilon, fgsArgs.Density[i] + epsilon)
             selString += " AND "
         #Charges
         for i in range(0, 4):
             selString += "CHARGES_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (lammpsArgs.Charges[i] - epsilon, lammpsArgs.Charges[i] + epsilon)
+            selTup += (fgsArgs.Charges[i] - epsilon, fgsArgs.Charges[i] + epsilon)
             selString += " AND "
         #Masses
         for i in range(0, 4):
             selString += "MASSES_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (lammpsArgs.Masses[i] - epsilon, lammpsArgs.Masses[i] + epsilon)
+            selTup += (fgsArgs.Masses[i] - epsilon, fgsArgs.Masses[i] + epsilon)
             selString += " AND "
         #Version
         selString += "INVERSION=?;"
@@ -104,9 +104,9 @@ def processReqRow(sqlRow, packetType):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
+def writeBGKLammpsInputs(fgsArgs, dirPath, lammpsMode):
     # TODO: Refactor constants and general cleanup
-    if isinstance(lammpsArgs, BGKInputs):
+    if isinstance(fgsArgs, BGKInputs):
         m=np.array([3.3210778e-24,6.633365399999999e-23])
         Teq = 0
         Trun = 0
@@ -135,9 +135,9 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         else:
             raise Exception('Using Unsupported FGS Mode')
         interparticle_radius = []
-        lammpsDens = np.array(lammpsArgs.Density) 
-        lammpsTemperature = lammpsArgs.Temperature
-        lammpsIonization = np.array(lammpsArgs.Charges)
+        lammpsDens = np.array(fgsArgs.Density) 
+        lammpsTemperature = fgsArgs.Temperature
+        lammpsIonization = np.array(fgsArgs.Charges)
         lammpsMasses = m
         # Finds zeros and trace elements in the densities, then builds LAMMPS scripts.
         (species_with_zeros_LammpsDens_index, lammpsScripts)=check_zeros_trace_elements(lammpsTemperature,lammpsDens,lammpsIonization,lammpsMasses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces, dirPath)
@@ -148,9 +148,9 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         np.savetxt(zeroesFileName, np.asarray(species_with_zeros_LammpsDens_index))
         # And now write the inputs to a specific file for later use
         inputList = []
-        inputList.append(lammpsArgs.Temperature)
-        inputList.extend(lammpsArgs.Density)
-        inputList.extend(lammpsArgs.Charges)
+        inputList.append(fgsArgs.Temperature)
+        inputList.extend(fgsArgs.Density)
+        inputList.extend(fgsArgs.Charges)
         inputList.append(getGroundishTruthVersion(SolverCode.BGK))
         Inputs_file = os.path.join(dirPath, "inputs.txt")
         np.savetxt(Inputs_file, np.asarray(inputList))
@@ -235,7 +235,7 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
-def buildAndLaunchFGSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode, solverCode):
+def buildAndLaunchFGSJob(rank, tag, dbPath, uname, lammps, reqid, fgsArgs, lammpsMode, solverCode):
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -256,7 +256,7 @@ def buildAndLaunchFGSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, la
             shutil.copy2(jobEnvFilePath, outPath)
             bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
             # Generate input files
-            lammpsScripts = writeLammpsInputs(lammpsArgs, outPath, lammpsMode)
+            lammpsScripts = writeBGKLammpsInputs(fgsArgs, outPath, lammpsMode)
             # Generate slurm script by writing to file
             # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
             # TODO: DRY this
@@ -415,7 +415,7 @@ def queueFGSJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSw
                 buildAndLaunchFGSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch, packetType)
                 launchedJob = True
 
-def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType, alBackend, GNDthreshold):
+def pollAndProcessGlueRequest(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType, alBackend, GNDthreshold):
     reqNumArr = [0] * len(rankArr)
 
     #Spin until file exists
@@ -535,4 +535,4 @@ if __name__ == "__main__":
     if(GNDthreshold < 0):
         GNDthreshold = sys.maxsize
 
-    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code, alBackend, GNDthreshold)
+    pollAndProcessGlueRequest(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code, alBackend, GNDthreshold)
