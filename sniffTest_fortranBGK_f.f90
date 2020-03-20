@@ -36,7 +36,13 @@ module snifftest_f
 		! Set some values to process
 		do i = 1,12
 			batchReq(i)%temperature = 13.4
-			batchReq(i)%density(1) = i * 2.45
+			batchReq(i)%density(1) = i * 1.0
+			batchReq(i)%density(2) = i * 2.0
+			batchReq(i)%density(3) = i * 3.0
+			batchReq(i)%density(4) = i * 4.0
+			batchReq(i)%charges(1) = i * 0.25
+			batchReq(i)%charges(2) = i * 0.5
+			batchReq(i)%charges(3) = i * 1.0
 			batchReq(i)%charges(4) = 7.32
 		end do
 	
