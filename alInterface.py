@@ -304,12 +304,12 @@ def getInterpModel(packetType, alBackend, dbPath):
     else:
         raise Exception('Using Unsupported Active Learning Backewnd')
 
-def insertALPrediction(dbPath, inLammps, outLammps, solverCode):
+def insertALPrediction(dbPath, inFGS, outFGS, solverCode):
     if solverCode == SolverCode.BGK:
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKALLOGS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
-        insArgs = (inLammps.Temperature,) + tuple(inLammps.Density) + tuple(inLammps.Charges) + (getGroundishTruthVersion(solverCode),) + (outLammps.Viscosity, outLammps.ThermalConductivity) + tuple(outLammps.DiffCoeff) + (getGroundishTruthVersion(solverCode),)
+        insArgs = (inFGS.Temperature,) + tuple(inFGS.Density) + tuple(inFGS.Charges) + (getGroundishTruthVersion(solverCode),) + (outFGS.Viscosity, outFGS.ThermalConductivity) + tuple(outFGS.DiffCoeff) + (getGroundishTruthVersion(solverCode),)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
@@ -390,20 +390,20 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
 def queueFGSJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSwitch, packetType):
     # This is a brute force call. We only want an exact FGS result
     # So first, check if we have already processed this request
-    outLammps = None
+    outFGS = None
     selQuery = getGNDStringAndTuple(inArgs)
     sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
     for row in sqlCursor.execute(selQuery[0], selQuery[1]):
         if isinstance(inArgs, BGKInputs):
             if row[22] == getGroundishTruthVersion(SolverCode.BGK):
-                outLammps = BGKOutputs(Viscosity=row[10], ThermalConductivity=row[11], DiffCoeff=row[12:22])
+                outFGS = BGKOutputs(Viscosity=row[10], ThermalConductivity=row[11], DiffCoeff=row[12:22])
         elif isinstance(inArgs, BGKMassesInputs):
             if row[26] == getGroundishTruthVersion(SolverCode.BGKMASSES):
-                outLammps = BGKMassesOutputs(Viscosity=row[14], ThermalConductivity=row[15], DiffCoeff=row[16:26])
-    if outLammps != None:
+                outFGS = BGKMassesOutputs(Viscosity=row[14], ThermalConductivity=row[15], DiffCoeff=row[16:26])
+    if outFGS != None:
         # We had a hit, so send that
-        insertResult(rank, tag, dbPath, reqID, outLammps, ResultProvenance.DB)
+        insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB)
     else:
         # Call lammps with args as slurmjob
         # slurmjob will write result back

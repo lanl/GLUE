@@ -97,29 +97,29 @@ def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
         # Unknown solver code
         raise Exception('Not Implemented')
 
-def insertGroundishTruth(dbPath, outLammps, solverCode):
+def insertGroundishTruth(dbPath, outFGS, solverCode):
     if solverCode == SolverCode.BGK:
         #Pull data to write
-        inLammps = np.loadtxt("inputs.txt")
-        #np.savetxt("outputs.txt", outLammps)
+        inFGS = np.loadtxt("inputs.txt")
+        #np.savetxt("outputs.txt", outFGS)
         #Connect to DB
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
-        insArgs = tuple(inLammps.tolist()) + tuple(outLammps.tolist())
+        insArgs = tuple(inFGS.tolist()) + tuple(outFGS.tolist())
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
         sqlDB.close()
     elif solverCode == SolverCode.BGKMASSES:
         #Pull data to write
-        inLammps = np.loadtxt("inputs.txt")
-        #np.savetxt("outputs.txt", outLammps)
+        inFGS = np.loadtxt("inputs.txt")
+        #np.savetxt("outputs.txt", outFGS)
         #Connect to DB
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKMASSESGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
-        insArgs = tuple(inLammps.tolist()) + tuple(outLammps.tolist())
+        insArgs = tuple(inFGS.tolist()) + tuple(outFGS.tolist())
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
