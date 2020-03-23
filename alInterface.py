@@ -12,7 +12,7 @@ import time
 import subprocess
 import getpass
 import sys
-from writeLammpsScript import check_zeros_trace_elements
+from writeBGKLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
 from contextlib import redirect_stdout, redirect_stderr
 
@@ -104,7 +104,7 @@ def processReqRow(sqlRow, packetType):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def writeBGKLammpsInputs(fgsArgs, dirPath, lammpsMode):
+def writeBGKLammpsInputs(fgsArgs, dirPath, glueMode):
     # TODO: Refactor constants and general cleanup
     if isinstance(fgsArgs, BGKInputs):
         m=np.array([3.3210778e-24,6.633365399999999e-23])
@@ -113,7 +113,7 @@ def writeBGKLammpsInputs(fgsArgs, dirPath, lammpsMode):
         cutoff = 0.0
         box = 0
         eps_traces = 1.e-3
-        if(lammpsMode == ALInterfaceMode.FGS):
+        if(glueMode == ALInterfaceMode.FGS):
             # real values of the MD simulations (long MD)
             Teq=20000
             Trun=1000000
@@ -123,7 +123,7 @@ def writeBGKLammpsInputs(fgsArgs, dirPath, lammpsMode):
             s_int=5
             d_int=s_int*p_int
             eps_traces =1.e-3
-        elif(lammpsMode == ALInterfaceMode.FASTFGS):
+        elif(glueMode == ALInterfaceMode.FASTFGS):
             # Values for infrastructure test
             Teq=10
             Trun=10
@@ -235,7 +235,7 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
-def buildAndLaunchFGSJob(rank, tag, dbPath, uname, lammps, reqid, fgsArgs, lammpsMode, solverCode):
+def buildAndLaunchFGSJob(rank, tag, dbPath, uname, lammps, reqid, fgsArgs, glueMode, solverCode):
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -256,7 +256,7 @@ def buildAndLaunchFGSJob(rank, tag, dbPath, uname, lammps, reqid, fgsArgs, lammp
             shutil.copy2(jobEnvFilePath, outPath)
             bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
             # Generate input files
-            lammpsScripts = writeBGKLammpsInputs(fgsArgs, outPath, lammpsMode)
+            lammpsScripts = writeBGKLammpsInputs(fgsArgs, outPath, glueMode)
             # Generate slurm script by writing to file
             # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
             # TODO: DRY this
@@ -275,7 +275,7 @@ def buildAndLaunchFGSJob(rank, tag, dbPath, uname, lammps, reqid, fgsArgs, lammp
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
-                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -c " + str(solverCode.value) + "\n")
+                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(glueMode.value) + " -c " + str(solverCode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
@@ -365,21 +365,21 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
-def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
-    if isinstance(lammpsResult, BGKOutputs):
+def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance):
+    if isinstance(fgsResult, BGKOutputs):
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
+        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
         sqlDB.close()
-    elif isinstance(lammpsResult, BGKMassesOutputs):
+    elif isinstance(fgsResult, BGKMassesOutputs):
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
+        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
@@ -405,7 +405,7 @@ def queueFGSJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSw
         # We had a hit, so send that
         insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB)
     else:
-        # Call lammps with args as slurmjob
+        # Call fgs with args as slurmjob
         # slurmjob will write result back
         launchedJob = False
         while(launchedJob == False):
