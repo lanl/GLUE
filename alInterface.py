@@ -224,6 +224,8 @@ def getGNDCount(dbPath, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT COUNT(*)  FROM BGKGND;"
+    elif solverCode == SolverCode.BGKMASSES:
+        selString = "SELECT COUNT(*)  FROM BGKMASSESGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -236,7 +238,11 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
-def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode, solverCode):
+def buildAndLaunchLAMMPSJob(configStruct, rank, uname, reqid, lammpsArgs, lammpsMode):
+    solverCode = configStruct['solverCode']
+    tag = configStruct['tag']
+    dbPath = configStruct['dbFileName']
+    lammps = configStruct['LAMMPSPath']
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -348,24 +354,6 @@ class BGKPytorchInterpModel(InterpModelWrapper):
         isLegit = simpleALErrorChecker(modErr)
         return (isLegit, output)
 
-def getGNDCount(dbPath, solverCode):
-    selString = ""
-    if solverCode == SolverCode.BGK:
-        selString = "SELECT COUNT(*)  FROM BGKGND;"
-    elif solverCode == SolverCode.BGKMASSES:
-        selString = "SELECT COUNT(*)  FROM BGKMASSESGND;"
-    else:
-        raise Exception('Using Unsupported Solver Code')
-    sqlDB = sqlite3.connect(dbPath)
-    sqlCursor = sqlDB.cursor()
-    numGND = 0
-    for row in sqlCursor.execute(selString):
-        # Should just be one row with one value
-        numGND = row[0]
-    sqlCursor.close()
-    sqlDB.close()
-    return numGND
-
 def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
     if isinstance(lammpsResult, BGKOutputs):
         sqlDB = sqlite3.connect(dbPath)
@@ -388,7 +376,9 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSwitch, packetType):
+def queueLammpsJob(configStruct, uname, maxJobs, reqID, inArgs, rank, modeSwitch):
+    tag = configStruct['tag']
+    dbPath = configStruct['dbFileName']
     # This is a brute force call. We only want an exact LAMMPS result
     # So first, check if we have already processed this request
     outLammps = None
@@ -413,7 +403,7 @@ def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, mod
             queueState = getSlurmQueue(uname)
             if queueState[0] < maxJobs:
                 print("Processing REQ=" + str(reqID))
-                buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch, packetType)
+                buildAndLaunchLAMMPSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
                 launchedJob = True
 
 def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
@@ -421,8 +411,6 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
     defaultMode = configStruct['glueCodeMode']
     dbPath = configStruct['dbFileName']
     tag = configStruct['tag']
-    lammps = configStruct['LAMMPSPath']
-    sbatch = configStruct['SBatchPath']
     packetType = configStruct['solverCode']
     alBackend = configStruct['alBackend']
     GNDthreshold = configStruct['GNDthreshold']
@@ -470,7 +458,7 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
                     modeSwitch = task[2]
                 if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch == ALInterfaceMode.FASTLAMMPS:
                     # Submit as LAMMPS job
-                    queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
+                    queueLammpsJob(configStruct, uname, maxJobs, task[0], task[1], rank, modeSwitch)
                 elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                     # General (Active) Learner
                     #  model = getLatestModelFromLearners()
@@ -486,7 +474,7 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
                     if isLegit:
                         insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
                     else:
-                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, ALInterfaceMode.LAMMPS, packetType)
+                        queueLammpsJob(configStruct, uname, maxJobs, task[0], task[1], rank, ALInterfaceMode.LAMMPS)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
