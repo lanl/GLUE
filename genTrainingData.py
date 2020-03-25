@@ -93,6 +93,8 @@ if __name__ == "__main__":
     if not 'ReadTrainingData' in configStruct:
         if(genOrRead == 1):
             configStruct['ReadTrainingData'] = True
+    if not 'tag' in configStruct:
+        configStruct['tag'] = "TESTING"
 
     if configStruct['GenerateTrainingData']:
         genTrainingData(configStruct, uname, jobs)

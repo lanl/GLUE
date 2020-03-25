@@ -243,6 +243,7 @@ def buildAndLaunchLAMMPSJob(configStruct, rank, uname, reqid, lammpsArgs, lammps
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']
     lammps = configStruct['LAMMPSPath']
+    nodesPerJob = 3
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -270,15 +271,29 @@ def buildAndLaunchLAMMPSJob(configStruct, rank, uname, reqid, lammpsArgs, lammps
             slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
             with open(slurmFPath, 'w') as slurmFile:
                 slurmFile.write("#!/bin/bash\n")
-                slurmFile.write("#SBATCH -N 3\n")
-                slurmFile.write("#SBATCH -n 108\n")
+                slurmFile.write("#SBATCH -N " + str(nodesPerJob) + "\n")
                 slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
                 slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
+                # Call If spack exists, use it
+                slurmFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
+                slurmFile.write("\texport LAMMPS_BIN=" + lammps + "\n")
+                slurmFile.write("else\n")
+                # Load lammps
+                # TODO: Genralize this to support more than just MPI
+                slurmFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
+                slurmFile.write("\tspack install lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0\n")
+                slurmFile.write("\tspack load lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0 arch=`spack arch`\n")
+                slurmFile.write("\texport LAMMPS_BIN=lmp\n")
+                slurmFile.write("fi\n")
+                # Determine available resources
+                # TODO: At some point don't hardcode for slurm
+                # TODO: GPUs are important
+                slurmFile.write("export NLAMMPS_RANKS=\"$((`lstopo --only pu | wc -l` * ${SLURM_NNODES} ))\"\n")
                 # Actually call lammps
                 for lammpsScript in lammpsScripts:
-                    slurmFile.write("srun -n 108 " + lammps + " < " + lammpsScript + " \n")
+                    slurmFile.write("srun -n ${NLAMMPS_RANKS} ${LAMMPS_BIN} < " + lammpsScript + " \n")
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
