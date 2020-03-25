@@ -1,4 +1,5 @@
 import numpy as np
+import SM as sm
 #from SM import eta, eta2, Ktherm1, Ktherm2, D, D_ij
 
 e2 = 1.44e-7
