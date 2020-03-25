@@ -11,6 +11,8 @@ import csv
 import time
 import subprocess
 import getpass
+import sys
+import json
 from writeLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
 from contextlib import redirect_stdout, redirect_stderr
@@ -222,6 +224,8 @@ def getGNDCount(dbPath, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT COUNT(*)  FROM BGKGND;"
+    elif solverCode == SolverCode.BGKMASSES:
+        selString = "SELECT COUNT(*)  FROM BGKMASSESGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -234,7 +238,11 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
-def buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqid, lammpsArgs, lammpsMode, solverCode):
+def buildAndLaunchLAMMPSJob(configStruct, rank, uname, reqid, lammpsArgs, lammpsMode):
+    solverCode = configStruct['solverCode']
+    tag = configStruct['tag']
+    dbPath = configStruct['dbFileName']
+    lammps = configStruct['LAMMPSPath']
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -352,24 +360,6 @@ class BGKPytorchInterpModel(InterpModelWrapper):
         isLegit = simpleALErrorChecker(modErr)
         return (isLegit, output)
 
-def getGNDCount(dbPath, solverCode):
-    selString = ""
-    if solverCode == SolverCode.BGK:
-        selString = "SELECT COUNT(*)  FROM BGKGND;"
-    elif solverCode == SolverCode.BGKMASSES:
-        selString = "SELECT COUNT(*)  FROM BGKMASSESGND;"
-    else:
-        raise Exception('Using Unsupported Solver Code')
-    sqlDB = sqlite3.connect(dbPath)
-    sqlCursor = sqlDB.cursor()
-    numGND = 0
-    for row in sqlCursor.execute(selString):
-        # Should just be one row with one value
-        numGND = row[0]
-    sqlCursor.close()
-    sqlDB.close()
-    return numGND
-
 def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
     if isinstance(lammpsResult, BGKOutputs):
         sqlDB = sqlite3.connect(dbPath)
@@ -392,7 +382,9 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, modeSwitch, packetType):
+def queueLammpsJob(configStruct, uname, maxJobs, reqID, inArgs, rank, modeSwitch):
+    tag = configStruct['tag']
+    dbPath = configStruct['dbFileName']
     # This is a brute force call. We only want an exact LAMMPS result
     # So first, check if we have already processed this request
     outLammps = None
@@ -417,31 +409,37 @@ def queueLammpsJob(uname, maxJobs, reqID, inArgs, rank, tag, dbPath, lammps, mod
             queueState = getSlurmQueue(uname)
             if queueState[0] < maxJobs:
                 print("Processing REQ=" + str(reqID))
-                buildAndLaunchLAMMPSJob(rank, tag, dbPath, uname, lammps, reqID, inArgs, modeSwitch, packetType)
+                buildAndLaunchLAMMPSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
                 launchedJob = True
 
-def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, maxJobs, sbatch, packetType, alBackend):
-    reqNumArr = [0] * len(rankArr)
+def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
+    numRanks = configStruct['ExpectedMPIRanks']
+    defaultMode = configStruct['glueCodeMode']
+    dbPath = configStruct['dbFileName']
+    tag = configStruct['tag']
+    packetType = configStruct['solverCode']
+    alBackend = configStruct['alBackend']
+    GNDthreshold = configStruct['GNDthreshold']
+
+    reqNumArr = [0] * numRanks
 
     #Spin until file exists
     while not os.path.exists(dbPath):
         time.sleep(1)
     #Get starting GNDCount of 0
     GNDcnt = 0
-    #TODO: Parameterize this
-    GNDthreshold = 5
     #And start the glue loop
     keepSpinning = True
     while keepSpinning:
         # logic to not hammer DB/learner with unnecessary requests
         nuGNDcnt = getGNDCount(dbPath, packetType)
-        if (nuGNDcnt - GNDcnt) > GNDthreshold:
+        if (nuGNDcnt - GNDcnt) > GNDthreshold or GNDcnt == 0:
             with open('alLog.out', 'w') as alOut, open('alLog.err', 'w') as alErr:
                 with redirect_stdout(alOut), redirect_stdout(alErr):
                     interpModel = getInterpModel(packetType, alBackend, dbPath)
             GNDcnt = nuGNDcnt
-        for i in range(0, len(rankArr)):
-            rank = rankArr[i]
+        for i in range(0, numRanks):
+            rank = i
             req = reqNumArr[i]
             sqlDB = sqlite3.connect(dbPath)
             # SELECT request
@@ -466,7 +464,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                     modeSwitch = task[2]
                 if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch == ALInterfaceMode.FASTLAMMPS:
                     # Submit as LAMMPS job
-                    queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, modeSwitch, packetType)
+                    queueLammpsJob(configStruct, uname, maxJobs, task[0], task[1], rank, modeSwitch)
                 elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                     # General (Active) Learner
                     #  model = getLatestModelFromLearners()
@@ -482,7 +480,7 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                     if isLegit:
                         insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
                     else:
-                        queueLammpsJob(uname, maxJobs, task[0], task[1], rank, tag, dbPath, lammps, ALInterfaceMode.LAMMPS, packetType)
+                        queueLammpsJob(configStruct, uname, maxJobs, task[0], task[1], rank, ALInterfaceMode.LAMMPS)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
@@ -499,18 +497,21 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
 if __name__ == "__main__":
     defaultFName = "testDB.db"
     defaultTag = "DUMMY_TAG_42"
-    defaultLammps = "./lmp"
+    defaultLammps = ""
     defaultUname = getpass.getuser()
     defaultSqlite = "sqlite3"
     defaultSbatch = "/usr/bin/sbatch"
     defaultMaxJobs = 4
     defaultProcessing = ALInterfaceMode.LAMMPS
-    defaultRanks = [0]
+    defaultRanks = 1
     defaultSolver = SolverCode.BGK
     defaultALBackend = LearnerBackend.FAKE
+    defaultGNDThresh = 5
+    defaultJsonFile = ""
 
     argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
 
+    argParser.add_argument('-i', '--inputfile', action='store', type=str, required=False, default=defaultJsonFile, help="(JSON) Input File")
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
     argParser.add_argument('-l', '--lammps', action='store', type=str, required=False, default=defaultLammps, help="Path to LAMMPS Binary")
     argParser.add_argument('-q', '--sqlite', action='store', type=str, required=False, default=defaultSqlite, help="Path to sqlite3 Binary")
@@ -519,23 +520,60 @@ if __name__ == "__main__":
     argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
     argParser.add_argument('-j', '--maxjobs', action='store', type=int, required=False, default=defaultMaxJobs, help="Maximum Number of Slurm Jobs To Enqueue")
     argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (LAMMPS=0)")
-    argParser.add_argument('-r', '--ranks', nargs='+', default=defaultRanks, type=int,  help="Rank IDs to Listen For")
+    argParser.add_argument('-r', '--ranks', action='store', type=int, required=False, default=defaultRanks, help="Number of MPI Ranks to Listen For")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
     argParser.add_argument('-a', '--albackend', action='store', type=int, required=False, default=defaultALBackend, help='(Active) Learning Backend to Use')
-
+    argParser.add_argument('-g', '--retrainthreshold', action='store', type=int, required=False, default=defaultGNDThresh, help='Number of New GND Results to Trigger an AL Retrain')
 
     args = vars(argParser.parse_args())
 
-    tag = args['tag']
-    fName = args['db']
-    lammps = args['lammps']
-    uname = args['uname']
-    jobs = args['maxjobs']
-    sqlite = args['sqlite']
-    sbatch = args['sbatch']
-    ranks = args['ranks']
-    mode = ALInterfaceMode(args['mode'])
-    code = SolverCode(args['code'])
-    alBackend = LearnerBackend(args['albackend'])
+    jsonFile = args['inputfile']
+    configStruct = {}
+    if jsonFile != "":
+        with open(jsonFile) as j:
+            configStruct = json.load(j)
 
-    pollAndProcessFGSRequests(ranks, mode, fName, tag, lammps, uname, jobs, sbatch, code, alBackend)
+    tag = args['tag']
+    if not 'tag' in configStruct:
+        configStruct['tag'] = tag
+    fName = args['db']
+    if not 'dbFileName' in configStruct:
+        configStruct['dbFileName'] = fName
+    lammps = args['lammps']
+    if not 'LAMMPSPath' in configStruct:
+        configStruct['LAMMPSPath'] = lammps
+    uname = args['uname']
+    # We will not pass in uname via the json file
+    jobs = args['maxjobs']
+    # We will likely revamp how we handle job limits
+    sqlite = args['sqlite']
+    if not 'SQLitePath' in configStruct:
+        configStruct['SQLitePath'] = sqlite
+    sbatch = args['sbatch']
+    if not 'SBatchPath' in configStruct:
+        configStruct['SBatchPath'] = sbatch
+    ranks = args['ranks']
+    if not 'ExpectedMPIRanks' in configStruct:
+        configStruct['ExpectedMPIRanks'] = ranks
+    mode = ALInterfaceMode(args['mode'])
+    if not 'glueCodeMode' in configStruct:
+        configStruct['glueCodeMode'] = mode
+    else:
+        configStruct['glueCodeMode'] = ALInterfaceMode(configStruct['glueCodeMode'])
+    code = SolverCode(args['code'])
+    if not 'solverCode' in configStruct:
+        configStruct['solverCode'] = code
+    else:
+        configStruct['solverCode'] = SolverCode(configStruct['solverCode'])
+    alBackend = LearnerBackend(args['albackend'])
+    if not 'alBackend' in configStruct:
+        configStruct['alBackend'] = alBackend
+    else:
+        configStruct['alBackend'] = LearnerBackend(configStruct['alBackend'])
+    GNDthreshold = args['retrainthreshold']
+    if not 'GNDthreshold' in configStruct:
+        configStruct['GNDthreshold'] = GNDthreshold
+    if(configStruct['GNDthreshold'] < 0):
+        configStruct['GNDthreshold'] = sys.maxsize
+
+    pollAndProcessFGSRequests(configStruct, uname, jobs)
