@@ -2,6 +2,7 @@ import sqlite3
 import argparse
 import os
 import time
+import json
 from glueCodeTypes import SolverCode
 
 
@@ -51,6 +52,8 @@ def initSQLTables(configStruct):
 if __name__ == "__main__":
     defaultFName = "testDB.db"
     defaultSolver = SolverCode.BGK
+    defaultJsonFile = ""
+
     argParser = argparse.ArgumentParser(description='Python To Create DB Files for LAMMPS and AL')
 
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
