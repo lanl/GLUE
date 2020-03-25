@@ -276,15 +276,19 @@ def buildAndLaunchLAMMPSJob(configStruct, rank, uname, reqid, lammpsArgs, lammps
                 slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
-                # Call Spack to install lammps if needed
-                # TODO: Genralize this
-                slurmFile.write("spack install lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0\n")
+                # Call If spack exists, use it
+                slurmFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
+                slurmFile.write("\texport LAMMPS_BIN=" + lammps + "\n")
+                slurmFile.write("else\n")
                 # Load lammps
-                # TODO: Genralize this
-                slurmFile.write("spack load lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0 arch=`spack arch`\n")
+                # TODO: Genralize this to support more than just MPI
+                slurmFile.write("\tspack install lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0\n")
+                slurmFile.write("\tspack load lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0 arch=`spack arch`\n")
+                slurmFile.write("\texport LAMMPS_BIN=lmp\n")
+                slurmFile.write("fi\n")
                 # Actually call lammps
                 for lammpsScript in lammpsScripts:
-                    slurmFile.write("srun -n 108 lmp < " + lammpsScript + " \n")
+                    slurmFile.write("srun -n 108 ${LAMMPS_BIN} < " + lammpsScript + " \n")
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
