@@ -489,7 +489,7 @@ def Wigner_Seitz_radius(n):
 
 
 
-def Analytical_solution(LammpsDens,LammpsCharges,LammpsTemperature):
+def ICFAnalytical_solution(LammpsDens,LammpsCharges,LammpsTemperature):
     
     """Computes thermal conductivity, viscosity and mutual diffusion coefficients.
         Inputs: LammpsDens            - 1/cm^3
@@ -531,5 +531,5 @@ def Analytical_solution(LammpsDens,LammpsCharges,LammpsTemperature):
                 D_11=00
                 D_12=0.0
                 D_22=D(LammpsDens[1],m[1],LammpsCharges[1],LammpsTemperature)
-
-    return conductivity_coefficient, viscosity_coefficient, D_11, D_12, D_22, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    DifffusionCoefficients = [D_11, D_12, 0.0, 0.0, D_22, 0.0, 0.0, 0.0, 0.0, 0.0 ]
+    return (conductivity_coefficient, viscosity_coefficient, DifffusionCoefficients)

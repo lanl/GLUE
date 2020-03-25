@@ -7,6 +7,7 @@ class ALInterfaceMode(IntEnum):
     FAKE = 3
     DEFAULT = 4
     FASTLAMMPS = 5
+    ANALYTIC = 6
     KILL = 9
 
 class SolverCode(Enum):
@@ -20,6 +21,7 @@ class ResultProvenance(IntEnum):
     FAKE = 3
     DB = 4
     FASTLAMMPS = 5
+    ANALYTIC = 6
 
 class LearnerBackend(IntEnum):
     MYSTIC = 1

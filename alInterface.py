@@ -15,6 +15,7 @@ import sys
 from writeLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
 from contextlib import redirect_stdout, redirect_stderr
+from Screened_Boltzman_solution import ICFAnalytical_solution
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
@@ -486,6 +487,17 @@ def pollAndProcessFGSRequests(rankArr, defaultMode, dbPath, tag, lammps, uname, 
                         insertResult(rank, tag, dbPath, task[0], bgkOutput, ResultProvenance.FAKE)
                     else:
                         raise Exception('Using Unsupported Solver Code')
+                elif modeSwitch == ALInterfaceMode.ANALYTIC:
+                    if packetType == SolverCode.BGK:
+                        # TODO: Probably verify there are only two species
+                        if task[1].Density[2] != 0.0 or task[1].Density[3] != 0.0:
+                            raise Exception('Using Analytic ICF with more than two species')
+                        (cond, visc, diffCoeff) = ICFAnalytical_solution(task[1].Density, task[1].Charges, task[1].Temperature)
+                        bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
+                        # Write the result
+                        insertResult(rank, tag, dbPath, task[0], bgkOutput, ResultProvenance.ANALYTIC)
+                    else:
+                        raise Exception('Using Unsupported Analytic Solution')
                 elif modeSwitch == ALInterfaceMode.KILL:
                     keepSpinning = False
 
