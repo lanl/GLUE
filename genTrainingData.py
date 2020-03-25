@@ -3,8 +3,10 @@ import argparse
 import os
 from alInterface import SolverCode, BGKInputs, BGKMassesInputs, ALInterfaceMode, getAllGNDData, queueLammpsJob
 import getpass
+import json
 
-def genTrainingData(dbPath, uname, lammps, maxJobs, code):
+def genTrainingData(configStruct, uname, maxJobs):
+    code = configStruct['solverCode']
     reqid = 0
     pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
     trainingDir = os.path.join(pythonScriptDir, "training")
@@ -14,14 +16,14 @@ def genTrainingData(dbPath, uname, lammps, maxJobs, code):
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0])
-            queueLammpsJob(uname, maxJobs, reqid, inArgs, 0, "TRAINING", dbPath, lammps, ALInterfaceMode.LAMMPS, SolverCode.BGK)
+            queueLammpsJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.LAMMPS)
             reqid += 1
     elif code == SolverCode.BGKMASSES:
         csv = os.path.join(trainingDir, "bgk_masses.csv")
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKMassesInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0], Masses=[row[5], row[6], 0.0, 0.0])
-            queueLammpsJob(uname, maxJobs, reqid, inArgs, 0, "TRAINING", dbPath, lammps, ALInterfaceMode.LAMMPS, SolverCode.BGKMASSES)
+            queueLammpsJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.LAMMPS)
             reqid += 1
     else:
         raise Exception('Using Unsupported Solver Code')
@@ -52,6 +54,7 @@ if __name__ == "__main__":
     defaultLammps = "./lmp"
     defaultMaxJobs = 4
     defaultGenOrRead = 0
+    defaultJsonFile = ""
 
     argParser = argparse.ArgumentParser(description='Python Driver to Convert LAMMPS BGK Result into DB Entry')
 
@@ -70,7 +73,6 @@ if __name__ == "__main__":
     if jsonFile != "":
         with open(jsonFile) as j:
             configStruct = json.load(j)
-
     code = SolverCode(args['code'])
     if not 'solverCode' in configStruct:
         configStruct['solverCode'] = code
@@ -93,7 +95,7 @@ if __name__ == "__main__":
             configStruct['ReadTrainingData'] = True
 
     if configStruct['GenerateTrainingData']:
-        genTrainingData(fName, uname, lammps, jobs, code)
+        genTrainingData(configStruct, uname, jobs)
     if configStruct['ReadTrainingData']:
         results = getAllGNDData(fName, code)
         printResults(results, code)
