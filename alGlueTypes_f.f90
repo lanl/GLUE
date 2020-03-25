@@ -43,6 +43,7 @@ module algluetypes_f
 		enumerator :: FAKE = 3
 		enumerator :: DEFAULT = 4
 		enumerator :: FASTLAMMPS = 5
+		enumerator :: ANALYTIC = 6
 		enumerator :: KILL = 9
 	end enum
 

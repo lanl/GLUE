@@ -11,6 +11,7 @@ enum ALInterfaceMode_e
 	FAKE = 3,
 	DEFAULT = 4,
 	FASTLAMMPS = 5,
+	ANALYTIC = 6,
 	KILL = 9
 };
 
