@@ -30,11 +30,11 @@ struct bgk_request_s
 		const double tempEpsilon = 0.001;
 		const double densEpsilon = 0.001;
 		const double chargeEpsilon = 0.001;
-		if (fabs(lhs.temperature - rhs.temperature) > tempEpsilon) areEqual = false;
+		if (fabs(lhs.temperature - rhs.temperature)/ rhs.temperature > tempEpsilon) areEqual = false;
 		for(int i = 0; i < 4; i++)
 		{
-			if (fabs(lhs.density[i] - rhs.density[i]) > densEpsilon) areEqual = false;
-			if (fabs(lhs.charges[i] - rhs.charges[i]) > chargeEpsilon) areEqual = false;
+			if (fabs(lhs.density[i] - rhs.density[i]) /rhs.density[i] > densEpsilon) areEqual = false;
+			if (fabs(lhs.charges[i] - rhs.charges[i]) / rhs.charges[i] > chargeEpsilon) areEqual = false;
 		}
 		return areEqual;
 	}
@@ -56,11 +56,11 @@ struct bgk_result_s
 		const double viscEpsilon = 0.001;
 		const double thermCondEpsilon = 0.001;
 		const double diffEpsilon = 0.001;
-		if (fabs(lhs.viscosity - rhs.viscosity) > viscEpsilon) areEqual = false;
-		if (fabs(lhs.thermalConductivity - rhs.thermalConductivity) > thermCondEpsilon) areEqual = false;
+		if (fabs(lhs.viscosity - rhs.viscosity) / rhs.viscosity > viscEpsilon) areEqual = false;
+		if (fabs(lhs.thermalConductivity - rhs.thermalConductivity) / rhs.thermalConductivity > thermCondEpsilon) areEqual = false;
 		for(int i = 0; i < 10; i++)
 		{
-			if (fabs(lhs.diffusionCoefficient[i] - rhs.diffusionCoefficient[i]) > diffEpsilon) areEqual = false;
+			if (fabs(lhs.diffusionCoefficient[i] - rhs.diffusionCoefficient[i]) / rhs.diffusionCoefficient[i] > diffEpsilon) areEqual = false;
 		}
 		return areEqual;
 	}
