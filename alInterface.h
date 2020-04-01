@@ -27,9 +27,9 @@ struct bgk_request_s
 	friend bool operator==(const bgk_request_s& lhs, const bgk_request_s& rhs)
 	{
 		bool areEqual = true;
-		const double tempEpsilon = 0.001;
-		const double densEpsilon = 0.001;
-		const double chargeEpsilon = 0.001;
+		const double tempEpsilon = 0.0001;
+		const double densEpsilon = 0.0001;
+		const double chargeEpsilon = 0.0001;
 		if (fabs(lhs.temperature - rhs.temperature)/ rhs.temperature > tempEpsilon) areEqual = false;
 		for(int i = 0; i < 4; i++)
 		{
@@ -53,9 +53,9 @@ struct bgk_result_s
 	friend bool operator==(const bgk_result_s& lhs, const bgk_result_s& rhs)
 	{
 		bool areEqual = true;
-		const double viscEpsilon = 0.001;
-		const double thermCondEpsilon = 0.001;
-		const double diffEpsilon = 0.001;
+		const double viscEpsilon = 0.0001;
+		const double thermCondEpsilon = 0.0001;
+		const double diffEpsilon = 0.0001;
 		if (fabs(lhs.viscosity - rhs.viscosity) / rhs.viscosity > viscEpsilon) areEqual = false;
 		if (fabs(lhs.thermalConductivity - rhs.thermalConductivity) / rhs.thermalConductivity > thermCondEpsilon) areEqual = false;
 		for(int i = 0; i < 10; i++)
