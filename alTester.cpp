@@ -64,7 +64,7 @@ int main(int argc, char ** argv)
 		bgk_result_t alReq = bgk_req_single_with_reqtype(requests[i], 0, (char *)tag, dbHandle, ALInterfaceMode_e::ACTIVELEARNER);
 
 		//Do a LAMMPS BGK request
-		bgk_result_t gndReq = bgk_req_single_with_reqtype(requests[i], 0, (char *)tag, dbHandle, ALInterfaceMode_e::LAMMPS);
+		bgk_result_t gndReq = bgk_req_single_with_reqtype(requests[i], 0, (char *)tag, dbHandle, ALInterfaceMode_e::FGS);
 
 		//Compare
 		std::cout << "IN: Case " << i << std::endl;
