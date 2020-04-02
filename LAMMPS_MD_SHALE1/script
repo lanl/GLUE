@@ -1,0 +1,11 @@
+#!/bin/bash
+#SBATCH --job-name=zzz
+#SBATCH --ntasks=108
+#SBATCH --qos=standard
+#SBATCH --time=05:00:00
+
+module purge
+module load  intel-mpi/2018.4
+module load  openmpi
+mpirun /turquoise/users/mohamed/software/lammps-5Jun19/build/lmp -i input > 1.log
+
