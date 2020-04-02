@@ -13,9 +13,10 @@ import subprocess
 import getpass
 import sys
 import json
-from writeLammpsScript import check_zeros_trace_elements
+from writeBGKLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
 from contextlib import redirect_stdout, redirect_stderr
+from Screened_Boltzman_solution import ICFAnalytical_solution
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
@@ -31,54 +32,54 @@ def getSelString(packetType):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def getGNDStringAndTuple(lammpsArgs):
+def getGNDStringAndTuple(fgsArgs):
     selString = ""
     selTup = ()
-    if isinstance(lammpsArgs, BGKInputs):
+    if isinstance(fgsArgs, BGKInputs):
         # Optimally find something bigger than machine epsilon
         epsilon = np.finfo('float64').eps
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKGND WHERE "
         #Temperature
         selString += "TEMPERATURE BETWEEN ? AND ? "
-        selTup += (lammpsArgs.Temperature - epsilon, lammpsArgs.Temperature + epsilon)
+        selTup += (fgsArgs.Temperature - epsilon, fgsArgs.Temperature + epsilon)
         selString += " AND "
         #Density
         for i in range(0, 4):
             selString += "DENSITY_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (lammpsArgs.Density[i] - epsilon, lammpsArgs.Density[i] + epsilon)
+            selTup += (fgsArgs.Density[i] - epsilon, fgsArgs.Density[i] + epsilon)
             selString += " AND "
         #Charges
         for i in range(0, 4):
             selString += "CHARGES_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (lammpsArgs.Charges[i] - epsilon, lammpsArgs.Charges[i] + epsilon)
+            selTup += (fgsArgs.Charges[i] - epsilon, fgsArgs.Charges[i] + epsilon)
             selString += " AND "
         #Version
         selString += "INVERSION=?;"
         selTup += (getGroundishTruthVersion(SolverCode.BGK),)
-    elif isinstance(lammpsArgs, BGKMassesInputs):
+    elif isinstance(fgsArgs, BGKMassesInputs):
         # Optimally find something bigger than machine epsilon
         epsilon = np.finfo('float64').eps
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKMASSESGND WHERE "
         #Temperature
         selString += "TEMPERATURE BETWEEN ? AND ? "
-        selTup += (lammpsArgs.Temperature - epsilon, lammpsArgs.Temperature + epsilon)
+        selTup += (fgsArgs.Temperature - epsilon, fgsArgs.Temperature + epsilon)
         selString += " AND "
         #Density
         for i in range(0, 4):
             selString += "DENSITY_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (lammpsArgs.Density[i] - epsilon, lammpsArgs.Density[i] + epsilon)
+            selTup += (fgsArgs.Density[i] - epsilon, fgsArgs.Density[i] + epsilon)
             selString += " AND "
         #Charges
         for i in range(0, 4):
             selString += "CHARGES_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (lammpsArgs.Charges[i] - epsilon, lammpsArgs.Charges[i] + epsilon)
+            selTup += (fgsArgs.Charges[i] - epsilon, fgsArgs.Charges[i] + epsilon)
             selString += " AND "
         #Masses
         for i in range(0, 4):
             selString += "MASSES_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (lammpsArgs.Masses[i] - epsilon, lammpsArgs.Masses[i] + epsilon)
+            selTup += (fgsArgs.Masses[i] - epsilon, fgsArgs.Masses[i] + epsilon)
             selString += " AND "
         #Version
         selString += "INVERSION=?;"
@@ -105,16 +106,16 @@ def processReqRow(sqlRow, packetType):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
+def writeBGKLammpsInputs(fgsArgs, dirPath, glueMode):
     # TODO: Refactor constants and general cleanup
-    if isinstance(lammpsArgs, BGKInputs):
+    if isinstance(fgsArgs, BGKInputs):
         m=np.array([3.3210778e-24,6.633365399999999e-23])
         Teq = 0
         Trun = 0
         cutoff = 0.0
         box = 0
         eps_traces = 1.e-3
-        if(lammpsMode == ALInterfaceMode.LAMMPS):
+        if(glueMode == ALInterfaceMode.FGS):
             # real values of the MD simulations (long MD)
             Teq=20000
             Trun=1000000
@@ -124,7 +125,7 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
             s_int=5
             d_int=s_int*p_int
             eps_traces =1.e-3
-        elif(lammpsMode == ALInterfaceMode.FASTLAMMPS):
+        elif(glueMode == ALInterfaceMode.FASTFGS):
             # Values for infrastructure test
             Teq=10
             Trun=10
@@ -134,11 +135,11 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
             s_int=1
             d_int=s_int*p_int
         else:
-            raise Exception('Using Unsupported LAMMPS Mode')
+            raise Exception('Using Unsupported FGS Mode')
         interparticle_radius = []
-        lammpsDens = np.array(lammpsArgs.Density) 
-        lammpsTemperature = lammpsArgs.Temperature
-        lammpsIonization = np.array(lammpsArgs.Charges)
+        lammpsDens = np.array(fgsArgs.Density) 
+        lammpsTemperature = fgsArgs.Temperature
+        lammpsIonization = np.array(fgsArgs.Charges)
         lammpsMasses = m
         # Finds zeros and trace elements in the densities, then builds LAMMPS scripts.
         (species_with_zeros_LammpsDens_index, lammpsScripts)=check_zeros_trace_elements(lammpsTemperature,lammpsDens,lammpsIonization,lammpsMasses,box,cutoff,Teq,Trun,s_int,p_int,d_int,eps_traces, dirPath)
@@ -149,9 +150,9 @@ def writeLammpsInputs(lammpsArgs, dirPath, lammpsMode):
         np.savetxt(zeroesFileName, np.asarray(species_with_zeros_LammpsDens_index))
         # And now write the inputs to a specific file for later use
         inputList = []
-        inputList.append(lammpsArgs.Temperature)
-        inputList.extend(lammpsArgs.Density)
-        inputList.extend(lammpsArgs.Charges)
+        inputList.append(fgsArgs.Temperature)
+        inputList.extend(fgsArgs.Density)
+        inputList.extend(fgsArgs.Charges)
         inputList.append(getGroundishTruthVersion(SolverCode.BGK))
         Inputs_file = os.path.join(dirPath, "inputs.txt")
         np.savetxt(Inputs_file, np.asarray(inputList))
@@ -238,7 +239,7 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
-def buildAndLaunchLAMMPSJob(configStruct, rank, uname, reqid, lammpsArgs, lammpsMode):
+def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, lammpsArgs, lammpsMode):
     solverCode = configStruct['solverCode']
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']
@@ -264,7 +265,7 @@ def buildAndLaunchLAMMPSJob(configStruct, rank, uname, reqid, lammpsArgs, lammps
             shutil.copy2(jobEnvFilePath, outPath)
             bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
             # Generate input files
-            lammpsScripts = writeLammpsInputs(lammpsArgs, outPath, lammpsMode)
+            lammpsScripts = writeBGKLammpsInputs(fgsArgs, outPath, glueMode)
             # Generate slurm script by writing to file
             # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
             # TODO: DRY this
@@ -297,7 +298,7 @@ def buildAndLaunchLAMMPSJob(configStruct, rank, uname, reqid, lammpsArgs, lammps
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
-                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(lammpsMode.value) + " -c " + str(solverCode.value) + "\n")
+                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(glueMode.value) + " -c " + str(solverCode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
             launchSlurmJob(slurmFPath)
             # Then do nothing because the script itself will write the result
@@ -326,12 +327,12 @@ def getInterpModel(packetType, alBackend, dbPath):
     else:
         raise Exception('Using Unsupported Active Learning Backewnd')
 
-def insertALPrediction(dbPath, inLammps, outLammps, solverCode):
+def insertALPrediction(dbPath, inFGS, outFGS, solverCode):
     if solverCode == SolverCode.BGK:
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKALLOGS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
-        insArgs = (inLammps.Temperature,) + tuple(inLammps.Density) + tuple(inLammps.Charges) + (getGroundishTruthVersion(solverCode),) + (outLammps.Viscosity, outLammps.ThermalConductivity) + tuple(outLammps.DiffCoeff) + (getGroundishTruthVersion(solverCode),)
+        insArgs = (inFGS.Temperature,) + tuple(inFGS.Density) + tuple(inFGS.Charges) + (getGroundishTruthVersion(solverCode),) + (outFGS.Viscosity, outFGS.ThermalConductivity) + tuple(outFGS.DiffCoeff) + (getGroundishTruthVersion(solverCode),)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
@@ -369,21 +370,21 @@ class BGKPytorchInterpModel(InterpModelWrapper):
         isLegit = simpleALErrorChecker(modErr)
         return (isLegit, output)
 
-def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
-    if isinstance(lammpsResult, BGKOutputs):
+def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance):
+    if isinstance(fgsResult, BGKOutputs):
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
+        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
         sqlDB.close()
-    elif isinstance(lammpsResult, BGKMassesOutputs):
+    elif isinstance(fgsResult, BGKMassesOutputs):
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqid, lammpsResult.Viscosity, lammpsResult.ThermalConductivity) + tuple(lammpsResult.DiffCoeff) + (resultProvenance,)
+        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
@@ -391,34 +392,34 @@ def insertResult(rank, tag, dbPath, reqid, lammpsResult, resultProvenance):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def queueLammpsJob(configStruct, uname, maxJobs, reqID, inArgs, rank, modeSwitch):
+def queueFGSJob(configStruct, uname, maxJobs, reqID, inArgs, rank, modeSwitch):
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']
     # This is a brute force call. We only want an exact LAMMPS result
     # So first, check if we have already processed this request
-    outLammps = None
+    outFGS = None
     selQuery = getGNDStringAndTuple(inArgs)
     sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
     for row in sqlCursor.execute(selQuery[0], selQuery[1]):
         if isinstance(inArgs, BGKInputs):
             if row[22] == getGroundishTruthVersion(SolverCode.BGK):
-                outLammps = BGKOutputs(Viscosity=row[10], ThermalConductivity=row[11], DiffCoeff=row[12:22])
+                outFGS = BGKOutputs(Viscosity=row[10], ThermalConductivity=row[11], DiffCoeff=row[12:22])
         elif isinstance(inArgs, BGKMassesInputs):
             if row[26] == getGroundishTruthVersion(SolverCode.BGKMASSES):
-                outLammps = BGKMassesOutputs(Viscosity=row[14], ThermalConductivity=row[15], DiffCoeff=row[16:26])
-    if outLammps != None:
+                outFGS = BGKMassesOutputs(Viscosity=row[14], ThermalConductivity=row[15], DiffCoeff=row[16:26])
+    if outFGS != None:
         # We had a hit, so send that
-        insertResult(rank, tag, dbPath, reqID, outLammps, ResultProvenance.DB)
+        insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB)
     else:
-        # Call lammps with args as slurmjob
+        # Call fgs with args as slurmjob
         # slurmjob will write result back
         launchedJob = False
         while(launchedJob == False):
             queueState = getSlurmQueue(uname)
             if queueState[0] < maxJobs:
                 print("Processing REQ=" + str(reqID))
-                buildAndLaunchLAMMPSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
+                buildAndLaunchFGSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
                 launchedJob = True
 
 def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
@@ -471,9 +472,9 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
                 modeSwitch = defaultMode
                 if task[2] != ALInterfaceMode.DEFAULT:
                     modeSwitch = task[2]
-                if modeSwitch == ALInterfaceMode.LAMMPS or modeSwitch == ALInterfaceMode.FASTLAMMPS:
+                if modeSwitch == ALInterfaceMode.FGS or modeSwitch == ALInterfaceMode.FASTFGS:
                     # Submit as LAMMPS job
-                    queueLammpsJob(configStruct, uname, maxJobs, task[0], task[1], rank, modeSwitch)
+                    queueFGSJob(configStruct, uname, maxJobs, task[0], task[1], rank, modeSwitch)
                 elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                     # General (Active) Learner
                     #  model = getLatestModelFromLearners()
@@ -489,7 +490,7 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
                     if isLegit:
                         insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
                     else:
-                        queueLammpsJob(configStruct, uname, maxJobs, task[0], task[1], rank, ALInterfaceMode.LAMMPS)
+                        queueFGSJob(configStruct, uname, maxJobs, task[0], task[1], rank, ALInterfaceMode.LAMMPS)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
@@ -500,6 +501,17 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
                         insertResult(rank, tag, dbPath, task[0], bgkOutput, ResultProvenance.FAKE)
                     else:
                         raise Exception('Using Unsupported Solver Code')
+                elif modeSwitch == ALInterfaceMode.ANALYTIC:
+                    if packetType == SolverCode.BGK:
+                        # TODO: Probably verify there are only two species
+                        if task[1].Density[2] != 0.0 or task[1].Density[3] != 0.0:
+                            raise Exception('Using Analytic ICF with more than two species')
+                        (cond, visc, diffCoeff) = ICFAnalytical_solution(task[1].Density, task[1].Charges, task[1].Temperature)
+                        bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
+                        # Write the result
+                        insertResult(rank, tag, dbPath, task[0], bgkOutput, ResultProvenance.ANALYTIC)
+                    else:
+                        raise Exception('Using Unsupported Analytic Solution')
                 elif modeSwitch == ALInterfaceMode.KILL:
                     keepSpinning = False
 
@@ -511,14 +523,14 @@ if __name__ == "__main__":
     defaultSqlite = "sqlite3"
     defaultSbatch = "/usr/bin/sbatch"
     defaultMaxJobs = 4
-    defaultProcessing = ALInterfaceMode.LAMMPS
+    defaultProcessing = ALInterfaceMode.FGS
     defaultRanks = 1
     defaultSolver = SolverCode.BGK
     defaultALBackend = LearnerBackend.FAKE
     defaultGNDThresh = 5
     defaultJsonFile = ""
 
-    argParser = argparse.ArgumentParser(description='Python Shim for LAMMPS and AL')
+    argParser = argparse.ArgumentParser(description='Python Shim for FGS and AL')
 
     argParser.add_argument('-i', '--inputfile', action='store', type=str, required=False, default=defaultJsonFile, help="(JSON) Input File")
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
@@ -528,7 +540,7 @@ if __name__ == "__main__":
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
     argParser.add_argument('-u', '--uname', action='store', type=str, required=False, default=defaultUname, help="Username to Query Slurm With")
     argParser.add_argument('-j', '--maxjobs', action='store', type=int, required=False, default=defaultMaxJobs, help="Maximum Number of Slurm Jobs To Enqueue")
-    argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (LAMMPS=0)")
+    argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (FGS=0)")
     argParser.add_argument('-r', '--ranks', action='store', type=int, required=False, default=defaultRanks, help="Number of MPI Ranks to Listen For")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
     argParser.add_argument('-a', '--albackend', action='store', type=int, required=False, default=defaultALBackend, help='(Active) Learning Backend to Use')

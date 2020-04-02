@@ -54,8 +54,7 @@ if __name__ == "__main__":
     defaultSolver = SolverCode.BGK
     defaultJsonFile = ""
 
-    argParser = argparse.ArgumentParser(description='Python To Create DB Files for LAMMPS and AL')
-
+    argParser = argparse.ArgumentParser(description='Python To Create DB Files for FGS and AL')
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
     argParser.add_argument('-i', '--inputfile', action='store', type=str, required=False, default=defaultJsonFile, help="(JSON) Input File")

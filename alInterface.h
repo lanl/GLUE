@@ -5,12 +5,13 @@
 
 enum ALInterfaceMode_e
 {
-	LAMMPS = 0,
+	FGS = 0,
 	MYSTIC = 1,
 	ACTIVELEARNER = 2,
 	FAKE = 3,
 	DEFAULT = 4,
-	FASTLAMMPS = 5,
+	FASTFGS = 5,
+	ANALYTIC = 6,
 	KILL = 9
 };
 

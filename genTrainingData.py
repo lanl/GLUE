@@ -1,7 +1,7 @@
 import numpy as np
 import argparse
 import os
-from alInterface import SolverCode, BGKInputs, BGKMassesInputs, ALInterfaceMode, getAllGNDData, queueLammpsJob
+from alInterface import SolverCode, BGKInputs, BGKMassesInputs, ALInterfaceMode, getAllGNDData, queueFGSJob
 import getpass
 import json
 
@@ -16,14 +16,14 @@ def genTrainingData(configStruct, uname, maxJobs):
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0])
-            queueLammpsJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.LAMMPS)
+            queueFGSJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.LAMMPS)
             reqid += 1
     elif code == SolverCode.BGKMASSES:
         csv = os.path.join(trainingDir, "bgk_masses.csv")
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKMassesInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0], Masses=[row[5], row[6], 0.0, 0.0])
-            queueLammpsJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.LAMMPS)
+            queueFGSJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.LAMMPS)
             reqid += 1
     else:
         raise Exception('Using Unsupported Solver Code')
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     defaultGenOrRead = 0
     defaultJsonFile = ""
 
-    argParser = argparse.ArgumentParser(description='Python Driver to Convert LAMMPS BGK Result into DB Entry')
+    argParser = argparse.ArgumentParser(description='Python Driver to Convert FGS BGK Result into DB Entry')
 
     argParser.add_argument('-i', '--inputfile', action='store', type=str, required=False, default=defaultJsonFile, help="(JSON) Input File")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0, BGKMASSES=2)")
