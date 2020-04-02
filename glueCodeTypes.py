@@ -2,11 +2,11 @@ from enum import Enum, IntEnum
 import collections
 
 class ALInterfaceMode(IntEnum):
-    LAMMPS = 0
+    FGS = 0
     ACTIVELEARNER=2
     FAKE = 3
     DEFAULT = 4
-    FASTLAMMPS = 5
+    FASTFGS = 5
     ANALYTIC = 6
     KILL = 9
 
@@ -16,11 +16,11 @@ class SolverCode(Enum):
     BGKMASSES = 2
 
 class ResultProvenance(IntEnum):
-    LAMMPS = 0
+    FGS = 0
     ACTIVELEARNER = 2
     FAKE = 3
     DB = 4
-    FASTLAMMPS = 5
+    FASTFGS = 5
     ANALYTIC = 6
 
 class LearnerBackend(IntEnum):
