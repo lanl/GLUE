@@ -1,0 +1,6 @@
+{
+	"tag": "DUMMY_TAG_42",
+	"dbFileName": "testDB.db",
+	"glueCodeMode": 3,
+	"ExpectedMPIRanks": 1
+}
