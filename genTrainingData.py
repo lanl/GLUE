@@ -1,7 +1,8 @@
 import numpy as np
 import argparse
 import os
-from alInterface import SolverCode, BGKInputs, BGKMassesInputs, ALInterfaceMode, getAllGNDData, queueFGSJob
+from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
+from alInterface import  getAllGNDData, queueFGSJob
 import getpass
 import json
 
