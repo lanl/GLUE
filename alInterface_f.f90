@@ -100,6 +100,23 @@ module alinterface_f
 		call c_f_pointer(intermediate, res, [numInputs])
 	end function bgk_req_batch_f
 
+	subroutine bgk_req_batch_subr_f(input, output, numInputs, mpiRank, tag, dbHandle)
+		use iso_c_binding
+		type(bgk_request_f) :: input(numInputs)
+		integer(c_int), value :: numInputs
+		integer(c_int), value :: mpiRank
+		character(kind=c_char) :: tag(*)
+		type(c_ptr) :: dbHandle
+		type(c_ptr) :: intermediateC
+		type(bgk_result_f), pointer :: intermediateF(:)
+		type(bgk_result_f), pointer :: output(:)
+
+		! TODO: Verify this kludge is safe
+		intermediateC = bgk_req_batch_internal_f(input, numInputs, mpiRank, tag, dbHandle)
+		call c_f_pointer(intermediateC, intermediateF, [numInputs])
+		output => intermediateF
+	end subroutine bgk_req_batch_subr_f
+
 	subroutine bgk_resFreeWrapper_f(ptr)
 		use iso_c_binding
 		type(bgk_result_f), pointer :: ptr(:)
