@@ -28,6 +28,10 @@ class LearnerBackend(IntEnum):
     PYTORCH = 2
     FAKE = 3
 
+class SchedulerInterface(IntEnum):
+    SLURM = 0
+    BLOCKING = 1
+
 # BGKInputs
 #  Temperature: float
 #  Density: float[4]
