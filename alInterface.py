@@ -519,9 +519,9 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
 if __name__ == "__main__":
     configStruct = processGlueCodeArguments()
 
-    uname = args['uname']
+    uname =  getpass.getuser()
     # We will not pass in uname via the json file
-    jobs = args['maxjobs']
+    jobs = 4
     # We will likely revamp how we handle job limits
 
     pollAndProcessFGSRequests(configStruct, uname, jobs)
