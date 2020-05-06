@@ -4,6 +4,7 @@ import os
 import time
 import json
 from glueCodeTypes import SolverCode
+from glueArgParser import processGlueCodeArguments
 
 
 
@@ -50,28 +51,6 @@ def initSQLTables(configStruct):
         time.sleep(1)
 
 if __name__ == "__main__":
-    defaultFName = "testDB.db"
-    defaultSolver = SolverCode.BGK
-    defaultJsonFile = ""
-
-    argParser = argparse.ArgumentParser(description='Python To Create DB Files for FGS and AL')
-    argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
-    argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
-    argParser.add_argument('-i', '--inputfile', action='store', type=str, required=False, default=defaultJsonFile, help="(JSON) Input File")
-
-    args = vars(argParser.parse_args())
-
-    jsonFile = args['inputfile']
-    configStruct = {}
-    if jsonFile != "":
-        with open(jsonFile) as j:
-            configStruct = json.load(j)
-
-    fName = args['db']
-    if not 'dbFileName' in configStruct:
-        configStruct['dbFileName'] = fName
-    code = SolverCode(args['code'])
-    if not 'solverCode' in configStruct:
-        configStruct['solverCode'] = code
+    configStruct = processGlueCodeArguments()
 
     initSQLTables(configStruct)
