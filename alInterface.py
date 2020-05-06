@@ -14,7 +14,7 @@ import getpass
 import sys
 import json
 from writeBGKLammpsScript import check_zeros_trace_elements
-from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
+from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface
 from contextlib import redirect_stdout, redirect_stderr
 from Screened_Boltzman_solution import ICFAnalytical_solution
 from glueArgParser import processGlueCodeArguments
@@ -194,6 +194,16 @@ def launchSlurmJob(script):
         print(err, file=sys.stderr)
         return ""
 
+def getQueueUsability(uname, configStruct):
+    if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
+        queueState = getSlurmQueue(uname)
+        if queueState[0] < maxJobs:
+            return True
+    elif cconfigStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
+        return True
+    else:
+        raise Exception('Using Unsupported Scheduler Mode')
+
 def getSlurmQueue(uname):
     slurmOut = checkSlurmQueue(uname)
     if slurmOut == "":
@@ -240,12 +250,39 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
+def slurmBoilerplate(jobFile, outDir, configStruct):
+    if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
+        jobFile.write("#!/bin/bash\n")
+        jobFile.write("#SBATCH -N " + str(configStruct['SlurmScheduler']['NodesPerSlurmJob']) + "\n")
+        jobFile.write("#SBATCH -o " + outDir + "-%j.out\n")
+        jobFile.write("#SBATCH -e " + outDir + "-%j.err\n")
+        jobFile.write("export LAUNCHER_BIN=srun\n")
+        jobFile.write("export NMPI_RANKS=\"$((`lstopo --only pu | wc -l` * ${SLURM_NNODES} / " + str(configStruct['SlurmScheduler']['ThreadsPerMPIRankForSlurm']) + "  ))\"\n")
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
+        jobFile.write("#!/bin/bash\n")
+        jobFile.write("export LAUNCHER_BIN=mpirun\n")
+        jobFile.write("export NMPI_RANKS="+ str(configStruct['SlurmScheduler']['MPIRanksForBlockingRuns']) + "\n")
+    else:
+        raise Exception('Using Unsupported Scheduler Mode')
+
+def lammpsSpackBoilerplate(jobFile, configStruct):
+    # Call If spack exists, use it
+    jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
+    jobFile.write("\texport LAMMPS_BIN=" + configStruct['LAMMPSPath'] + "\n")
+    jobFile.write("else\n")
+    # Load lammps
+    # TODO: Genralize this to support more than just MPI
+    jobFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
+    jobFile.write("\tspack install lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0\n")
+    jobFile.write("\tspack load lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0 arch=`spack arch`\n")
+    jobFile.write("\texport LAMMPS_BIN=lmp\n")
+    jobFile.write("fi\n")
+
 def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, lammpsArgs, lammpsMode):
     solverCode = configStruct['solverCode']
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']
     lammps = configStruct['LAMMPSPath']
-    nodesPerJob = 3
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -267,35 +304,20 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, lammpsArgs, lammpsMod
             bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
             # Generate input files
             lammpsScripts = writeBGKLammpsInputs(fgsArgs, outPath, glueMode)
-            # Generate slurm script by writing to file
+            # Generate job script by writing to file
             # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
             # TODO: DRY this
             slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
             with open(slurmFPath, 'w') as slurmFile:
-                slurmFile.write("#!/bin/bash\n")
-                slurmFile.write("#SBATCH -N " + str(nodesPerJob) + "\n")
-                slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
-                slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
+                # Make Header
+                slurmBoilerplate(slurmFile, outDir, configStruct)
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
-                # Call If spack exists, use it
-                slurmFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
-                slurmFile.write("\texport LAMMPS_BIN=" + lammps + "\n")
-                slurmFile.write("else\n")
-                # Load lammps
-                # TODO: Genralize this to support more than just MPI
-                slurmFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
-                slurmFile.write("\tspack install lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0\n")
-                slurmFile.write("\tspack load lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0 arch=`spack arch`\n")
-                slurmFile.write("\texport LAMMPS_BIN=lmp\n")
-                slurmFile.write("fi\n")
-                # Determine available resources
-                # TODO: At some point don't hardcode for slurm
-                # TODO: GPUs are important
-                slurmFile.write("export NLAMMPS_RANKS=\"$((`lstopo --only pu | wc -l` * ${SLURM_NNODES} ))\"\n")
+                # Set LAMMPS_BIN
+                lammpsSpackBoilerplate(slurmFile, configStruct)
                 # Actually call lammps
                 for lammpsScript in lammpsScripts:
-                    slurmFile.write("srun -n ${NLAMMPS_RANKS} ${LAMMPS_BIN} < " + lammpsScript + " \n")
+                    slurmFile.write("${LAUNCHER_BIN} -n ${NMPI_RANKS} ${LAMMPS_BIN} < " + lammpsScript + " \n")
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
@@ -413,12 +435,12 @@ def queueFGSJob(configStruct, uname, maxJobs, reqID, inArgs, rank, modeSwitch):
         # We had a hit, so send that
         insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB)
     else:
-        # Call fgs with args as slurmjob
-        # slurmjob will write result back
+        # Call fgs with args as scheduled job
+        # job will write result back
         launchedJob = False
         while(launchedJob == False):
-            queueState = getSlurmQueue(uname)
-            if queueState[0] < maxJobs:
+            queueJob = getQueueUsability(uname, configStruct)
+            if queueJob == True:
                 print("Processing REQ=" + str(reqID))
                 buildAndLaunchFGSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
                 launchedJob = True
