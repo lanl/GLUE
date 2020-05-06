@@ -50,9 +50,13 @@ def printResults(gndTable, code):
 
 if __name__ == "__main__":
     configStruct = processGlueCodeArguments()
+    uname = args['uname']
+    # We will not pass in uname via the json file
+    jobs = args['maxjobs']
+    # We will likely revamp how we handle job limits
 
     if configStruct['GenerateTrainingData']:
         genTrainingData(configStruct, uname, jobs)
     if configStruct['ReadTrainingData']:
-        results = getAllGNDData(fName, code)
-        printResults(results, code)
+        results = getAllGNDData(fName, configStruct['solverCode'])
+        printResults(results, configStruct['solverCode'])

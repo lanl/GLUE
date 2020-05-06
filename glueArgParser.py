@@ -53,10 +53,6 @@ def processGlueCodeArguments():
     lammps = args['lammps']
     if not 'LAMMPSPath' in configStruct:
         configStruct['LAMMPSPath'] = lammps
-    uname = args['uname']
-    # We will not pass in uname via the json file
-    jobs = args['maxjobs']
-    # We will likely revamp how we handle job limits
     sqlite = args['sqlite']
     if not 'SQLitePath' in configStruct:
         configStruct['SQLitePath'] = sqlite
