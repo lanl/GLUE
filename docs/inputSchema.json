@@ -40,6 +40,10 @@
 			"description": "Optional path to LAMMPS Binary (if not using Spack)",
 			"type": "string"
 		},
+		"ExpectedMPIRanks":{
+			"description": "Number of MPI Ranks to expect from coarse grain solver",
+			"type": "integer"
+		},
 		"GenerateTrainingData":{
 			"description": "Generate Training Data if Running Appropriate Script",
 			"type": "boolean"

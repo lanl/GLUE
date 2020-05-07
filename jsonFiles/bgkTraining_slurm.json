@@ -6,7 +6,7 @@
 	"SchedulerInterface": 0,
 	"SlurmScheduler":{
 		"ThreadsPerMPIRankForSlurm": 1,
-		"NodesPerSlurmJob": 6,
+		"NodesPerSlurmJob": 1,
 		"MaxSlurmJobs": 4
 	}
 }
