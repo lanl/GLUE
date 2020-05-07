@@ -240,7 +240,7 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
-def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, lammpsArgs, lammpsMode):
+def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
     solverCode = configStruct['solverCode']
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']

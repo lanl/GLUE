@@ -53,7 +53,7 @@ if __name__ == "__main__":
     configStruct = processGlueCodeArguments()
     uname =  getpass.getuser()
     # We will not pass in uname via the json file
-    jobs = 4
+    jobs = 6
     # We will likely revamp how we handle job limits
     if configStruct['GenerateTrainingData']:
         genTrainingData(configStruct, uname, jobs)
