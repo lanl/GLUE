@@ -41,7 +41,7 @@
 			"type": "string"
 		},
 		"ExpectedMPIRanks":{
-			"description": "Number of MPI Ranks ",
+			"description": "Number of MPI Ranks to expect from coarse grain solver",
 			"type": "integer"
 		},
 		"GenerateTrainingData":{
@@ -51,7 +51,39 @@
 		"ReadTrainingData":{
 			"description": "Read Out Training Data to CLI if Running Appropriate Script",
 			"type": "boolean"
+		},
+		"SchedulerInterface":{
+			"description": "Scheduler Mode/Interface to use corresponding to SchedulerInterface Enum",
+			"type": "integer"
+		},
+		"BlockingScheduler":{
+			"type": "object",
+			"description": "Parameters for Blocking (Shell) Scheduler",
+			"properties":{
+				"MPIRanksForBlockingRuns":{
+					"description": "If using blocking (shell) scheduler, the number of MPI ranks per fine grain task",
+					"type": "integer"
+				}
+			}
+		},
+		"SlurmScheduler":{
+			"type": "object",
+			"description": "Parameters for Slurm Scheduler",
+			"properties":{
+				"ThreadsPerMPIRankForSlurm":{
+					"description": "If using slurm scheduler, the number of 'threads' per MPI rank",
+					"type": "integer"
+				},
+				"NodesPerSlurmJob":{
+					"description": "If using slurm scheduler, the number of nodes per job",
+					"type": "integer"
+				},
+				"MaxSlurmJobs":{
+					"description": "If using slurm scheduler, the maximum number of concurrent jobs",
+					"type": "integer"
+				}
+			}
 		}
 	},
-	"required": ["tag", "dbFileName", "solverCode", "glueCodeMode"]
+	"required": ["tag", "dbFileName", "solverCode", "glueCodeMode", "SchedulerInterface"]
 }

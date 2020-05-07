@@ -14,7 +14,7 @@ import getpass
 import sys
 import json
 from writeBGKLammpsScript import check_zeros_trace_elements
-from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs
+from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface
 from contextlib import redirect_stdout, redirect_stderr
 from Screened_Boltzman_solution import ICFAnalytical_solution
 from glueArgParser import processGlueCodeArguments
@@ -178,21 +178,35 @@ def checkSlurmQueue(uname):
         print(err, file=sys.stderr)
         return ""
 
-def launchSlurmJob(script):
+def launchJobScript(binary, script, wantReturn):
     try:
         runproc = subprocess.run(
-            ["sbatch", script],
+            [binary, script],
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE
         )
         if runproc.returncode == 0:
-            return str(runproc.stdout,"utf-8")
+            if(wantReturn):
+                return str(runproc.stdout,"utf-8")
+            else:
+                return ""
         else:
             print(str(runproc.stderr,"utf-8"), file=sys.stderr)
             return ""
     except FileNotFoundError as err:
         print(err, file=sys.stderr)
         return ""
+
+def getQueueUsability(uname, configStruct):
+    if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
+        queueState = getSlurmQueue(uname)
+        maxJobs = configStruct['SlurmScheduler']['MaxSlurmJobs']
+        if queueState[0] < maxJobs:
+            return True
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
+        return True
+    else:
+        raise Exception('Using Unsupported Scheduler Mode')
 
 def getSlurmQueue(uname):
     slurmOut = checkSlurmQueue(uname)
@@ -240,12 +254,47 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
+def slurmBoilerplate(jobFile, outDir, configStruct):
+    if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
+        jobFile.write("#!/bin/bash\n")
+        jobFile.write("#SBATCH -N " + str(configStruct['SlurmScheduler']['NodesPerSlurmJob']) + "\n")
+        jobFile.write("#SBATCH -o " + outDir + "-%j.out\n")
+        jobFile.write("#SBATCH -e " + outDir + "-%j.err\n")
+        jobFile.write("export LAUNCHER_BIN=srun\n")
+        jobFile.write("export NMPI_RANKS=\"$((`lstopo --only pu | wc -l` * ${SLURM_NNODES} / " + str(configStruct['SlurmScheduler']['ThreadsPerMPIRankForSlurm']) + "  ))\"\n")
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
+        jobFile.write("#!/bin/bash\n")
+        jobFile.write("export LAUNCHER_BIN=mpirun\n")
+        jobFile.write("export NMPI_RANKS="+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\n")
+    else:
+        raise Exception('Using Unsupported Scheduler Mode')
+
+def lammpsSpackBoilerplate(jobFile, configStruct):
+    # Call If spack exists, use it
+    jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
+    jobFile.write("\texport LAMMPS_BIN=" + configStruct['LAMMPSPath'] + "\n")
+    jobFile.write("else\n")
+    # Load lammps
+    # TODO: Genralize this to support more than just MPI
+    jobFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
+    jobFile.write("\tspack install lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0\n")
+    jobFile.write("\tspack load lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0 arch=`spack arch`\n")
+    jobFile.write("\texport LAMMPS_BIN=lmp\n")
+    jobFile.write("fi\n")
+
+def launchFGSJob(jobFile, configStruct):
+    if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
+        launchJobScript("sbatch", jobFile, True)
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
+        launchJobScript("bash", jobFile, False)
+    else:
+        raise Exception('Using Unsupported Scheduler Mode')
+
 def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
     solverCode = configStruct['solverCode']
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']
     lammps = configStruct['LAMMPSPath']
-    nodesPerJob = 3
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -267,41 +316,26 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
             bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
             # Generate input files
             lammpsScripts = writeBGKLammpsInputs(fgsArgs, outPath, glueMode)
-            # Generate slurm script by writing to file
+            # Generate job script by writing to file
             # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
             # TODO: DRY this
-            slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
-            with open(slurmFPath, 'w') as slurmFile:
-                slurmFile.write("#!/bin/bash\n")
-                slurmFile.write("#SBATCH -N " + str(nodesPerJob) + "\n")
-                slurmFile.write("#SBATCH -o " + outDir + "-%j.out\n")
-                slurmFile.write("#SBATCH -e " + outDir + "-%j.err\n")
+            scriptFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
+            with open(scriptFPath, 'w') as slurmFile:
+                # Make Header
+                slurmBoilerplate(slurmFile, outDir, configStruct)
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
-                # Call If spack exists, use it
-                slurmFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
-                slurmFile.write("\texport LAMMPS_BIN=" + lammps + "\n")
-                slurmFile.write("else\n")
-                # Load lammps
-                # TODO: Genralize this to support more than just MPI
-                slurmFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
-                slurmFile.write("\tspack install lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0\n")
-                slurmFile.write("\tspack load lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0 arch=`spack arch`\n")
-                slurmFile.write("\texport LAMMPS_BIN=lmp\n")
-                slurmFile.write("fi\n")
-                # Determine available resources
-                # TODO: At some point don't hardcode for slurm
-                # TODO: GPUs are important
-                slurmFile.write("export NLAMMPS_RANKS=\"$((`lstopo --only pu | wc -l` * ${SLURM_NNODES} ))\"\n")
+                # Set LAMMPS_BIN
+                lammpsSpackBoilerplate(slurmFile, configStruct)
                 # Actually call lammps
                 for lammpsScript in lammpsScripts:
-                    slurmFile.write("srun -n ${NLAMMPS_RANKS} ${LAMMPS_BIN} < " + lammpsScript + " \n")
+                    slurmFile.write("${LAUNCHER_BIN} -n ${NMPI_RANKS} ${LAMMPS_BIN} < " + lammpsScript + " \n")
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
                 slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(glueMode.value) + " -c " + str(solverCode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
-            launchSlurmJob(slurmFPath)
+            launchFGSJob(scriptFPath, configStruct)
             # Then do nothing because the script itself will write the result
     else:
         raise Exception('Using Unsupported Solver Code')
@@ -393,7 +427,7 @@ def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def queueFGSJob(configStruct, uname, maxJobs, reqID, inArgs, rank, modeSwitch):
+def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch):
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']
     # This is a brute force call. We only want an exact LAMMPS result
@@ -413,17 +447,17 @@ def queueFGSJob(configStruct, uname, maxJobs, reqID, inArgs, rank, modeSwitch):
         # We had a hit, so send that
         insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB)
     else:
-        # Call fgs with args as slurmjob
-        # slurmjob will write result back
+        # Call fgs with args as scheduled job
+        # job will write result back
         launchedJob = False
         while(launchedJob == False):
-            queueState = getSlurmQueue(uname)
-            if queueState[0] < maxJobs:
+            queueJob = getQueueUsability(uname, configStruct)
+            if queueJob == True:
                 print("Processing REQ=" + str(reqID))
                 buildAndLaunchFGSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
                 launchedJob = True
 
-def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
+def pollAndProcessFGSRequests(configStruct, uname):
     numRanks = configStruct['ExpectedMPIRanks']
     defaultMode = configStruct['glueCodeMode']
     dbPath = configStruct['dbFileName']
@@ -475,7 +509,7 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
                     modeSwitch = task[2]
                 if modeSwitch == ALInterfaceMode.FGS or modeSwitch == ALInterfaceMode.FASTFGS:
                     # Submit as LAMMPS job
-                    queueFGSJob(configStruct, uname, maxJobs, task[0], task[1], rank, modeSwitch)
+                    queueFGSJob(configStruct, uname, task[0], task[1], rank, modeSwitch)
                 elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                     # General (Active) Learner
                     #  model = getLatestModelFromLearners()
@@ -491,7 +525,7 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
                     if isLegit:
                         insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
                     else:
-                        queueFGSJob(configStruct, uname, maxJobs, task[0], task[1], rank, ALInterfaceMode.LAMMPS)
+                        queueFGSJob(configStruct, uname, task[0], task[1], rank, ALInterfaceMode.LAMMPS)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
@@ -521,7 +555,5 @@ if __name__ == "__main__":
 
     uname =  getpass.getuser()
     # We will not pass in uname via the json file
-    jobs = 4
-    # We will likely revamp how we handle job limits
 
-    pollAndProcessFGSRequests(configStruct, uname, jobs)
+    pollAndProcessFGSRequests(configStruct, uname)

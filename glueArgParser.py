@@ -1,7 +1,7 @@
 import argparse
 import json
 import getpass
-from glueCodeTypes import ALInterfaceMode, SolverCode, LearnerBackend
+from glueCodeTypes import ALInterfaceMode, SolverCode, LearnerBackend, SchedulerInterface
 
 def processGlueCodeArguments():
     defaultFName = "testDB.db"
@@ -18,6 +18,7 @@ def processGlueCodeArguments():
     defaultGNDThresh = 5
     defaultJsonFile = ""
     defaultGenOrRead = 0
+    defaultScheduler = SchedulerInterface.SLURM
 
     argParser = argparse.ArgumentParser(description='Command Line Arguments to Glue Code')
 
@@ -93,5 +94,15 @@ def processGlueCodeArguments():
             configStruct['ReadTrainingData'] = True
         else:
             configStruct['ReadTrainingData'] = False
+    if not 'SchedulerInterface' in configStruct:
+        configStruct['SchedulerInterface'] = SchedulerInterface.SLURM
+    else:
+        configStruct['SchedulerInterface'] = SchedulerInterface(configStruct['SchedulerInterface'])
+    if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
+        if not 'SlurmScheduler' in configStruct:
+            configStruct['SlurmScheduler'] = {"ThreadsPerMPIRankForSlurm":1, "NodesPerSlurmJob":1, "MaxSlurmJobs":4}
+    if configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
+        if not 'BlockingScheduler' in configStruct:
+            configStruct['BlockingScheduler'] = {"MPIRanksForBlockingRuns":4}
 
     return configStruct
