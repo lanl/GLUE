@@ -197,6 +197,7 @@ def launchSlurmJob(script):
 def getQueueUsability(uname, configStruct):
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
         queueState = getSlurmQueue(uname)
+        maxJobs = configStruct['SlurmScheduler']['MaxSlurmJobs']
         if queueState[0] < maxJobs:
             return True
     elif cconfigStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
@@ -415,7 +416,7 @@ def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def queueFGSJob(configStruct, uname, maxJobs, reqID, inArgs, rank, modeSwitch):
+def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch):
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']
     # This is a brute force call. We only want an exact LAMMPS result
@@ -445,7 +446,7 @@ def queueFGSJob(configStruct, uname, maxJobs, reqID, inArgs, rank, modeSwitch):
                 buildAndLaunchFGSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
                 launchedJob = True
 
-def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
+def pollAndProcessFGSRequests(configStruct, uname):
     numRanks = configStruct['ExpectedMPIRanks']
     defaultMode = configStruct['glueCodeMode']
     dbPath = configStruct['dbFileName']
@@ -497,7 +498,7 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
                     modeSwitch = task[2]
                 if modeSwitch == ALInterfaceMode.FGS or modeSwitch == ALInterfaceMode.FASTFGS:
                     # Submit as LAMMPS job
-                    queueFGSJob(configStruct, uname, maxJobs, task[0], task[1], rank, modeSwitch)
+                    queueFGSJob(configStruct, uname, task[0], task[1], rank, modeSwitch)
                 elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                     # General (Active) Learner
                     #  model = getLatestModelFromLearners()
@@ -513,7 +514,7 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
                     if isLegit:
                         insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
                     else:
-                        queueFGSJob(configStruct, uname, maxJobs, task[0], task[1], rank, ALInterfaceMode.LAMMPS)
+                        queueFGSJob(configStruct, uname, task[0], task[1], rank, ALInterfaceMode.LAMMPS)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
@@ -543,7 +544,5 @@ if __name__ == "__main__":
 
     uname =  getpass.getuser()
     # We will not pass in uname via the json file
-    # TODO: Pull from configStruct
-    jobs = 4
 
-    pollAndProcessFGSRequests(configStruct, uname, jobs)
+    pollAndProcessFGSRequests(configStruct, uname)

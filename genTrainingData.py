@@ -18,14 +18,14 @@ def genTrainingData(configStruct, uname, maxJobs):
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0])
-            queueFGSJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.FGS)
+            queueFGSJob(configStruct, uname, reqid, inArgs, 0, ALInterfaceMode.FGS)
             reqid += 1
     elif code == SolverCode.BGKMASSES:
         csv = os.path.join(trainingDir, "bgk_masses.csv")
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKMassesInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0], Masses=[row[5], row[6], 0.0, 0.0])
-            queueFGSJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.FGS)
+            queueFGSJob(configStruct, uname, reqid, inArgs, 0, ALInterfaceMode.FGS)
             reqid += 1
     else:
         raise Exception('Using Unsupported Solver Code')

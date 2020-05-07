@@ -77,6 +77,10 @@
 				"NodesPerSlurmJob":{
 					"description": "If using slurm scheduler, the number of nodes per job",
 					"type": "integer"
+				},
+				"MaxSlurmJobs":{
+					"description": "If using slurm scheduler, the maximum number of concurrent jobs",
+					"type": "integer"
 				}
 			}
 		}
