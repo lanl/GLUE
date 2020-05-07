@@ -178,15 +178,18 @@ def checkSlurmQueue(uname):
         print(err, file=sys.stderr)
         return ""
 
-def launchSlurmJob(script):
+def launchJobScript(binary, script, wantReturn):
     try:
         runproc = subprocess.run(
-            ["sbatch", script],
+            [binary, script],
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE
         )
         if runproc.returncode == 0:
-            return str(runproc.stdout,"utf-8")
+            if(wantReturn):
+                return str(runproc.stdout,"utf-8")
+            else:
+                return ""
         else:
             print(str(runproc.stderr,"utf-8"), file=sys.stderr)
             return ""
@@ -200,7 +203,7 @@ def getQueueUsability(uname, configStruct):
         maxJobs = configStruct['SlurmScheduler']['MaxSlurmJobs']
         if queueState[0] < maxJobs:
             return True
-    elif cconfigStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         return True
     else:
         raise Exception('Using Unsupported Scheduler Mode')
@@ -262,7 +265,7 @@ def slurmBoilerplate(jobFile, outDir, configStruct):
     elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         jobFile.write("#!/bin/bash\n")
         jobFile.write("export LAUNCHER_BIN=mpirun\n")
-        jobFile.write("export NMPI_RANKS="+ str(configStruct['SlurmScheduler']['MPIRanksForBlockingRuns']) + "\n")
+        jobFile.write("export NMPI_RANKS="+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\n")
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
@@ -278,6 +281,14 @@ def lammpsSpackBoilerplate(jobFile, configStruct):
     jobFile.write("\tspack load lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0 arch=`spack arch`\n")
     jobFile.write("\texport LAMMPS_BIN=lmp\n")
     jobFile.write("fi\n")
+
+def launchFGSJob(jobFile, configStruct):
+    if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
+        launchJobScript("sbatch", jobFile, True)
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
+        launchJobScript("bash", jobFile, False)
+    else:
+        raise Exception('Using Unsupported Scheduler Mode')
 
 def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
     solverCode = configStruct['solverCode']
@@ -308,8 +319,8 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
             # Generate job script by writing to file
             # TODO: Identify a cleaner way to handle QOS and accounts and all the fun slurm stuff?
             # TODO: DRY this
-            slurmFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
-            with open(slurmFPath, 'w') as slurmFile:
+            scriptFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
+            with open(scriptFPath, 'w') as slurmFile:
                 # Make Header
                 slurmBoilerplate(slurmFile, outDir, configStruct)
                 slurmFile.write("cd " + outPath + "\n")
@@ -324,7 +335,7 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
                 # Process the result and write to DB
                 slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(glueMode.value) + " -c " + str(solverCode.value) + "\n")
             # either syscall or subprocess.run slurm with the script
-            launchSlurmJob(slurmFPath)
+            launchFGSJob(scriptFPath, configStruct)
             # Then do nothing because the script itself will write the result
     else:
         raise Exception('Using Unsupported Solver Code')

@@ -7,7 +7,7 @@ import getpass
 import json
 from glueArgParser import processGlueCodeArguments
 
-def genTrainingData(configStruct, uname, maxJobs):
+def genTrainingData(configStruct, uname):
     code = configStruct['solverCode']
     reqid = 0
     pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
@@ -51,12 +51,10 @@ def printResults(gndTable, code):
 
 if __name__ == "__main__":
     configStruct = processGlueCodeArguments()
-    uname =  getpass.getuser()
     # We will not pass in uname via the json file
-    jobs = 6
-    # We will likely revamp how we handle job limits
+    uname =  getpass.getuser()
     if configStruct['GenerateTrainingData']:
-        genTrainingData(configStruct, uname, jobs)
+        genTrainingData(configStruct, uname)
     if configStruct['ReadTrainingData']:
         results = getAllGNDData(fName, configStruct['solverCode'])
         printResults(results, configStruct['solverCode'])
