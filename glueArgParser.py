@@ -86,8 +86,12 @@ def processGlueCodeArguments():
     if not 'GenerateTrainingData' in configStruct:
         if(genOrRead == 0):
             configStruct['GenerateTrainingData'] = True
+        else:
+            configStruct['GenerateTrainingData'] = False
     if not 'ReadTrainingData' in configStruct:
         if(genOrRead == 1):
             configStruct['ReadTrainingData'] = True
+        else:
+            configStruct['ReadTrainingData'] = False
 
     return configStruct
