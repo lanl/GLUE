@@ -5,6 +5,7 @@ from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, Learner
 from alInterface import  getAllGNDData, queueFGSJob
 import getpass
 import json
+from glueArgParser import processGlueCodeArguments
 
 def genTrainingData(configStruct, uname, maxJobs):
     code = configStruct['solverCode']
@@ -17,14 +18,14 @@ def genTrainingData(configStruct, uname, maxJobs):
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0])
-            queueFGSJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.LAMMPS)
+            queueFGSJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.FGS)
             reqid += 1
     elif code == SolverCode.BGKMASSES:
         csv = os.path.join(trainingDir, "bgk_masses.csv")
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKMassesInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0], Masses=[row[5], row[6], 0.0, 0.0])
-            queueFGSJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.LAMMPS)
+            queueFGSJob(configStruct, uname, maxJobs, reqid, inArgs, 0, ALInterfaceMode.FGS)
             reqid += 1
     else:
         raise Exception('Using Unsupported Solver Code')
@@ -50,11 +51,10 @@ def printResults(gndTable, code):
 
 if __name__ == "__main__":
     configStruct = processGlueCodeArguments()
-    uname = args['uname']
+    uname =  getpass.getuser()
     # We will not pass in uname via the json file
-    jobs = args['maxjobs']
+    jobs = 6
     # We will likely revamp how we handle job limits
-
     if configStruct['GenerateTrainingData']:
         genTrainingData(configStruct, uname, jobs)
     if configStruct['ReadTrainingData']:

@@ -87,16 +87,20 @@ def processGlueCodeArguments():
     if not 'GenerateTrainingData' in configStruct:
         if(genOrRead == 0):
             configStruct['GenerateTrainingData'] = True
+        else:
+            configStruct['GenerateTrainingData'] = False
     if not 'ReadTrainingData' in configStruct:
         if(genOrRead == 1):
             configStruct['ReadTrainingData'] = True
+        else:
+            configStruct['ReadTrainingData'] = False
     if not 'SchedulerInterface' in configStruct:
         configStruct['SchedulerInterface'] = SchedulerInterface.SLURM
     else:
         configStruct['SchedulerInterface'] = SchedulerInterface(configStruct['SchedulerInterface'])
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
         if not 'SlurmScheduler' in configStruct:
-            configStruct['SlurmScheduler'] = {"ThreadsPerMPIRankForSlurm":1, "NodesPerSlurmJob":1}
+            configStruct['SlurmScheduler'] = {"ThreadsPerMPIRankForSlurm":1, "NodesPerSlurmJob":1, "MaxSlurmJobs":4}
     if configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         if not 'BlockingScheduler' in configStruct:
             configStruct['BlockingScheduler'] = {"MPIRanksForBlockingRuns":4}

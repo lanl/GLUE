@@ -278,7 +278,7 @@ def lammpsSpackBoilerplate(jobFile, configStruct):
     jobFile.write("\texport LAMMPS_BIN=lmp\n")
     jobFile.write("fi\n")
 
-def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, lammpsArgs, lammpsMode):
+def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
     solverCode = configStruct['solverCode']
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']
@@ -541,9 +541,9 @@ def pollAndProcessFGSRequests(configStruct, uname, maxJobs):
 if __name__ == "__main__":
     configStruct = processGlueCodeArguments()
 
-    uname = args['uname']
+    uname =  getpass.getuser()
     # We will not pass in uname via the json file
-    jobs = args['maxjobs']
-    # We will likely revamp how we handle job limits
+    # TODO: Pull from configStruct
+    jobs = 4
 
     pollAndProcessFGSRequests(configStruct, uname, jobs)
