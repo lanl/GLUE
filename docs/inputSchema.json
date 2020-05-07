@@ -40,10 +40,6 @@
 			"description": "Optional path to LAMMPS Binary (if not using Spack)",
 			"type": "string"
 		},
-		"ExpectedMPIRanks":{
-			"description": "Number of MPI Ranks ",
-			"type": "integer"
-		},
 		"GenerateTrainingData":{
 			"description": "Generate Training Data if Running Appropriate Script",
 			"type": "boolean"
