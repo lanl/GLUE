@@ -100,7 +100,7 @@ def processGlueCodeArguments():
         configStruct['SchedulerInterface'] = SchedulerInterface(configStruct['SchedulerInterface'])
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
         if not 'SlurmScheduler' in configStruct:
-            configStruct['SlurmScheduler'] = {"ThreadsPerMPIRankForSlurm":1, "NodesPerSlurmJob":1, "MaxSlurmJobs":4}
+            configStruct['SlurmScheduler'] = {"ThreadsPerMPIRankForSlurm":1, "NodesPerSlurmJob":1, "MaxSlurmJobs":4, "SlurmPartition":"general"}
     if configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         if not 'BlockingScheduler' in configStruct:
             configStruct['BlockingScheduler'] = {"MPIRanksForBlockingRuns":4}
