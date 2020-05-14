@@ -8,6 +8,7 @@
 	"SlurmScheduler":{
 		"ThreadsPerMPIRankForSlurm": 1,
 		"NodesPerSlurmJob": 1,
-		"MaxSlurmJobs": 1
+		"MaxSlurmJobs": 1,
+		"SlurmPartition": "general"
 	}
 }

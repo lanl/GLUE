@@ -260,6 +260,7 @@ def slurmBoilerplate(jobFile, outDir, configStruct):
         jobFile.write("#SBATCH -N " + str(configStruct['SlurmScheduler']['NodesPerSlurmJob']) + "\n")
         jobFile.write("#SBATCH -o " + outDir + "-%j.out\n")
         jobFile.write("#SBATCH -e " + outDir + "-%j.err\n")
+        jobFile.write("#SBATCH -p " + str(configStruct['SlurmScheduler']['SlurmPartition']) + "\n")
         jobFile.write("export LAUNCHER_BIN=srun\n")
         jobFile.write("export NMPI_RANKS=\"$((`lstopo --only pu | wc -l` * ${SLURM_NNODES} / " + str(configStruct['SlurmScheduler']['ThreadsPerMPIRankForSlurm']) + "  ))\"\n")
     elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:

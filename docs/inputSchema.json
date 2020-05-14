@@ -81,6 +81,10 @@
 				"MaxSlurmJobs":{
 					"description": "If using slurm scheduler, the maximum number of concurrent jobs",
 					"type": "integer"
+				},
+				"SlurmPartition":{
+					"description": "If using slurm scheduler, what partition of nodes to request from",
+					"type": "string"
 				}
 			}
 		}
