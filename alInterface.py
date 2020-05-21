@@ -451,9 +451,8 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch):
         # Nope, so now we see if we need an FGS job
         if useAnalyticSolution(inArgs):
             # It was, so let's get that solution
-            (cond, visc, diffCoeff) = ICFAnalytical_solution(inArgs.Density, inArgs.Charges, inArgs.Temperature)
-            bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
-            insertResult(rank, tag, dbPath, inArgs, bgkOutput, ResultProvenance.FGS)
+            results = getAnalyticSolution(inArgs)
+            insertResult(rank, tag, dbPath, inArgs, results, ResultProvenance.FGS)
         else:
             # Call fgs with args as scheduled job
             # job will write result back
@@ -472,6 +471,13 @@ def useAnalyticSolution(inputStruct):
     else:
         return False
 
+def getAnalyticSolution(inArgs):
+    if isinstance(inArgs, BGKInputs):
+        (cond, visc, diffCoeff) = ICFAnalytical_solution(inArgs.Density, inArgs.Charges, inArgs.Temperature)
+        bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
+        return bgkOutput
+    else:
+        raise Exception('Using Unsupported Analytic Solver')
 
 def pollAndProcessFGSRequests(configStruct, uname):
     numRanks = configStruct['ExpectedMPIRanks']
