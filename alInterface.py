@@ -448,15 +448,30 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch):
         # We had a hit, so send that
         insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB)
     else:
-        # Call fgs with args as scheduled job
-        # job will write result back
-        launchedJob = False
-        while(launchedJob == False):
-            queueJob = getQueueUsability(uname, configStruct)
-            if queueJob == True:
-                print("Processing REQ=" + str(reqID))
-                buildAndLaunchFGSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
-                launchedJob = True
+        # Nope, so now we see if we need an FGS job
+        if useAnalyticSolution(inArgs):
+            # It was, so let's get that solution
+            (cond, visc, diffCoeff) = ICFAnalytical_solution(inArgs.Density, inArgs.Charges, inArgs.Temperature)
+            bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
+            insertResult(rank, tag, dbPath, inArgs, bgkOutput, ResultProvenance.FGS)
+        else:
+            # Call fgs with args as scheduled job
+            # job will write result back
+            launchedJob = False
+            while(launchedJob == False):
+                queueJob = getQueueUsability(uname, configStruct)
+                if queueJob == True:
+                    print("Processing REQ=" + str(reqID))
+                    buildAndLaunchFGSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
+                    launchedJob = True
+
+def useAnalyticSolution(inputStruct):
+    if isinstance(inputStruct, BGKInputs):
+        # Diaw, put the checks here
+        return False
+    else:
+        return False
+
 
 def pollAndProcessFGSRequests(configStruct, uname):
     numRanks = configStruct['ExpectedMPIRanks']
