@@ -19,9 +19,9 @@ class ResultProvenance(IntEnum):
     FGS = 0
     ACTIVELEARNER = 2
     FAKE = 3
-    DB = 4
     FASTFGS = 5
     ANALYTIC = 6
+    DB = 7
 
 class LearnerBackend(IntEnum):
     MYSTIC = 1
