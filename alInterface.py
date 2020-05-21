@@ -278,8 +278,8 @@ def lammpsSpackBoilerplate(jobFile, configStruct):
     # Load lammps
     # TODO: Genralize this to support more than just MPI
     jobFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
-    jobFile.write("\tspack install lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0\n")
-    jobFile.write("\tspack load lammps+mpi %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0 arch=`spack arch`\n")
+    jobFile.write("\tspack install lammps+mpi~ffmpeg %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0\n")
+    jobFile.write("\tspack load lammps+mpi~ffmpeg %gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0 arch=`spack arch`\n")
     jobFile.write("\texport LAMMPS_BIN=lmp\n")
     jobFile.write("fi\n")
 
