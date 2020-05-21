@@ -2,11 +2,15 @@ import sqlite3
 import argparse
 import os
 import time
+import json
 from glueCodeTypes import SolverCode
+from glueArgParser import processGlueCodeArguments
 
 
 
-def initSQLTables(dbPath, packetType):
+def initSQLTables(configStruct):
+    dbPath = configStruct['dbFileName']
+    packetType = configStruct['solverCode']
     reqString = ""
     resString = ""
     gndString = ""
@@ -47,16 +51,6 @@ def initSQLTables(dbPath, packetType):
         time.sleep(1)
 
 if __name__ == "__main__":
-    defaultFName = "testDB.db"
-    defaultSolver = SolverCode.BGK
-    argParser = argparse.ArgumentParser(description='Python To Create DB Files for FGS and AL')
+    configStruct = processGlueCodeArguments()
 
-    argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
-    argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
-
-    args = vars(argParser.parse_args())
-
-    fName = args['db']
-    code = SolverCode(args['code'])
-
-    initSQLTables(fName, code)
+    initSQLTables(configStruct)

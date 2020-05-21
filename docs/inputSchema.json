@@ -1,0 +1,93 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Input Schema for GLUE Code",
+	"description": "A configuration to run GLUE code with",
+	"type": "object",
+	"properties": {
+		"tag": {
+			"description": "Tag to expect from solver code",
+			"type": "string"
+		},
+		"dbFileName": {
+			"description": "Filename to use for filesystem SQL database",
+			"type": "string"
+		},
+		"solverCode": {
+			"description": "Solver Code packets expected Corresponding to SolverCode Enum",
+			"type": "integer"
+		},
+		"glueCodeMode": {
+			"description": "Mode to Run GLUE Code in Corresponding to ALInterfaceMode Enum",
+			"type": "integer"
+		},
+		"alBackend": {
+			"description": "Active Learning Backend to use Corresponding to LearnerBackend Enum",
+			"type": "integer"
+		},
+		"GNDthreshold":{
+			"description": "Threshold for number of fine grain simulations before retraining active learning models",
+			"type": "integer"
+		},
+		"SQLitePath":{
+			"description": "Optional Path to SQLite binary",
+			"type": "string"
+		},
+		"SBatchPath":{
+			"description": "Optional path to sbatch binary",
+			"type": "string"
+		},
+		"LAMMPSPath":{
+			"description": "Optional path to LAMMPS Binary (if not using Spack)",
+			"type": "string"
+		},
+		"ExpectedMPIRanks":{
+			"description": "Number of MPI Ranks to expect from coarse grain solver",
+			"type": "integer"
+		},
+		"GenerateTrainingData":{
+			"description": "Generate Training Data if Running Appropriate Script",
+			"type": "boolean"
+		},
+		"ReadTrainingData":{
+			"description": "Read Out Training Data to CLI if Running Appropriate Script",
+			"type": "boolean"
+		},
+		"SchedulerInterface":{
+			"description": "Scheduler Mode/Interface to use corresponding to SchedulerInterface Enum",
+			"type": "integer"
+		},
+		"BlockingScheduler":{
+			"type": "object",
+			"description": "Parameters for Blocking (Shell) Scheduler",
+			"properties":{
+				"MPIRanksForBlockingRuns":{
+					"description": "If using blocking (shell) scheduler, the number of MPI ranks per fine grain task",
+					"type": "integer"
+				}
+			}
+		},
+		"SlurmScheduler":{
+			"type": "object",
+			"description": "Parameters for Slurm Scheduler",
+			"properties":{
+				"ThreadsPerMPIRankForSlurm":{
+					"description": "If using slurm scheduler, the number of 'threads' per MPI rank",
+					"type": "integer"
+				},
+				"NodesPerSlurmJob":{
+					"description": "If using slurm scheduler, the number of nodes per job",
+					"type": "integer"
+				},
+				"MaxSlurmJobs":{
+					"description": "If using slurm scheduler, the maximum number of concurrent jobs",
+					"type": "integer"
+				},
+				"SlurmPartition":{
+					"description": "If using slurm scheduler, what partition of nodes to request from",
+					"type": "string"
+				}
+			}
+		}
+	},
+	"required": ["tag", "dbFileName", "solverCode", "glueCodeMode", "SchedulerInterface"]
+}
