@@ -37,50 +37,50 @@ def getGNDStringAndTuple(fgsArgs):
     selString = ""
     selTup = ()
     if isinstance(fgsArgs, BGKInputs):
-        # Optimally find something bigger than machine epsilon
-        epsilon = np.finfo('float64').eps
+        # Percent error acceptable for a match
+        relError = 0.0001
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKGND WHERE "
         #Temperature
-        selString += "TEMPERATURE BETWEEN ? AND ? "
-        selTup += (fgsArgs.Temperature - epsilon, fgsArgs.Temperature + epsilon)
+        selString += "ABS(? - TEMPERATURE) / TEMPERATURE < ?"
+        selTup += (fgsArgs.Temperature, relError)
         selString += " AND "
         #Density
         for i in range(0, 4):
-            selString += "DENSITY_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (fgsArgs.Density[i] - epsilon, fgsArgs.Density[i] + epsilon)
+            selString += "ABS(? - DENSITY_" + str(i) + ") / DENSITY_" + str(i) + " < ?"
+            selTup += (fgsArgs.Density[i], relError)
             selString += " AND "
         #Charges
         for i in range(0, 4):
-            selString += "CHARGES_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (fgsArgs.Charges[i] - epsilon, fgsArgs.Charges[i] + epsilon)
+            selString += "ABS(? - CHARGES_" + str(i) + ") / CHARGES_" + str(i) + " < ?"
+            selTup += (fgsArgs.Charges[i], relError)
             selString += " AND "
         #Version
         selString += "INVERSION=?;"
         selTup += (getGroundishTruthVersion(SolverCode.BGK),)
     elif isinstance(fgsArgs, BGKMassesInputs):
-        # Optimally find something bigger than machine epsilon
-        epsilon = np.finfo('float64').eps
+        # Percent error acceptable for a match
+        relError = 0.0001
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKMASSESGND WHERE "
         #Temperature
-        selString += "TEMPERATURE BETWEEN ? AND ? "
-        selTup += (fgsArgs.Temperature - epsilon, fgsArgs.Temperature + epsilon)
+        selString += "ABS(? - TEMPERATURE) / TEMPERATURE < ?"
+        selTup += (fgsArgs.Temperature, relError)
         selString += " AND "
         #Density
         for i in range(0, 4):
-            selString += "DENSITY_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (fgsArgs.Density[i] - epsilon, fgsArgs.Density[i] + epsilon)
+            selString += "ABS(? - DENSITY_" + str(i) + ") / DENSITY_" + str(i) + " < ?"
+            selTup += (fgsArgs.Density[i], relError)
             selString += " AND "
         #Charges
         for i in range(0, 4):
-            selString += "CHARGES_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (fgsArgs.Charges[i] - epsilon, fgsArgs.Charges[i] + epsilon)
+            selString += "ABS(? - CHARGES_" + str(i) + ") / CHARGES_" + str(i) + " < ?"
+            selTup += (fgsArgs.Charges[i], relError)
             selString += " AND "
         #Masses
         for i in range(0, 4):
-            selString += "MASSES_" + str(i) + " BETWEEN ? AND ? "
-            selTup += (fgsArgs.Masses[i] - epsilon, fgsArgs.Masses[i] + epsilon)
+            selString += "ABS(? - MASSES_" + str(i) + ") / MASSES_" + str(i) + " < ?"
+            selTup += (fgsArgs.Masses[i], relError)
             selString += " AND "
         #Version
         selString += "INVERSION=?;"
