@@ -1,6 +1,6 @@
 #!/bin/bash
-python $(dirname $BASH_SOURCE)/initTables.py --db testDB.db
-python $(dirname $BASH_SOURCE)/alInterface.py --db testDB.db -t DUMMY_TAG_42 -m 3 -r 0 4 &
+python $(dirname $BASH_SOURCE)/initTables.py -i $(dirname $BASH_SOURCE)/jsonFiles/sniffTest_mpi.json
+python $(dirname $BASH_SOURCE)/alInterface.py -i $(dirname $BASH_SOURCE)/jsonFiles/sniffTest_mpi.json &
 mpirun -n 4 $(dirname $BASH_SOURCE)/sniffTest_serial
 if [ $? -eq 0 ]
 then

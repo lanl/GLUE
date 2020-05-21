@@ -19,14 +19,18 @@ class ResultProvenance(IntEnum):
     FGS = 0
     ACTIVELEARNER = 2
     FAKE = 3
-    DB = 4
     FASTFGS = 5
     ANALYTIC = 6
+    DB = 7
 
 class LearnerBackend(IntEnum):
     MYSTIC = 1
     PYTORCH = 2
     FAKE = 3
+
+class SchedulerInterface(IntEnum):
+    SLURM = 0
+    BLOCKING = 1
 
 # BGKInputs
 #  Temperature: float
