@@ -471,8 +471,9 @@ def useAnalyticSolution(inputStruct):
         lammpsTemperature = BGKInputs.Temperature
         lammpsIonization = np.array(BGKInputs.Charges)
         Z = sum(lammpsIonization*lammpsDens)/sum(lammpsDens)
-        a = (3./(4*np.pi*sum(lammpsDens))**(1./3.)
+        a = (3./(4*np.pi*sum(lammpsDens))**(1./3.))
         eSq = 1.44e-7
+        T = lammpsTemperature
         Gamma = Z*Z*eSq/a/T     #unitless
         if Gamma <= 0.1:
             return True
