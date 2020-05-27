@@ -448,15 +448,47 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch):
         # We had a hit, so send that
         insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB)
     else:
-        # Call fgs with args as scheduled job
-        # job will write result back
-        launchedJob = False
-        while(launchedJob == False):
-            queueJob = getQueueUsability(uname, configStruct)
-            if queueJob == True:
-                print("Processing REQ=" + str(reqID))
-                buildAndLaunchFGSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
-                launchedJob = True
+        # Nope, so now we see if we need an FGS job
+        if useAnalyticSolution(inArgs):
+            # It was, so let's get that solution
+            results = getAnalyticSolution(inArgs)
+            insertResult(rank, tag, dbPath, reqID, results, ResultProvenance.FGS)
+        else:
+            # Call fgs with args as scheduled job
+            # job will write result back
+            launchedJob = False
+            while(launchedJob == False):
+                queueJob = getQueueUsability(uname, configStruct)
+                if queueJob == True:
+                    print("Processing REQ=" + str(reqID))
+                    buildAndLaunchFGSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
+                    launchedJob = True
+
+def useAnalyticSolution(inputStruct):
+    if isinstance(inputStruct, BGKInputs):
+        # Diaw, put the checks here
+        lammpsDens = np.array(inputStruct.Density)
+        lammpsTemperature = inputStruct.Temperature
+        lammpsIonization = np.array(inputStruct.Charges)
+        Z = sum(lammpsIonization*lammpsDens)/sum(lammpsDens)
+        a = (3./(4*np.pi*sum(lammpsDens))**(1./3.))
+        eSq = 1.44e-7
+        T = lammpsTemperature
+        Gamma = Z*Z*eSq/a/T     #unitless
+        if Gamma <= 0.1:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def getAnalyticSolution(inArgs):
+    if isinstance(inArgs, BGKInputs):
+        (cond, visc, diffCoeff) = ICFAnalytical_solution(inArgs.Density, inArgs.Charges, inArgs.Temperature)
+        bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
+        return bgkOutput
+    else:
+        raise Exception('Using Unsupported Analytic Solver')
 
 def pollAndProcessFGSRequests(configStruct, uname):
     numRanks = configStruct['ExpectedMPIRanks']
