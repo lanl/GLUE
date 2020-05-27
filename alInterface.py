@@ -467,6 +467,19 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch):
 def useAnalyticSolution(inputStruct):
     if isinstance(inputStruct, BGKInputs):
         # Diaw, put the checks here
+        lammpsDens = np.array(BGKInputs.Density) 
+        lammpsTemperature = BGKInputs.Temperature
+        lammpsIonization = np.array(BGKInputs.Charges)
+        Z = sum(lammpsIonization*lammpsDens)/sum(lammpsDens)
+        a = (3./(4*np.pi*sum(lammpsDens))**(1./3.)
+        e2 = 1.44e-7
+        Gamma = Z*Z*e2/a/T     #unitless
+        
+        if Gamma <= 0.1:
+            use analytical
+        else:
+            use MD
+        
         return False
     else:
         return False
