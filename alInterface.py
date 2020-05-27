@@ -452,7 +452,7 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch):
         if useAnalyticSolution(inArgs):
             # It was, so let's get that solution
             results = getAnalyticSolution(inArgs)
-            insertResult(rank, tag, dbPath, inArgs, results, ResultProvenance.FGS)
+            insertResult(rank, tag, dbPath, reqID, results, ResultProvenance.FGS)
         else:
             # Call fgs with args as scheduled job
             # job will write result back
@@ -467,9 +467,9 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch):
 def useAnalyticSolution(inputStruct):
     if isinstance(inputStruct, BGKInputs):
         # Diaw, put the checks here
-        lammpsDens = np.array(BGKInputs.Density) 
-        lammpsTemperature = BGKInputs.Temperature
-        lammpsIonization = np.array(BGKInputs.Charges)
+        lammpsDens = np.array(inputStruct.Density)
+        lammpsTemperature = inputStruct.Temperature
+        lammpsIonization = np.array(inputStruct.Charges)
         Z = sum(lammpsIonization*lammpsDens)/sum(lammpsDens)
         a = (3./(4*np.pi*sum(lammpsDens))**(1./3.))
         eSq = 1.44e-7
