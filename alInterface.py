@@ -472,15 +472,12 @@ def useAnalyticSolution(inputStruct):
         lammpsIonization = np.array(BGKInputs.Charges)
         Z = sum(lammpsIonization*lammpsDens)/sum(lammpsDens)
         a = (3./(4*np.pi*sum(lammpsDens))**(1./3.)
-        e2 = 1.44e-7
-        Gamma = Z*Z*e2/a/T     #unitless
-        
+        eSq = 1.44e-7
+        Gamma = Z*Z*eSq/a/T     #unitless
         if Gamma <= 0.1:
-            use analytical
+            return True
         else:
-            use MD
-        
-        return False
+            return False
     else:
         return False
 
