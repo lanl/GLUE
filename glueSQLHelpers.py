@@ -1,12 +1,12 @@
 def getSQLArrGenString(fName, dType, length):
     tString = ""
     if dType == int:
-        tString = "int"
+        tString = "INT"
     elif dType == float:
-        tString = "real"
+        tString = "REAL"
     else:
         raise Exception('Requested Incompatible SQL Trype')
     retStr = ""
     for i in range(length):
-        retStr += fName + "_" + str(i) + " " + tString + " ,"
+        retStr += fName + "_" + str(i) + " " + tString + ", "
     return retStr
