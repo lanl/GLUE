@@ -2,6 +2,7 @@
 #define __alInterface_h
 
 #include <sqlite3.h>
+#include <math.h>
 
 enum ALInterfaceMode_e
 {
@@ -21,6 +22,23 @@ struct bgk_request_s
 	//n
 	double density[4];
 	double charges[4];
+
+	#ifdef __cplusplus
+	friend bool operator==(const bgk_request_s& lhs, const bgk_request_s& rhs)
+	{
+		bool areEqual = true;
+		const double tempEpsilon = 0.0001;
+		const double densEpsilon = 0.0001;
+		const double chargeEpsilon = 0.0001;
+		if (fabs(lhs.temperature - rhs.temperature)/ rhs.temperature > tempEpsilon) areEqual = false;
+		for(int i = 0; i < 4; i++)
+		{
+			if (fabs(lhs.density[i] - rhs.density[i]) /rhs.density[i] > densEpsilon) areEqual = false;
+			if (fabs(lhs.charges[i] - rhs.charges[i]) / rhs.charges[i] > chargeEpsilon) areEqual = false;
+		}
+		return areEqual;
+	}
+	#endif
 };
 
 struct bgk_result_s
@@ -30,6 +48,23 @@ struct bgk_result_s
 	//n*n+1/2
 	double diffusionCoefficient[10];
 	int provenance;
+
+	#ifdef __cplusplus
+	friend bool operator==(const bgk_result_s& lhs, const bgk_result_s& rhs)
+	{
+		bool areEqual = true;
+		const double viscEpsilon = 0.0001;
+		const double thermCondEpsilon = 0.0001;
+		const double diffEpsilon = 0.0001;
+		if (fabs(lhs.viscosity - rhs.viscosity) / rhs.viscosity > viscEpsilon) areEqual = false;
+		if (fabs(lhs.thermalConductivity - rhs.thermalConductivity) / rhs.thermalConductivity > thermCondEpsilon) areEqual = false;
+		for(int i = 0; i < 10; i++)
+		{
+			if (fabs(lhs.diffusionCoefficient[i] - rhs.diffusionCoefficient[i]) / rhs.diffusionCoefficient[i] > diffEpsilon) areEqual = false;
+		}
+		return areEqual;
+	}
+	#endif
 };
 
 struct bgkmasses_request_s

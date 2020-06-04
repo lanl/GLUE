@@ -2,5 +2,13 @@
 	"tag": "DUMMY_TAG_42",
 	"dbFileName": "testDB.db",
 	"glueCodeMode": 3,
-	"ExpectedMPIRanks": 1
+	"ExpectedMPIRanks": 1,
+	"solverCode": 0,
+	"SchedulerInterface": 0,
+	"SlurmScheduler":{
+		"ThreadsPerMPIRankForSlurm": 1,
+		"NodesPerSlurmJob": 1,
+		"MaxSlurmJobs": 1,
+		"SlurmPartition": "general"
+	}
 }

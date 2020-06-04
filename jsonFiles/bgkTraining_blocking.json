@@ -1,0 +1,10 @@
+{
+	"tag": "DUMMY_TAG_42",
+	"dbFileName": "testDB.db",
+	"glueCodeMode": 0,
+	"solverCode": 0,
+	"SchedulerInterface": 1,
+	"BlockingScheduler":{
+		"MPIRanksForBlockingRuns": 4
+	}
+}

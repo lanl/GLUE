@@ -40,7 +40,6 @@ def Lmf(n,m,Z,T):
     
     return 3*D(n,m,Z,T)/vth
 
-
 def mfp(n,m,Z,T):
     vth=np.sqrt(8*1.38e-23*T*11600/(np.pi*m*1.e-3))
     mpf=3*D(n,m,Z,T)*1.e-4/vth
@@ -78,7 +77,6 @@ def eta(n,m,Z,T,kappa=-1):
     eta = 5.0*np.sqrt(m)*T**2.5 / (16*np.sqrt(pi)*Z**4.0 * e2*e2*K22(gamma)) / np.sqrt(erg_to_ev)
     return  0.1*eta
 
-
 def Ktherm1(n,m,Z,T,kappa=-1):
     """Computes thermal conductivity coefficient of a single species.
         Input:  n     - 1/cm^3
@@ -110,7 +108,6 @@ def Ktherm1(n,m,Z,T,kappa=-1):
     
     
     return 1.e2*1.38e-23*Ktherm
-
 
 
 def D_ij(n1,n2,m1,m2,Z1,Z2,T,kappa=-1):
@@ -148,7 +145,6 @@ def D_ij(n1,n2,m1,m2,Z1,Z2,T,kappa=-1):
     
     
     return D_ij
-
 
 def eta2(n1,n2,m1,m2,Z1,Z2,T):
     """Calculates viscosity coefficient eta_tot for a binary mixture based on the
@@ -330,8 +326,6 @@ def Ktherm2(n1,n2,m1,m2,Z1,Z2,T):
     
     return 1.e2*1.38e-23*K #units W/m/K
 
-
-
 def K22(g):
     k22_WC=-0.5*np.log(0.85401*g-0.22898*g**2-0.60059*g**3+ 0.80591*g**4-0.30555*g**5)
     k22_SC=(0.43475-0.21147*np.log(g)+0.11116*(np.log(g))**2)/(1.+0.19665*g+0.15195*g**2)
@@ -344,7 +338,6 @@ def K11(g):
     k11_SC = (0.081033 - 0.091336*np.log(g) + 0.05176*np.log(g)**2)/(1.0 - 0.50026*g + 0.17044*g*g)
     
     return np.where(g < 1., k11_WC, k11_SC)
-
 
 def K12(g):
     k12_WC=-0.25*np.log(0.52094*g + 0.25153*g**2.0 - 1.1337*g**3.0 + 1.2155*g**4 - 0.43784*g**5)
@@ -381,7 +374,6 @@ def lam_eff1(n,m,Z,T):
     lam = 1.0/np.sqrt(lam)
     
     return lam
-
 
 def lam_e(n1,n2,m1,m2,Z1,Z2,T):
     
@@ -475,7 +467,6 @@ def gammaSM2(n1,n2,m1,m2,Z1,Z2,T,atot,kappa):
                               + 3.0*x2*Gamma22/(1.0 + 3.0*Gamma22*(x2/z2)**(1.0/3.0)) )
     return gamma
 
-
 def mfp(n1,m1,Z1,T,kappa=-1):
     
     D=D_ij(n1,n1,m1,m1,Z1,Z1,T,kappa=-1)
@@ -484,11 +475,8 @@ def mfp(n1,m1,Z1,T,kappa=-1):
     vth=np.sqrt(8*1.38e-23*T*11600/(np.pi*mred*1.e-3))
     return 3*D*1.e-4/vth
 
-
 def Wigner_Seitz_radius(n):
     return (3./(4.*np.pi*n))**(1./3.)
-
-
 
 def ICFAnalytical_solution(LammpsDens,LammpsCharges,LammpsTemperature):
     

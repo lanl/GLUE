@@ -1,7 +1,7 @@
 import argparse
 from alInterface import  insertResult,  getGroundishTruthVersion
 from glueCodeTypes import BGKOutputs, ALInterfaceMode, ResultProvenance, SolverCode
-from writeLammpsScript import write_output_coeff
+from writeBGKLammpsScript import write_output_coeff
 import numpy as np
 import sqlite3
 import os
