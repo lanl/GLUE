@@ -61,6 +61,17 @@ test:gnu:
   dependencies:
     - build:gnu
 
+test:gnu_mpi:
+  stage: test
+  tags:
+    - darwin-slurm-shared
+  script:
+    - source slurmScripts/darwin-gnu.sh
+    - mkdir mpi && cd mpi
+    - bash ../sniffTest_mpi.sh
+  dependencies:
+    - build:gnu
+
 test:intel:
   stage: test
   tags:
