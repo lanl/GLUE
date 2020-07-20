@@ -105,6 +105,6 @@ def processGlueCodeArguments():
         if not 'BlockingScheduler' in configStruct:
             configStruct['BlockingScheduler'] = {"MPIRanksForBlockingRuns":4}
     if code == SolverCode.BGK and not 'ICFParameters' in configStruct:
-        configStrict['ICFParameters'] =  {"RelativeError":0.0001}
+        configStruct['ICFParameters'] =  {"RelativeError":0.0001}
 
     return configStruct
