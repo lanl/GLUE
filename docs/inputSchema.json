@@ -66,6 +66,16 @@
 				}
 			}
 		},
+		"ICFParameters":{
+			"type": "object",
+			"description": "Paramters for ICF",
+			"properties":{
+				"RelativeError":{
+					"description": "Relative Error Threshold for ICF Comparisons",
+					"type":"number"
+				}
+			}
+		},
 		"SlurmScheduler":{
 			"type": "object",
 			"description": "Parameters for Slurm Scheduler",

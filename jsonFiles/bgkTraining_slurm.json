@@ -4,6 +4,9 @@
 	"glueCodeMode": 0,
 	"solverCode": 0,
 	"SchedulerInterface": 0,
+	"ICFParameters":{
+		"RelativeError": 0.0001
+	},
 	"SlurmScheduler":{
 		"ThreadsPerMPIRankForSlurm": 1,
 		"NodesPerSlurmJob": 1,
