@@ -558,7 +558,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     if isLegit:
                         insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
                     else:
-                        queueFGSJob(configStruct, uname, task[0], task[1], rank, ALInterfaceMode.LAMMPS)
+                        queueFGSJob(configStruct, uname, task[0], task[1], rank, ALInterfaceMode.FGS)
                 elif modeSwitch == ALInterfaceMode.FAKE:
                     if packetType == SolverCode.BGK:
                         # Simplest stencil imaginable
