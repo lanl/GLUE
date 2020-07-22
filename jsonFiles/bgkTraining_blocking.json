@@ -4,6 +4,9 @@
 	"glueCodeMode": 0,
 	"solverCode": 0,
 	"SchedulerInterface": 1,
+	"ICFParameters":{
+		"RelativeError": 0.0001
+	},
 	"BlockingScheduler":{
 		"MPIRanksForBlockingRuns": 4
 	}

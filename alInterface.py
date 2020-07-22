@@ -33,12 +33,12 @@ def getSelString(packetType):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def getGNDStringAndTuple(fgsArgs):
+def getGNDStringAndTuple(fgsArgs, configStruct):
     selString = ""
     selTup = ()
     if isinstance(fgsArgs, BGKInputs):
         # Percent error acceptable for a match
-        relError = 0.0001
+        relError = configStruct['ICFParameters']['RelativeError']
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKGND WHERE "
         #Temperature
@@ -434,7 +434,7 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch):
     # This is a brute force call. We only want an exact LAMMPS result
     # So first, check if we have already processed this request
     outFGS = None
-    selQuery = getGNDStringAndTuple(inArgs)
+    selQuery = getGNDStringAndTuple(inArgs, configStruct)
     sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
     for row in sqlCursor.execute(selQuery[0], selQuery[1]):
