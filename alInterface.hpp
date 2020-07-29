@@ -31,13 +31,13 @@ extern AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName);
 static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColName);
 
-template <typename T> void * getResCallback()
+template <typename T> int makeSQLRequest(sqlite3 * dbHandle, char * message, char * errOut)
 {
-	return (void*)dummyCallback;
+	return sqlite3_exec(dbHandle, message, dummyCallback, 0, &errOut);
 }
-template <> void * getResCallback<bgk_request_t>()
+template <> int makeSQLRequest<bgk_result_t>(sqlite3 * dbHandle, char * message, char * errOut)
 {
-	return (void*)readCallback_bgk;
+	return sqlite3_exec(dbHandle, message, readCallback_bgk, 0, &errOut);
 }
 
 template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
@@ -104,10 +104,10 @@ template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite
 	std::string sqlString = getReqSQLString<T>(input, mpiRank, tag, reqNum, reqType);
 	int sqlRet;
 	char *zErrMsg;
-	sqlRet = sqlite3_exec(dbHandle, sqlString.c_str(), dummyCallback, 0, &zErrMsg);
+	sqlRet = makeSQLRequest<void>(dbHandle, (char *)sqlString.c_str(), zErrMsg);
 	while( sqlRet != SQLITE_OK )
 	{
-		sqlRet = sqlite3_exec(dbHandle, sqlString.c_str(), dummyCallback, 0, &zErrMsg);
+		sqlRet = makeSQLRequest<void>(dbHandle, (char *)sqlString.c_str(), zErrMsg);
 		if(!(sqlRet == SQLITE_OK || sqlRet == SQLITE_BUSY || sqlRet == SQLITE_LOCKED))
 		{
 			fprintf(stderr, "Error in writeRequest_bgk\n");
@@ -136,11 +136,11 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * d
 		//Send SELECT with sqlite3_exec. 
 		std::string sqlString = getResultSQLString<T>(mpiRank, tag, reqNum);
 		sprintf(sqlBuf, sqlString.c_str(), reqNum, tag, mpiRank);
-		int rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_bgk, 0, &err);
+		int rc = makeSQLRequest<T>(dbHandle, sqlBuf, err);
 		while (rc != SQLITE_OK)
 		{
 			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
-			rc = sqlite3_exec(dbHandle, sqlBuf, readCallback_bgk, 0, &err);
+			rc = makeSQLRequest<T>(dbHandle, sqlBuf, err);
 			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
 			{
 				fprintf(stderr, "Error in bgk_req_single\n");
