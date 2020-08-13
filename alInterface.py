@@ -270,7 +270,25 @@ def slurmBoilerplate(jobFile, outDir, configStruct):
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
+def prepJobEnv(outPath, configStruct):
+    outFile = os.path.join(outPath, "jobEnv.sh")
+    if "JobEnvFile" in configStruct:
+        shutil.copy2(configStruct["JobEnvFile"], outFile)
+    else:
+        # Prioritize the local jobEnv.sh over the repo jobEnv.sh
+        cwdJobPath = os.path.join(os.getcwd(), "jobEnv.sh")
+        jobEnvFilePath = ""
+        if not os.path.exists(cwdJobPath):
+            jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
+        else:
+            jobEnvFilePath = cwdJobPath
+        shutil.copy2(jobEnvFilePath, outFile)
+
 def lammpsSpackBoilerplate(jobFile, configStruct):
+    if "SpackRoot" in configStruct:
+        jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
+        jobFile.write("\texport SPACK_ROOT=" + configStruct['SpackRoot'] + "\n")
+        jobFile.write("fi\n")
     # Call If spack exists, use it
     jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
     jobFile.write("\texport LAMMPS_BIN=" + configStruct['LAMMPSPath'] + "\n")
@@ -306,14 +324,8 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
             # Copy scripts and configuration files
             pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
             slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
-            # Prioritize the local jobEnv.sh over the repo jobEnv.sh
-            cwdJobPath = os.path.join(os.getcwd(), "jobEnv.sh")
-            jobEnvFilePath = ""
-            if not os.path.exists(cwdJobPath):
-                jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
-            else:
-                jobEnvFilePath = cwdJobPath
-            shutil.copy2(jobEnvFilePath, outPath)
+            # Job files
+            prepJobEnv(outPath, configStruct)
             bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
             # Generate input files
             lammpsScripts = writeBGKLammpsInputs(fgsArgs, outPath, glueMode)

@@ -56,6 +56,14 @@
 			"description": "Scheduler Mode/Interface to use corresponding to SchedulerInterface Enum",
 			"type": "integer"
 		},
+		"JobEnvFile": {
+			"description": "File to execute as part of job to set environments (modules, vars, etc)",
+			"type": "string"
+		},
+		"SpackRoot": {
+			"description": "Path to Spack (Overwritten by User Env)",
+			"type": "string"
+		},
 		"BlockingScheduler":{
 			"type": "object",
 			"description": "Parameters for Blocking (Shell) Scheduler",

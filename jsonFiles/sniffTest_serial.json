@@ -10,5 +10,6 @@
 		"NodesPerSlurmJob": 1,
 		"MaxSlurmJobs": 1,
 		"SlurmPartition": "general"
-	}
+	},
+	"SpackRoot": "/usr/projects/aldr/spack"
 }
