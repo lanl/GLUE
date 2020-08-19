@@ -57,7 +57,7 @@
 			"type": "integer"
 		},
 		"JobEnvFile": {
-			"description": "File to execute as part of job to set environments (modules, vars, etc)",
+			"description": "File to execute as part of job to set environments (modules, vars, etc). If not absolute will assume path exists in ${REPO}/envFiles",
 			"type": "string"
 		},
 		"SpackRoot": {

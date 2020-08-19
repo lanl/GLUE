@@ -270,19 +270,24 @@ def slurmBoilerplate(jobFile, outDir, configStruct):
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
-def prepJobEnv(outPath, configStruct):
+def prepJobEnv(outPath, jobEnvPath, configStruct):
     outFile = os.path.join(outPath, "jobEnv.sh")
+    jobEnvFilePath = ""
     if "JobEnvFile" in configStruct:
-        shutil.copy2(configStruct["JobEnvFile"], outFile)
+        # Check if path is absolute or relative
+        structPath = configStruct["JobEnvFile"]
+        if(os.path.isabs(structPath)):
+            jobEnvFilePath = configStruct["JobEnvFile"]
+        else:
+            jobEnvFilePath = os.path.join(jobEnvPath, structPath)
     else:
         # Prioritize the local jobEnv.sh over the repo jobEnv.sh
         cwdJobPath = os.path.join(os.getcwd(), "jobEnv.sh")
-        jobEnvFilePath = ""
         if not os.path.exists(cwdJobPath):
-            jobEnvFilePath = os.path.join(slurmEnvPath, "jobEnv.sh")
+            jobEnvFilePath = os.path.join(jobEnvPath, "jobEnv.sh")
         else:
             jobEnvFilePath = cwdJobPath
-        shutil.copy2(jobEnvFilePath, outFile)
+    shutil.copy2(jobEnvFilePath, outFile)
 
 def lammpsSpackBoilerplate(jobFile, configStruct):
     if "SpackRoot" in configStruct:
@@ -323,9 +328,9 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
             # cp ${SCRIPT_DIR}/lammpsScripts/${lammpsScript}
             # Copy scripts and configuration files
             pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
-            slurmEnvPath = os.path.join(pythonScriptDir, "slurmScripts")
+            jobEnvPath = os.path.join(pythonScriptDir, "envScripts")
             # Job files
-            prepJobEnv(outPath, configStruct)
+            prepJobEnv(outPath, jobEnvPath,  configStruct)
             bgkResultScript = os.path.join(pythonScriptDir, "processBGKResult.py")
             # Generate input files
             lammpsScripts = writeBGKLammpsInputs(fgsArgs, outPath, glueMode)
