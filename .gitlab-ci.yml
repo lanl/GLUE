@@ -7,7 +7,7 @@ build:gnu:
   tags:
     - darwin-slurm-shared
   script:
-    - source slurmScripts/darwin-gnu.sh
+    - source envScripts/darwin-gnu.sh
     - make all
     - make test
   artifacts:
@@ -23,7 +23,7 @@ build:intel:
   tags:
     - darwin-slurm-shared
   script:
-    - source slurmScripts/darwin-intel.sh
+    - source envScripts/darwin-intel.sh
     - make all CC=icpc CXX=icpc FC=ifort
     - make test CC=icpc CXX=icpc FC=ifort
   artifacts:
@@ -39,7 +39,7 @@ build:clang:
   tags:
     - darwin-slurm-shared
   script:
-    - source slurmScripts/darwin-clang.sh
+    - source envScripts/darwin-clang.sh
     - make all CC=clang CXX=clang++ FC=gfortran
     - make test CC=clang CXX=clang++ FC=gfortran
   artifacts:
@@ -55,7 +55,7 @@ test:gnu:
   tags:
    - darwin-slurm-shared
   script:
-    - source slurmScripts/darwin-gnu.sh
+    - source envScripts/darwin-gnu.sh
     - mkdir serial && cd serial
     - bash ../sniffTest_serial.sh
   dependencies:
@@ -66,7 +66,7 @@ test:intel:
   tags:
    - darwin-slurm-shared
   script:
-    - source slurmScripts/darwin-intel.sh
+    - source envScripts/darwin-intel.sh
     - mkdir serial && cd serial
     - bash ../sniffTest_serial.sh
   dependencies:
@@ -77,7 +77,7 @@ test:clang:
   tags:
    - darwin-slurm-shared
   script:
-    - source slurmScripts/darwin-clang.sh
+    - source envScripts/darwin-clang.sh
     - mkdir serial && cd serial
     - bash ../sniffTest_serial.sh
   dependencies:
