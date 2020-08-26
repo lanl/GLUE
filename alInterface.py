@@ -425,7 +425,7 @@ class BGKPytorchInterpModel(InterpModelWrapper):
 
 def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance):
     if isinstance(fgsResult, BGKOutputs):
-        sqlDB = sqlite3.connect(dbPath)
+        sqlDB = sqlite3.connect(dbPath, timeout=60.0)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
@@ -434,7 +434,7 @@ def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance):
         sqlCursor.close()
         sqlDB.close()
     elif isinstance(fgsResult, BGKMassesOutputs):
-        sqlDB = sqlite3.connect(dbPath)
+        sqlDB = sqlite3.connect(dbPath, timeout=60.0)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
