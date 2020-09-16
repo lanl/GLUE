@@ -254,7 +254,7 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
-def slurmBoilerplate(jobFile, outDir, configStruct):
+def jobScriptBoilerplate(jobFile, outDir, configStruct):
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
         jobFile.write("#!/bin/bash\n")
         jobFile.write("#SBATCH -N " + str(configStruct['SlurmScheduler']['NodesPerSlurmJob']) + "\n")
@@ -342,7 +342,7 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
             scriptFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
             with open(scriptFPath, 'w') as slurmFile:
                 # Make Header
-                slurmBoilerplate(slurmFile, outDir, configStruct)
+                jobScriptBoilerplate(slurmFile, outDir, configStruct)
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Set LAMMPS_BIN
