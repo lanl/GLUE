@@ -32,10 +32,6 @@
 			"description": "Optional Path to SQLite binary",
 			"type": "string"
 		},
-		"SBatchPath":{
-			"description": "Optional path to sbatch binary",
-			"type": "string"
-		},
 		"LAMMPSPath":{
 			"description": "Optional path to LAMMPS Binary (if not using Spack)",
 			"type": "string"
@@ -102,6 +98,10 @@
 				},
 				"SlurmPartition":{
 					"description": "If using slurm scheduler, what partition of nodes to request from",
+					"type": "string"
+				},
+				"SBatchPath":{
+					"description": "Optional path to sbatch binary",
 					"type": "string"
 				}
 			}

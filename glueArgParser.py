@@ -58,8 +58,6 @@ def processGlueCodeArguments():
     if not 'SQLitePath' in configStruct:
         configStruct['SQLitePath'] = sqlite
     sbatch = args['sbatch']
-    if not 'SBatchPath' in configStruct:
-        configStruct['SBatchPath'] = sbatch
     ranks = args['ranks']
     if not 'ExpectedMPIRanks' in configStruct:
         configStruct['ExpectedMPIRanks'] = ranks
@@ -100,7 +98,7 @@ def processGlueCodeArguments():
         configStruct['SchedulerInterface'] = SchedulerInterface(configStruct['SchedulerInterface'])
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
         if not 'SlurmScheduler' in configStruct:
-            configStruct['SlurmScheduler'] = {"ThreadsPerMPIRankForSlurm":1, "NodesPerSlurmJob":1, "MaxSlurmJobs":4, "SlurmPartition":"general"}
+            configStruct['SlurmScheduler'] = {"ThreadsPerMPIRankForSlurm":1, "NodesPerSlurmJob":1, "MaxSlurmJobs":4, "SlurmPartition":"general","SBatchPath":sbatch}
     if configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         if not 'BlockingScheduler' in configStruct:
             configStruct['BlockingScheduler'] = {"MPIRanksForBlockingRuns":4}
