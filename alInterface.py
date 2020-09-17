@@ -262,15 +262,19 @@ def jobScriptBoilerplate(jobFile, outDir, configStruct):
         jobFile.write("#SBATCH -e " + outDir + "-%j.err\n")
         jobFile.write("#SBATCH -p " + str(configStruct['SlurmScheduler']['SlurmPartition']) + "\n")
         jobFile.write("export LAUNCHER_BIN=srun\n")
-        jobFile.write("export NMPI_RANKS=\"$((`lstopo --only pu | wc -l` * ${SLURM_NNODES} / " + str(configStruct['SlurmScheduler']['ThreadsPerMPIRankForSlurm']) + "  ))\"\n")
+        jobFile.write("export JOB_DISTR_ARGS=\"-n $((`lstopo --only pu | wc -l` * ${SLURM_NNODES} / " + str(configStruct['SlurmScheduler']['ThreadsPerMPIRankForSlurm']) + "  ))\"\n")
     elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         jobFile.write("#!/bin/bash\n")
         jobFile.write("export LAUNCHER_BIN=mpirun\n")
-        jobFile.write("export NMPI_RANKS="+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\n")
+        jobFile.write("export JOB_DISTR_ARGS=\"-n "+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\"\n")
     elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
         jobFile.write("#!/bin/bash\n")
-        jobFile.write("export LAUNCHER_BIN=flux mini run\n")
-        #jobFile.write("export NMPI_RANKS="+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\n")
+        jobFile.write("export LAUNCHER_BIN=\"flux mini run\"\n")
+        jobFile.wirte("export JOB_DISTR_ARGS=\"" + \
+            "--nslots=" + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + \
+            " --cores-per-slot=" + str(configStruct['FluxScheduler']['CoresPerSlotForFlux']) + \
+            " --nodes=" + str(configStruct['FluxScheduler']['NodesPerJobForFlux']) + \
+            "\"\n")
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
@@ -353,7 +357,7 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
                 lammpsSpackBoilerplate(slurmFile, configStruct)
                 # Actually call lammps
                 for lammpsScript in lammpsScripts:
-                    slurmFile.write("${LAUNCHER_BIN} -n ${NMPI_RANKS} ${LAMMPS_BIN} < " + lammpsScript + " \n")
+                    slurmFile.write("${LAUNCHER_BIN} ${JOB_DISTR_ARGS} ${LAMMPS_BIN} < " + lammpsScript + " \n")
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
