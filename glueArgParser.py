@@ -102,6 +102,9 @@ def processGlueCodeArguments():
     if configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         if not 'BlockingScheduler' in configStruct:
             configStruct['BlockingScheduler'] = {"MPIRanksForBlockingRuns":4}
+    if configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
+        if not 'FluxScheduler' in configStruct:
+            configStruct['FluxScheduler'] = {"SlotsPerJobForFlux":1, "CoresPerSlotForFlux":1, "NodesPerJobForFlux":1}
     if code == SolverCode.BGK and not 'ICFParameters' in configStruct:
         configStruct['ICFParameters'] =  {"RelativeError":0.0001}
 

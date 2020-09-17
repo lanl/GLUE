@@ -205,6 +205,8 @@ def getQueueUsability(uname, configStruct):
             return True
     elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         return True
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
+        return True
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
