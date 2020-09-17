@@ -267,6 +267,10 @@ def jobScriptBoilerplate(jobFile, outDir, configStruct):
         jobFile.write("#!/bin/bash\n")
         jobFile.write("export LAUNCHER_BIN=mpirun\n")
         jobFile.write("export NMPI_RANKS="+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\n")
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
+        jobFile.write("#!/bin/bash\n")
+        jobFile.write("export LAUNCHER_BIN=flux mini run\n")
+        #jobFile.write("export NMPI_RANKS="+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\n")
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
