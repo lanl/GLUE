@@ -105,6 +105,24 @@
 					"type": "string"
 				}
 			}
+		},
+		"FluxScheduler":{
+			"type": "object",
+			"description": "Parameters for Flux Scheduler",
+			"properties":{
+				"SlotsPerJobForFlux":{
+					"description": "Number of 'slots' per job in flux",
+					"type": "integer"
+				},
+				"CoresPerSlotForFlux":{
+					"description": "Number of cores per 'slot' in flux",
+					"type": "integer"
+				},
+				"NodesPerJobForFlux":{
+					"description": "Number of nodes per 'slot' flux",
+					"type": "integer"
+				}
+			}
 		}
 	},
 	"required": ["tag", "dbFileName", "solverCode", "glueCodeMode", "SchedulerInterface"]
