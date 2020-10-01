@@ -27,9 +27,9 @@ module snifftest_f
 		req%density(1) = 6.0
 		req%charges(4) = 5.0
 	
-		dbHandle = initDB_f(mpiHandle, "foo.db"//CHAR(0))
+		dbHandle = initDB_f(mpiHandle, "testDB.db"//CHAR(0))
 	
-		ret = bgk_req_single_f(req, mpiHandle, "TAG"//CHAR(0), dbHandle)
+		ret = bgk_req_single_f(req, mpiHandle, "DUMMY_TAG_42"//CHAR(0), dbHandle)
 		print *,ret%diffusionCoefficient(8)
 		print *, "Should have been 5.0"
 	
@@ -51,13 +51,13 @@ module snifftest_f
 		batchReq(7)%density(1) = 22.0
 		batchReq(7)%charges(4) = 3.0
 	
-		batchRet => bgk_req_batch_f(batchReq, 12,  mpiHandle, "TAG"//CHAR(0), dbHandle)
+		batchRet => bgk_req_batch_f(batchReq, 12,  mpiHandle, "DUMMY_TAG_42"//CHAR(0), dbHandle)
 		print *,batchRet(7)%diffusionCoefficient(8)
 		print *,"Should have been 10"
 		call bgk_resFreeWrapper_f(batchRet)
 	
 	
-		call bgk_stop_service_f(mpiHandle, "TAG"//CHAR(0), dbHandle)
+		call bgk_stop_service_f(mpiHandle, "DUMMY_TAG_42"//CHAR(0), dbHandle)
 		call closeDB_f(dbHandle)	
 	end subroutine sniffTester_f
 

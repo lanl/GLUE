@@ -5,11 +5,11 @@ $(dirname $BASH_SOURCE)/sniffTest_fortranBGK
 if [ $? -eq 0 ]
 then
   sleep 2
-  rm ./foo.db
+  rm ./testDB.db
   exit 0
 else
   sleep 2
-  rm ./foo.db
+  rm ./testDB.db
   echo "Fortran Sniff Test Failed"
   exit 1
 fi
