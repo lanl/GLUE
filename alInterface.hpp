@@ -102,9 +102,8 @@ template <> std::string getResultSQLString<lbmToOneDMD_result_t>(int mpiRank, ch
 template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
 {
 	std::string sqlString = getReqSQLString<T>(input, mpiRank, tag, reqNum, reqType);
-	int sqlRet;
-	char *zErrMsg;
-	sqlRet = makeSQLRequest<void>(dbHandle, (char *)sqlString.c_str(), &zErrMsg);
+	char *zErrMsg = nullptr;
+	int sqlRet = makeSQLRequest<void>(dbHandle, (char *)sqlString.c_str(), &zErrMsg);
 	while( sqlRet != SQLITE_OK )
 	{
 		sqlRet = makeSQLRequest<void>(dbHandle, (char *)sqlString.c_str(), &zErrMsg);
