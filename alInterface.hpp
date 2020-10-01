@@ -112,6 +112,7 @@ template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite
 		{
 			fprintf(stderr, "Error in writeRequest<T>\n");
 			fprintf(stderr, "SQL error %d: %s\n", sqlRet, zErrMsg);
+			fprintf(stderr, "SQL Message: %s\n", sqlString.c_str());
 			sqlite3_free(zErrMsg);
 			sqlite3_close(dbHandle);
 			exit(1);
