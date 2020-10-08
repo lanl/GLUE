@@ -64,6 +64,10 @@
 			"description": "Path to Spack (Overwritten by User Env)",
 			"type": "string"
 		},
+		"SpackCompilerAndMPI":{
+			"description": "Compiler and MPI String to pass Spack",
+			"type": "string"
+		},
 		"BlockingScheduler":{
 			"type": "object",
 			"description": "Parameters for Blocking (Shell) Scheduler",
