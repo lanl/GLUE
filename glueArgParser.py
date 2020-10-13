@@ -83,8 +83,8 @@ def processGlueCodeArguments():
         configStruct['GNDthreshold'] = GNDthreshold
     if(configStruct['GNDthreshold'] < 0):
         configStruct['GNDthreshold'] = sys.maxsize
-    if not 'SpackCompilerAndMPI' in configStruct:
-        configStruct['SpackCompilerAndMPI'] = "%gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0"
+    if not 'SpackVariables' in configStruct:
+        configStruct['SpackVariables'] = {'SpackCompilerAndMPI':"%gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0", "SpackLAMMPS":"lammps+mpi~ffmpeg"}
     genOrRead = args['genorread']
     if not 'GenerateTrainingData' in configStruct:
         if(genOrRead == 0):

@@ -7,12 +7,15 @@
 	"ICFParameters":{
 		"RelativeError": 0.0001
 	},
-	"SpackCompilerAndMPI": "%gcc@9.3.0 ^openmpi@3.1.6%gcc@9.3.0",
+	"SpackVariables":{
+		"SpackRoot": "/usr/projects/aldr/spack",
+		"SpackCompilerAndMPI": "%gcc@9.3.0 ^openmpi@3.1.6%gcc@9.3.0",
+		"SpackLAMMPS": "lammps+mpi~ffmpeg~openmp"
+	},
 	"SlurmScheduler":{
 		"ThreadsPerMPIRankForSlurm": 1,
 		"NodesPerSlurmJob": 1,
 		"MaxSlurmJobs": 4,
 		"SlurmPartition": "standard"
-	},
-	"SpackRoot": "/usr/projects/aldr/spack"
+	}
 }

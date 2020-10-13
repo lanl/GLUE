@@ -290,9 +290,9 @@ def prepJobEnv(outPath, jobEnvPath, configStruct):
     shutil.copy2(jobEnvFilePath, outFile)
 
 def lammpsSpackBoilerplate(jobFile, configStruct):
-    if "SpackRoot" in configStruct:
+    if "SpackRoot" in configStruct['SpackVariables']:
         jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
-        jobFile.write("\texport SPACK_ROOT=" + configStruct['SpackRoot'] + "\n")
+        jobFile.write("\texport SPACK_ROOT=" + configStruct['SpackVariables']['SpackRoot'] + "\n")
         jobFile.write("fi\n")
     # Call If spack exists, use it
     jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
@@ -303,8 +303,8 @@ def lammpsSpackBoilerplate(jobFile, configStruct):
     jobFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
     jobFile.write("\tspack env create -d .\n")
     jobFile.write("\tspack env activate `pwd`\n")
-    jobFile.write("\tspack install lammps+mpi~ffmpeg " + configStruct['SpackCompilerAndMPI'] + "\n")
-    jobFile.write("\tspack load lammps+mpi~ffmpeg " + configStruct['SpackCompilerAndMPI'] + "\n")
+    jobFile.write("\tspack install lammps+mpi~ffmpeg " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
+    jobFile.write("\tspack load " + configStruct['SpackVariables']['SpackLAMMPS'] +  " " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
     jobFile.write("\texport LAMMPS_BIN=lmp\n")
     jobFile.write("fi\n")
 
