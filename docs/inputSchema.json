@@ -60,9 +60,23 @@
 			"description": "File to execute as part of job to set environments (modules, vars, etc). If not absolute will assume path exists in ${REPO}/envFiles",
 			"type": "string"
 		},
-		"SpackRoot": {
-			"description": "Path to Spack (Overwritten by User Env)",
-			"type": "string"
+		"SpackVariables":{
+			"type": "object",
+			"description": "Paramters for Spack",
+			"properties": {
+				"SpackRoot": {
+					"description": "Path to Spack (Overwritten by User Env)",
+					"type": "string"
+				},
+				"SpackCompilerAndMPI":{
+					"description": "Compiler and MPI String to pass Spack",
+					"type": "string"
+				},
+				"SpackLAMMPS":{
+					"description": "Spack spec for LAMMPS",
+					"type": "string"
+				}
+			}
 		},
 		"BlockingScheduler":{
 			"type": "object",
