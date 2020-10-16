@@ -178,10 +178,10 @@ def checkSlurmQueue(uname):
         print(err, file=sys.stderr)
         return ""
 
-def launchJobScript(binary, script, wantReturn):
+def launchJobScript(binary, script, wantReturn, extraArgs=[]):
     try:
         runproc = subprocess.run(
-            [binary, script],
+            [binary] + extraArgs + [script],
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE
         )
@@ -272,10 +272,10 @@ def jobScriptBoilerplate(jobFile, outDir, configStruct):
     elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
         jobFile.write("#!/bin/bash\n")
         jobFile.write("export LAUNCHER_BIN=\"flux mini run\"\n")
-        jobFile.wirte("export JOB_DISTR_ARGS=\"" + \
-            "--nslots=" + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + \
-            " --cores-per-slot=" + str(configStruct['FluxScheduler']['CoresPerSlotForFlux']) + \
-            " --nodes=" + str(configStruct['FluxScheduler']['NodesPerJobForFlux']) + \
+        jobFile.write("export JOB_DISTR_ARGS=\"" + \
+            "-N " + str(configStruct['FluxScheduler']['NodesPerJobForFlux']) + \
+            " -n " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + \
+            " -c " + str(configStruct['FluxScheduler']['CoresPerSlotForFlux']) + \
             "\"\n")
     else:
         raise Exception('Using Unsupported Scheduler Mode')
@@ -323,6 +323,15 @@ def launchFGSJob(jobFile, configStruct):
         launchJobScript("sbatch", jobFile, True)
     elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         launchJobScript("bash", jobFile, False)
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
+        argList = ["mini", "batch"]
+        argList += ["-n"]
+        argList += [str(configStruct['FluxScheduler']['SlotsPerJobForFlux'])]
+        argList += ["-c"]
+        argList += [str(configStruct['FluxScheduler']['CoresPerSlotForFlux'])]
+        argList += ["-N"]
+        argList += [str(configStruct['FluxScheduler']['NodesPerJobForFlux'])]
+        launchJobScript("flux", jobFile, False, extraArgs=argList)
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
