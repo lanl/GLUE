@@ -125,15 +125,15 @@
 			"description": "Parameters for Flux Scheduler",
 			"properties":{
 				"SlotsPerJobForFlux":{
-					"description": "Number of 'slots' per job in flux",
+					"description": "Number of 'slots' per job in flux: This is the number of MPI Ranks",
 					"type": "integer"
 				},
 				"CoresPerSlotForFlux":{
-					"description": "Number of cores per 'slot' in flux",
+					"description": "Number of cores per 'slot' in flux: probably 1",
 					"type": "integer"
 				},
 				"NodesPerJobForFlux":{
-					"description": "Number of nodes per 'slot' flux",
+					"description": "Number of nodes per 'slot' flux: probably 1",
 					"type": "integer"
 				}
 			}

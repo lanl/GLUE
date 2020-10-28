@@ -8,13 +8,13 @@
 		"RelativeError": 0.0001
 	},
 	"FluxScheduler":{
-		"SlotsPerJobForFlux": 1,
-		"CoresPerSlotForFlux": 24,
+		"SlotsPerJobForFlux": 16,
+		"CoresPerSlotForFlux": 1,
 		"NodesPerJobForFlux": 1
 	},
 	"SpackVariables":{
 		"SpackRoot": "/usr/projects/aldr/spack",
-		"SpackCompilerAndMPI": "%gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0",
+		"SpackCompilerAndMPI": "%gcc@7.3.0 ^mpich@3.3.0%gcc@7.3.0",
 		"SpackLAMMPS": "lammps+mpi~ffmpeg"
 	}
 }

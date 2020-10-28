@@ -315,7 +315,7 @@ def lammpsSpackBoilerplate(jobFile, configStruct):
     jobFile.write("\tspack env activate `pwd`\n")
     jobFile.write("\tspack install lammps+mpi~ffmpeg " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
     jobFile.write("\tspack load " + configStruct['SpackVariables']['SpackLAMMPS'] +  " " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
-    jobFile.write("\texport LAMMPS_BIN=lmp\n")
+    jobFile.write("\texport LAMMPS_BIN=`which lmp`\n")
     jobFile.write("fi\n")
 
 def launchFGSJob(jobFile, configStruct):
