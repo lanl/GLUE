@@ -5,6 +5,7 @@ import collections
 from collections.abc import Iterable
 from SM import Wigner_Seitz_radius
 import os
+import stat
 import shutil
 import numpy as np
 import csv
@@ -271,12 +272,14 @@ def jobScriptBoilerplate(jobFile, outDir, configStruct):
         jobFile.write("export JOB_DISTR_ARGS=\"-n "+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\"\n")
     elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
         jobFile.write("#!/bin/bash\n")
-        jobFile.write("export LAUNCHER_BIN=\"flux mini run\"\n")
-        jobFile.write("export JOB_DISTR_ARGS=\"" + \
-            "-N " + str(configStruct['FluxScheduler']['NodesPerJobForFlux']) + \
-            " -n " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + \
-            " -c " + str(configStruct['FluxScheduler']['CoresPerSlotForFlux']) + \
-            "\"\n")
+        jobFile.write("export LAUNCHER_BIN=`which mpirun`\n")
+        jobFile.write("export JOB_DISTR_ARGS=\"-np " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + "\"\n")
+        # jobFile.write("export LAUNCHER_BIN=\"flux mini run\"\n")
+        # jobFile.write("export JOB_DISTR_ARGS=\"" + \
+        #     "-N " + str(configStruct['FluxScheduler']['NodesPerJobForFlux']) + \
+        #     " -n " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + \
+        #     " -c " + str(configStruct['FluxScheduler']['CoresPerSlotForFlux']) + \
+        #     "\"\n")
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
@@ -304,8 +307,11 @@ def lammpsSpackBoilerplate(jobFile, configStruct):
         jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
         jobFile.write("\texport SPACK_ROOT=" + configStruct['SpackVariables']['SpackRoot'] + "\n")
         jobFile.write("fi\n")
+    #TODO: Generalize and json-ify this rather than hacking it
     # Call If spack exists, use it
-    jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
+    jobFile.write("if [ -n \"${GLUE_OVERRIDE}\" ]; then\n")
+    jobFile.write("\texport LAMMPS_BIN=`which lmp`\n")
+    jobFile.write("elif [ -z \"${SPACK_ROOT}\" ]; then\n")
     jobFile.write("\texport LAMMPS_BIN=" + configStruct['LAMMPSPath'] + "\n")
     jobFile.write("else\n")
     # Load lammps
@@ -372,7 +378,11 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
-                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(glueMode.value) + " -c " + str(solverCode.value) + "\n")
+                slurmFile.write("`which python 3` " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(glueMode.value) + " -c " + str(solverCode.value) + "\n")
+                slurmFile.write("\n")
+            #Chmod+x that script
+            st = os.stat(scriptFPath)
+            os.chmod(scriptFPath, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
             # either syscall or subprocess.run slurm with the script
             launchFGSJob(scriptFPath, configStruct)
             # Then do nothing because the script itself will write the result
