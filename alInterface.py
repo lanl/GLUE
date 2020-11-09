@@ -273,13 +273,13 @@ def jobScriptBoilerplate(jobFile, outDir, configStruct):
     elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
         jobFile.write("#!/bin/bash\n")
         jobFile.write("export LAUNCHER_BIN=`which mpirun`\n")
-        jobFile.write("export JOB_DISTR_ARGS=\"-np " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + "\"\n")
-        # jobFile.write("export LAUNCHER_BIN=\"flux mini run\"\n")
-        # jobFile.write("export JOB_DISTR_ARGS=\"" + \
-        #     "-N " + str(configStruct['FluxScheduler']['NodesPerJobForFlux']) + \
-        #     " -n " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + \
-        #     " -c " + str(configStruct['FluxScheduler']['CoresPerSlotForFlux']) + \
-        #     "\"\n")
+        # jobFile.write("export JOB_DISTR_ARGS=\"-np " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + "\"\n")
+        jobFile.write("export LAUNCHER_BIN=\"flux mini run\"\n")
+        jobFile.write("export JOB_DISTR_ARGS=\"" + \
+            "-N " + str(configStruct['FluxScheduler']['NodesPerJobForFlux']) + \
+            " -n " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + \
+            " -c " + str(configStruct['FluxScheduler']['CoresPerSlotForFlux']) + \
+            "\"\n")
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
@@ -337,7 +337,7 @@ def launchFGSJob(jobFile, configStruct):
         argList += [str(configStruct['FluxScheduler']['CoresPerSlotForFlux'])]
         argList += ["-N"]
         argList += [str(configStruct['FluxScheduler']['NodesPerJobForFlux'])]
-        launchJobScript("flux", jobFile, False, extraArgs=argList)
+        launchJobScript("flux", jobFile, True, extraArgs=argList)
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
@@ -378,7 +378,7 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
-                slurmFile.write("`which python 3` " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(glueMode.value) + " -c " + str(solverCode.value) + "\n")
+                slurmFile.write("`which python3` " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(glueMode.value) + " -c " + str(solverCode.value) + "\n")
                 slurmFile.write("\n")
             #Chmod+x that script
             st = os.stat(scriptFPath)
