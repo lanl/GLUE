@@ -43,19 +43,22 @@ def getGNDStringAndTuple(fgsArgs, configStruct):
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKGND WHERE "
         #Temperature
+        #TODO: Probably verify temperature is not 0 but temperature probably won't be
         selString += "ABS(? - TEMPERATURE) / TEMPERATURE < ?"
         selTup += (fgsArgs.Temperature, relError)
         selString += " AND "
         #Density
         for i in range(0, 4):
-            selString += "ABS(? - DENSITY_" + str(i) + ") / DENSITY_" + str(i) + " < ?"
-            selTup += (fgsArgs.Density[i], relError)
-            selString += " AND "
+            if(fgsArgs.Density[i] != 0.0):
+                selString += "ABS(? - DENSITY_" + str(i) + ") / DENSITY_" + str(i) + " < ?"
+                selTup += (fgsArgs.Density[i], relError)
+                selString += " AND "
         #Charges
         for i in range(0, 4):
-            selString += "ABS(? - CHARGES_" + str(i) + ") / CHARGES_" + str(i) + " < ?"
-            selTup += (fgsArgs.Charges[i], relError)
-            selString += " AND "
+            if(fgsArgs.Charges[i] != 0.0):
+                selString += "ABS(? - CHARGES_" + str(i) + ") / CHARGES_" + str(i) + " < ?"
+                selTup += (fgsArgs.Charges[i], relError)
+                selString += " AND "
         #Version
         selString += "INVERSION=?;"
         selTup += (getGroundishTruthVersion(SolverCode.BGK),)
