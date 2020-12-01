@@ -32,10 +32,6 @@
 			"description": "Optional Path to SQLite binary",
 			"type": "string"
 		},
-		"SBatchPath":{
-			"description": "Optional path to sbatch binary",
-			"type": "string"
-		},
 		"LAMMPSPath":{
 			"description": "Optional path to LAMMPS Binary (if not using Spack)",
 			"type": "string"
@@ -56,13 +52,17 @@
 			"description": "Scheduler Mode/Interface to use corresponding to SchedulerInterface Enum",
 			"type": "integer"
 		},
+		"ProvisioningInterface":{
+			"description": "Provisioning Method to use corresponding to ProvisioningInterface Enum",
+			"type": "integer"
+		},
 		"JobEnvFile": {
 			"description": "File to execute as part of job to set environments (modules, vars, etc). If not absolute will assume path exists in ${REPO}/envFiles",
 			"type": "string"
 		},
 		"SpackVariables":{
 			"type": "object",
-			"description": "Paramters for Spack",
+			"description": "Parameters for Spack",
 			"properties": {
 				"SpackRoot": {
 					"description": "Path to Spack (Overwritten by User Env)",
@@ -117,6 +117,28 @@
 				"SlurmPartition":{
 					"description": "If using slurm scheduler, what partition of nodes to request from",
 					"type": "string"
+				},
+				"SBatchPath":{
+					"description": "Optional path to sbatch binary",
+					"type": "string"
+				}
+			}
+		},
+		"FluxScheduler":{
+			"type": "object",
+			"description": "Parameters for Flux Scheduler",
+			"properties":{
+				"SlotsPerJobForFlux":{
+					"description": "Number of 'slots' per job in flux: This is the number of MPI Ranks",
+					"type": "integer"
+				},
+				"CoresPerSlotForFlux":{
+					"description": "Number of cores per 'slot' in flux: probably 1",
+					"type": "integer"
+				},
+				"NodesPerJobForFlux":{
+					"description": "Number of nodes per 'slot' flux: probably 1",
+					"type": "integer"
 				}
 			}
 		}

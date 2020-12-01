@@ -31,6 +31,11 @@ class LearnerBackend(IntEnum):
 class SchedulerInterface(IntEnum):
     SLURM = 0
     BLOCKING = 1
+    FLUX = 2
+
+class ProvisioningInterface(IntEnum):
+    SPACK = 0
+    MANUAL = 1
 
 # BGKInputs
 #  Temperature: float

@@ -5,6 +5,7 @@ import collections
 from collections.abc import Iterable
 from SM import Wigner_Seitz_radius
 import os
+import stat
 import shutil
 import numpy as np
 import csv
@@ -14,7 +15,7 @@ import getpass
 import sys
 import json
 from writeBGKLammpsScript import check_zeros_trace_elements
-from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface
+from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface, ProvisioningInterface
 from contextlib import redirect_stdout, redirect_stderr
 from Screened_Boltzman_solution import ICFAnalytical_solution
 from glueArgParser import processGlueCodeArguments
@@ -42,19 +43,22 @@ def getGNDStringAndTuple(fgsArgs, configStruct):
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKGND WHERE "
         #Temperature
+        #TODO: Probably verify temperature is not 0 but temperature probably won't be
         selString += "ABS(? - TEMPERATURE) / TEMPERATURE < ?"
         selTup += (fgsArgs.Temperature, relError)
         selString += " AND "
         #Density
         for i in range(0, 4):
-            selString += "ABS(? - DENSITY_" + str(i) + ") / DENSITY_" + str(i) + " < ?"
-            selTup += (fgsArgs.Density[i], relError)
-            selString += " AND "
+            if(fgsArgs.Density[i] != 0.0):
+                selString += "ABS(? - DENSITY_" + str(i) + ") / DENSITY_" + str(i) + " < ?"
+                selTup += (fgsArgs.Density[i], relError)
+                selString += " AND "
         #Charges
         for i in range(0, 4):
-            selString += "ABS(? - CHARGES_" + str(i) + ") / CHARGES_" + str(i) + " < ?"
-            selTup += (fgsArgs.Charges[i], relError)
-            selString += " AND "
+            if(fgsArgs.Charges[i] != 0.0):
+                selString += "ABS(? - CHARGES_" + str(i) + ") / CHARGES_" + str(i) + " < ?"
+                selTup += (fgsArgs.Charges[i], relError)
+                selString += " AND "
         #Version
         selString += "INVERSION=?;"
         selTup += (getGroundishTruthVersion(SolverCode.BGK),)
@@ -178,10 +182,10 @@ def checkSlurmQueue(uname):
         print(err, file=sys.stderr)
         return ""
 
-def launchJobScript(binary, script, wantReturn):
+def launchJobScript(binary, script, wantReturn, extraArgs=[]):
     try:
         runproc = subprocess.run(
-            [binary, script],
+            [binary] + extraArgs + [script],
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE
         )
@@ -204,6 +208,8 @@ def getQueueUsability(uname, configStruct):
         if queueState[0] < maxJobs:
             return True
     elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
+        return True
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
         return True
     else:
         raise Exception('Using Unsupported Scheduler Mode')
@@ -254,7 +260,7 @@ def getGNDCount(dbPath, solverCode):
     sqlDB.close()
     return numGND
 
-def slurmBoilerplate(jobFile, outDir, configStruct):
+def jobScriptBoilerplate(jobFile, outDir, configStruct):
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
         jobFile.write("#!/bin/bash\n")
         jobFile.write("#SBATCH -N " + str(configStruct['SlurmScheduler']['NodesPerSlurmJob']) + "\n")
@@ -262,11 +268,21 @@ def slurmBoilerplate(jobFile, outDir, configStruct):
         jobFile.write("#SBATCH -e " + outDir + "-%j.err\n")
         jobFile.write("#SBATCH -p " + str(configStruct['SlurmScheduler']['SlurmPartition']) + "\n")
         jobFile.write("export LAUNCHER_BIN=srun\n")
-        jobFile.write("export NMPI_RANKS=\"$((`lstopo --only pu | wc -l` * ${SLURM_NNODES} / " + str(configStruct['SlurmScheduler']['ThreadsPerMPIRankForSlurm']) + "  ))\"\n")
+        jobFile.write("export JOB_DISTR_ARGS=\"-n $((`lstopo --only pu | wc -l` * ${SLURM_NNODES} / " + str(configStruct['SlurmScheduler']['ThreadsPerMPIRankForSlurm']) + "  ))\"\n")
     elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         jobFile.write("#!/bin/bash\n")
         jobFile.write("export LAUNCHER_BIN=mpirun\n")
-        jobFile.write("export NMPI_RANKS="+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\n")
+        jobFile.write("export JOB_DISTR_ARGS=\"-n "+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\"\n")
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
+        jobFile.write("#!/bin/bash\n")
+        jobFile.write("export LAUNCHER_BIN=`which mpirun`\n")
+        # jobFile.write("export JOB_DISTR_ARGS=\"-np " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + "\"\n")
+        jobFile.write("export LAUNCHER_BIN=\"flux mini run\"\n")
+        jobFile.write("export JOB_DISTR_ARGS=\"" + \
+            "-N " + str(configStruct['FluxScheduler']['NodesPerJobForFlux']) + \
+            " -n " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + \
+            " -c " + str(configStruct['FluxScheduler']['CoresPerSlotForFlux']) + \
+            "\"\n")
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
@@ -289,30 +305,47 @@ def prepJobEnv(outPath, jobEnvPath, configStruct):
             jobEnvFilePath = cwdJobPath
     shutil.copy2(jobEnvFilePath, outFile)
 
-def lammpsSpackBoilerplate(jobFile, configStruct):
-    if "SpackRoot" in configStruct['SpackVariables']:
-        jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
-        jobFile.write("\texport SPACK_ROOT=" + configStruct['SpackVariables']['SpackRoot'] + "\n")
+def lammpsProvisioningBoilerplate(jobFile, configStruct):
+    if configStruct['ProvisioningInterface'] == ProvisioningInterface.SPACK:
+        if "SpackRoot" in configStruct['SpackVariables']:
+            jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
+            jobFile.write("\texport SPACK_ROOT=" + configStruct['SpackVariables']['SpackRoot'] + "\n")
+            jobFile.write("fi\n")
+        # Call If spack exists, use it
+        # TODO: Keeping glue override flag for now but will remove later
+        jobFile.write("if [ -n \"${GLUE_OVERRIDE}\" ]; then\n")
+        jobFile.write("\texport LAMMPS_BIN=`which lmp`\n")
+        jobFile.write("elif [ -z \"${SPACK_ROOT}\" ]; then\n")
+        jobFile.write("\texport LAMMPS_BIN=" + configStruct['LAMMPSPath'] + "\n")
+        jobFile.write("else\n")
+        # Load lammps
+        # TODO: Genralize this to support more than just MPI
+        jobFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
+        jobFile.write("\tspack env create -d .\n")
+        jobFile.write("\tspack env activate `pwd`\n")
+        jobFile.write("\tspack install " + configStruct['SpackVariables']['SpackLAMMPS'] +  " " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
+        jobFile.write("\tspack load " + configStruct['SpackVariables']['SpackLAMMPS'] +  " " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
+        jobFile.write("\texport LAMMPS_BIN=`which lmp`\n")
         jobFile.write("fi\n")
-    # Call If spack exists, use it
-    jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
-    jobFile.write("\texport LAMMPS_BIN=" + configStruct['LAMMPSPath'] + "\n")
-    jobFile.write("else\n")
-    # Load lammps
-    # TODO: Genralize this to support more than just MPI
-    jobFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
-    jobFile.write("\tspack env create -d .\n")
-    jobFile.write("\tspack env activate `pwd`\n")
-    jobFile.write("\tspack install lammps+mpi~ffmpeg " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
-    jobFile.write("\tspack load " + configStruct['SpackVariables']['SpackLAMMPS'] +  " " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
-    jobFile.write("\texport LAMMPS_BIN=lmp\n")
-    jobFile.write("fi\n")
+    elif configStruct['ProvisioningInterface'] == ProvisioningInterface.MANUAL:
+        jobFile.write("export LAMMPS_BIN=`which lmp`\n")
+    else:
+        raise Exception('Using Unsupported Provisioning Mode')
 
 def launchFGSJob(jobFile, configStruct):
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
         launchJobScript("sbatch", jobFile, True)
     elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         launchJobScript("bash", jobFile, False)
+    elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
+        argList = ["mini", "batch"]
+        argList += ["-n"]
+        argList += [str(configStruct['FluxScheduler']['SlotsPerJobForFlux'])]
+        argList += ["-c"]
+        argList += [str(configStruct['FluxScheduler']['CoresPerSlotForFlux'])]
+        argList += ["-N"]
+        argList += [str(configStruct['FluxScheduler']['NodesPerJobForFlux'])]
+        launchJobScript("flux", jobFile, True, extraArgs=argList)
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
@@ -342,18 +375,22 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
             scriptFPath = os.path.join(outPath, tag + "_" + str(rank) + "_" + str(reqid) + ".sh")
             with open(scriptFPath, 'w') as slurmFile:
                 # Make Header
-                slurmBoilerplate(slurmFile, outDir, configStruct)
+                jobScriptBoilerplate(slurmFile, outDir, configStruct)
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Set LAMMPS_BIN
-                lammpsSpackBoilerplate(slurmFile, configStruct)
+                lammpsProvisioningBoilerplate(slurmFile, configStruct)
                 # Actually call lammps
                 for lammpsScript in lammpsScripts:
-                    slurmFile.write("${LAUNCHER_BIN} -n ${NMPI_RANKS} ${LAMMPS_BIN} < " + lammpsScript + " \n")
+                    slurmFile.write("${LAUNCHER_BIN} ${JOB_DISTR_ARGS} ${LAMMPS_BIN} < " + lammpsScript + " \n")
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
-                slurmFile.write("python3 " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(glueMode.value) + " -c " + str(solverCode.value) + "\n")
+                slurmFile.write("`which python3` " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(glueMode.value) + " -c " + str(solverCode.value) + "\n")
+                slurmFile.write("\n")
+            #Chmod+x that script
+            st = os.stat(scriptFPath)
+            os.chmod(scriptFPath, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
             # either syscall or subprocess.run slurm with the script
             launchFGSJob(scriptFPath, configStruct)
             # Then do nothing because the script itself will write the result

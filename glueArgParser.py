@@ -1,7 +1,7 @@
 import argparse
 import json
 import getpass
-from glueCodeTypes import ALInterfaceMode, SolverCode, LearnerBackend, SchedulerInterface
+from glueCodeTypes import ALInterfaceMode, SolverCode, LearnerBackend, SchedulerInterface, ProvisioningInterface
 
 def processGlueCodeArguments():
     defaultFName = "testDB.db"
@@ -58,8 +58,6 @@ def processGlueCodeArguments():
     if not 'SQLitePath' in configStruct:
         configStruct['SQLitePath'] = sqlite
     sbatch = args['sbatch']
-    if not 'SBatchPath' in configStruct:
-        configStruct['SBatchPath'] = sbatch
     ranks = args['ranks']
     if not 'ExpectedMPIRanks' in configStruct:
         configStruct['ExpectedMPIRanks'] = ranks
@@ -96,16 +94,23 @@ def processGlueCodeArguments():
             configStruct['ReadTrainingData'] = True
         else:
             configStruct['ReadTrainingData'] = False
+    if not 'ProvisioningInterface' in configStruct:
+        configStruct['ProvisioningInterface'] = ProvisioningInterface.SPACK
+    else:
+        configStruct['ProvisioningInterface'] = ProvisioningInterface(configStruct['ProvisioningInterface'])
     if not 'SchedulerInterface' in configStruct:
         configStruct['SchedulerInterface'] = SchedulerInterface.SLURM
     else:
         configStruct['SchedulerInterface'] = SchedulerInterface(configStruct['SchedulerInterface'])
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
         if not 'SlurmScheduler' in configStruct:
-            configStruct['SlurmScheduler'] = {"ThreadsPerMPIRankForSlurm":1, "NodesPerSlurmJob":1, "MaxSlurmJobs":4, "SlurmPartition":"general"}
+            configStruct['SlurmScheduler'] = {"ThreadsPerMPIRankForSlurm":1, "NodesPerSlurmJob":1, "MaxSlurmJobs":4, "SlurmPartition":"general","SBatchPath":sbatch}
     if configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         if not 'BlockingScheduler' in configStruct:
             configStruct['BlockingScheduler'] = {"MPIRanksForBlockingRuns":4}
+    if configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
+        if not 'FluxScheduler' in configStruct:
+            configStruct['FluxScheduler'] = {"SlotsPerJobForFlux":1, "CoresPerSlotForFlux":1, "NodesPerJobForFlux":1}
     if code == SolverCode.BGK and not 'ICFParameters' in configStruct:
         configStruct['ICFParameters'] =  {"RelativeError":0.0001}
 
