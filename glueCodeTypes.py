@@ -33,6 +33,10 @@ class SchedulerInterface(IntEnum):
     BLOCKING = 1
     FLUX = 2
 
+class ProvisioningInterface(IntEnum):
+    SPACK = 0
+    MANUAL = 1
+
 # BGKInputs
 #  Temperature: float
 #  Density: float[4]

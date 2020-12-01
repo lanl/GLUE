@@ -15,7 +15,7 @@ import getpass
 import sys
 import json
 from writeBGKLammpsScript import check_zeros_trace_elements
-from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface
+from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface, ProvisioningInterface
 from contextlib import redirect_stdout, redirect_stderr
 from Screened_Boltzman_solution import ICFAnalytical_solution
 from glueArgParser import processGlueCodeArguments
@@ -305,27 +305,32 @@ def prepJobEnv(outPath, jobEnvPath, configStruct):
             jobEnvFilePath = cwdJobPath
     shutil.copy2(jobEnvFilePath, outFile)
 
-def lammpsSpackBoilerplate(jobFile, configStruct):
-    if "SpackRoot" in configStruct['SpackVariables']:
-        jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
-        jobFile.write("\texport SPACK_ROOT=" + configStruct['SpackVariables']['SpackRoot'] + "\n")
+def lammpsProvisioningBoilerplate(jobFile, configStruct):
+    if configStruct['ProvisioningInterface'] == ProvisioningInterface.SPACK:
+        if "SpackRoot" in configStruct['SpackVariables']:
+            jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
+            jobFile.write("\texport SPACK_ROOT=" + configStruct['SpackVariables']['SpackRoot'] + "\n")
+            jobFile.write("fi\n")
+        # Call If spack exists, use it
+        # TODO: Keeping glue override flag for now but will remove later
+        jobFile.write("if [ -n \"${GLUE_OVERRIDE}\" ]; then\n")
+        jobFile.write("\texport LAMMPS_BIN=`which lmp`\n")
+        jobFile.write("elif [ -z \"${SPACK_ROOT}\" ]; then\n")
+        jobFile.write("\texport LAMMPS_BIN=" + configStruct['LAMMPSPath'] + "\n")
+        jobFile.write("else\n")
+        # Load lammps
+        # TODO: Genralize this to support more than just MPI
+        jobFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
+        jobFile.write("\tspack env create -d .\n")
+        jobFile.write("\tspack env activate `pwd`\n")
+        jobFile.write("\tspack install " + configStruct['SpackVariables']['SpackLAMMPS'] +  " " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
+        jobFile.write("\tspack load " + configStruct['SpackVariables']['SpackLAMMPS'] +  " " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
+        jobFile.write("\texport LAMMPS_BIN=`which lmp`\n")
         jobFile.write("fi\n")
-    #TODO: Generalize and json-ify this rather than hacking it
-    # Call If spack exists, use it
-    jobFile.write("if [ -n \"${GLUE_OVERRIDE}\" ]; then\n")
-    jobFile.write("\texport LAMMPS_BIN=`which lmp`\n")
-    jobFile.write("elif [ -z \"${SPACK_ROOT}\" ]; then\n")
-    jobFile.write("\texport LAMMPS_BIN=" + configStruct['LAMMPSPath'] + "\n")
-    jobFile.write("else\n")
-    # Load lammps
-    # TODO: Genralize this to support more than just MPI
-    jobFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
-    jobFile.write("\tspack env create -d .\n")
-    jobFile.write("\tspack env activate `pwd`\n")
-    jobFile.write("\tspack install lammps+mpi~ffmpeg " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
-    jobFile.write("\tspack load " + configStruct['SpackVariables']['SpackLAMMPS'] +  " " + configStruct['SpackVariables']['SpackCompilerAndMPI'] + "\n")
-    jobFile.write("\texport LAMMPS_BIN=`which lmp`\n")
-    jobFile.write("fi\n")
+    elif configStruct['ProvisioningInterface'] == ProvisioningInterface.MANUAL:
+        jobFile.write("export LAMMPS_BIN=`which lmp`\n")
+    else:
+        raise Exception('Using Unsupported Provisioning Mode')
 
 def launchFGSJob(jobFile, configStruct):
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
@@ -374,7 +379,7 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
                 slurmFile.write("cd " + outPath + "\n")
                 slurmFile.write("source ./jobEnv.sh\n")
                 # Set LAMMPS_BIN
-                lammpsSpackBoilerplate(slurmFile, configStruct)
+                lammpsProvisioningBoilerplate(slurmFile, configStruct)
                 # Actually call lammps
                 for lammpsScript in lammpsScripts:
                     slurmFile.write("${LAUNCHER_BIN} ${JOB_DISTR_ARGS} ${LAMMPS_BIN} < " + lammpsScript + " \n")

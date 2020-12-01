@@ -52,13 +52,17 @@
 			"description": "Scheduler Mode/Interface to use corresponding to SchedulerInterface Enum",
 			"type": "integer"
 		},
+		"ProvisioningInterface":{
+			"description": "Provisioning Method to use corresponding to ProvisioningInterface Enum",
+			"type": "integer"
+		},
 		"JobEnvFile": {
 			"description": "File to execute as part of job to set environments (modules, vars, etc). If not absolute will assume path exists in ${REPO}/envFiles",
 			"type": "string"
 		},
 		"SpackVariables":{
 			"type": "object",
-			"description": "Paramters for Spack",
+			"description": "Parameters for Spack",
 			"properties": {
 				"SpackRoot": {
 					"description": "Path to Spack (Overwritten by User Env)",
