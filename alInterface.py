@@ -555,7 +555,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
     alBackend = configStruct['alBackend']
     GNDthreshold = configStruct['GNDthreshold']
 
-    reqNumArr = [0] * numRanks
+    reqNumArr = [0] * (numRanks + 1)
 
     #Spin until file exists
     while not os.path.exists(dbPath):
@@ -572,7 +572,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 with redirect_stdout(alOut), redirect_stdout(alErr):
                     interpModel = getInterpModel(packetType, alBackend, dbPath)
             GNDcnt = nuGNDcnt
-        for i in range(0, numRanks):
+        for i in range(-1, numRanks):
             rank = i
             req = reqNumArr[i]
             sqlDB = sqlite3.connect(dbPath)
