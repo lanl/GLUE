@@ -275,7 +275,7 @@ def jobScriptBoilerplate(jobFile, outDir, configStruct):
         jobFile.write("export JOB_DISTR_ARGS=\"-n "+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\"\n")
     elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
         jobFile.write("#!/bin/bash\n")
-        jobFile.write("export LAUNCHER_BIN=`which mpirun`\n")
+        # jobFile.write("export LAUNCHER_BIN=`which mpirun`\n")
         # jobFile.write("export JOB_DISTR_ARGS=\"-np " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + "\"\n")
         jobFile.write("export LAUNCHER_BIN=\"flux mini run\"\n")
         jobFile.write("export JOB_DISTR_ARGS=\"" + \
