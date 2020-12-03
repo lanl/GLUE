@@ -76,11 +76,10 @@ def processGlueCodeArguments():
         configStruct['alBackend'] = alBackend
     else:
         configStruct['alBackend'] = LearnerBackend(configStruct['alBackend'])
-    GNDthreshold = args['retrainthreshold']
-    if not 'GNDthreshold' in configStruct:
-        configStruct['GNDthreshold'] = GNDthreshold
-    if(configStruct['GNDthreshold'] < 0):
-        configStruct['GNDthreshold'] = sys.maxsize
+    if not 'ActiveLearningVariables' in configStruct:
+        configStruct['ActiveLearningVariables'] = {'GNDthreshold':args['retrainthreshold'], 'NumberOfRequestingActiveLearners':1}
+    if(configStruct['ActiveLearningVariables']['GNDthreshold'] < 0):
+        configStruct['ActiveLearningVariables']['GNDthreshold'] = sys.maxsize
     if not 'SpackVariables' in configStruct:
         configStruct['SpackVariables'] = {'SpackCompilerAndMPI':"%gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0", "SpackLAMMPS":"lammps+mpi~ffmpeg"}
     genOrRead = args['genorread']

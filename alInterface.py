@@ -548,12 +548,14 @@ def getAnalyticSolution(inArgs):
 
 def pollAndProcessFGSRequests(configStruct, uname):
     numRanks = configStruct['ExpectedMPIRanks']
+
     defaultMode = configStruct['glueCodeMode']
     dbPath = configStruct['dbFileName']
     tag = configStruct['tag']
     packetType = configStruct['solverCode']
     alBackend = configStruct['alBackend']
-    GNDthreshold = configStruct['GNDthreshold']
+    GNDthreshold = configStruct['ActiveLearningVariables']['GNDthreshold']
+    numALRequesters = -1 * configStruct['ActiveLearningVariables']['NumberOfRequestingActiveLearners']
 
     reqNumArr = [0] * (numRanks + 1)
 
@@ -572,7 +574,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 with redirect_stdout(alOut), redirect_stdout(alErr):
                     interpModel = getInterpModel(packetType, alBackend, dbPath)
             GNDcnt = nuGNDcnt
-        for i in range(-1, numRanks):
+        for i in range(numALRequesters, numRanks):
             rank = i
             req = reqNumArr[i]
             sqlDB = sqlite3.connect(dbPath)

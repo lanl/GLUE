@@ -1,10 +1,10 @@
 from glueCodeTypes import ALInterfaceMode, SolverCode, BGKInputs, BGKOutputs
 import sqlite3
 
-def getSQLFromReq(fgsInput, tag, reqNum):
+def getSQLFromReq(fgsInput, tag, reqNum, rank):
     if isinstance(fgsInput, BGKInputs):
         insStr = "INSERT INTO BGKREQS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, -1, reqNum,
+        insArgs = (tag, rank, reqNum,
                    fgsInput.Temperature,
                    fgsInput.Density[0],
                    fgsInput.Density[1],
@@ -27,11 +27,12 @@ def getPersistentReqNumber():
         getPersistentReqNumber.counter = 0
     return getPersistentReqNumber.counter
 
-def submitFGSJobs(inputList, sqlDBPath, tag):
+def submitFGSJobs(inputList, sqlDBPath, tag, rank=-1):
     # Then fire off every request
     for req in inputList:
         # Generate SQL insert string and tuple
-        (insString, insArgs) = getSQLFromReq(req, tag, getPersistentReqNumber())
+        (insString, insArgs) = getSQLFromReq(req, tag, getPersistentReqNumber(), rank)
+        # TODO: figure out if better to stay connected or to connect per request
         sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         sqlCursor.execute(insString, insArgs)
