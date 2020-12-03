@@ -28,17 +28,19 @@ def getPersistentReqNumber():
     return getPersistentReqNumber.counter
 
 def submitFGSJobs(inputList, sqlDBPath, tag, rank):
+    # Connect to SQL Server/DB
+    sqlDB = sqlite3.connect(dbPath)
+    sqlCursor = sqlDB.cursor()
     # Then fire off every request
     for req in inputList:
         # Generate SQL insert string and tuple
         (insString, insArgs) = getSQLFromReq(req, tag, getPersistentReqNumber(), rank)
-        # TODO: figure out if better to stay connected or to connect per request
-        sqlDB = sqlite3.connect(dbPath)
-        sqlCursor = sqlDB.cursor()
+        # And insert it
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
-        sqlCursor.close()
-        sqlDB.close()
+    # And close DB
+    sqlCursor.close()
+    sqlDB.close()
 
 if __name__ == "__main__":
     raise Exception("submitFGSJob.py currently does not support standalone use")
