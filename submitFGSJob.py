@@ -4,7 +4,7 @@ import sqlite3
 def getSQLFromReq(fgsInput, tag, reqNum, rank):
     if isinstance(fgsInput, BGKInputs):
         insStr = "INSERT INTO BGKREQS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqNum,
+        insArgs = (tag, -1*rank, reqNum,
                    fgsInput.Temperature,
                    fgsInput.Density[0],
                    fgsInput.Density[1],
@@ -27,7 +27,7 @@ def getPersistentReqNumber():
         getPersistentReqNumber.counter = 0
     return getPersistentReqNumber.counter
 
-def submitFGSJobs(inputList, sqlDBPath, tag, rank=-1):
+def submitFGSJobs(inputList, sqlDBPath, tag, rank):
     # Then fire off every request
     for req in inputList:
         # Generate SQL insert string and tuple
