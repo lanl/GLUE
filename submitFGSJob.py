@@ -42,5 +42,34 @@ def submitFGSJobs(inputList, sqlDBPath, tag, rank):
     sqlCursor.close()
     sqlDB.close()
 
+def submitTerminationJob(sqlDBPath, tag, rank, solverCode):
+    # Make termination packet based on solverCode
+    termStr = ""
+    termArgs = ()
+    if solverCode == SolverCode.BGK:
+        termStr = "INSERT INTO BGKREQS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        termArgs = (tag, rank, getPersistentReqNumber(),
+                   -1.0,
+                   -1.0,
+                   -1.0,
+                   -1.0,
+                   -1.0,
+                   -1.0,
+                   -1.0,
+                   -1.0,
+                   -1.0,
+                   ALInterfaceMode.KILL)
+    else:
+        raise Exception("Unsupported Solver Code called submitTerminationJob()")
+    # Connect to SQL Server/DB
+    sqlDB = sqlite3.connect(sqlDBPath)
+    sqlCursor = sqlDB.cursor()
+    # Send Terminator
+    sqlCursor.execute(termStr, termArgs)
+    sqlDB.commit()
+    # And close DB
+    sqlCursor.close()
+    sqlDB.close()
+
 if __name__ == "__main__":
     raise Exception("submitFGSJob.py currently does not support standalone use")

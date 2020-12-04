@@ -1,5 +1,5 @@
 from glueCodeTypes import BGKInputs, SolverCode
-from submitFGSJob import submitFGSJobs
+from submitFGSJob import submitFGSJobs, submitTerminationJob
 from alInterface import getAllGNDData
 import os
 import numpy as np
@@ -27,3 +27,5 @@ if __name__ == "__main__":
         if gndCnt < 20:
             keepSpinning = True
     print("Ran to completion")
+    # Send termination packet
+    submitTerminationJob("testDB.db", "DUMMY_TAG_42", -1, SolverCode.BGK)

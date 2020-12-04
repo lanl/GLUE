@@ -548,7 +548,6 @@ def getAnalyticSolution(inArgs):
 
 def pollAndProcessFGSRequests(configStruct, uname):
     numRanks = configStruct['ExpectedMPIRanks']
-
     defaultMode = configStruct['glueCodeMode']
     dbPath = configStruct['dbFileName']
     tag = configStruct['tag']
