@@ -556,7 +556,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
     GNDthreshold = configStruct['ActiveLearningVariables']['GNDthreshold']
     numALRequesters = -1 * configStruct['ActiveLearningVariables']['NumberOfRequestingActiveLearners']
 
-    reqNumArr = [0] * (numRanks + 1)
+    reqNumArr = [0] * (numRanks + numALRequesters)
 
     #Spin until file exists
     while not os.path.exists(dbPath):
