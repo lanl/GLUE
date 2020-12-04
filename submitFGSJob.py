@@ -4,7 +4,7 @@ import sqlite3
 def getSQLFromReq(fgsInput, tag, reqNum, rank):
     if isinstance(fgsInput, BGKInputs):
         insStr = "INSERT INTO BGKREQS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, -1*rank, reqNum,
+        insArgs = (tag, rank, reqNum,
                    fgsInput.Temperature,
                    fgsInput.Density[0],
                    fgsInput.Density[1],
@@ -29,7 +29,7 @@ def getPersistentReqNumber():
 
 def submitFGSJobs(inputList, sqlDBPath, tag, rank):
     # Connect to SQL Server/DB
-    sqlDB = sqlite3.connect(dbPath)
+    sqlDB = sqlite3.connect(sqlDBPath)
     sqlCursor = sqlDB.cursor()
     # Then fire off every request
     for req in inputList:
