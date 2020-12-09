@@ -13,19 +13,18 @@ if __name__ == "__main__":
     csv = os.path.join(trainingDir, "bgk.csv")
     trainingEntries = np.loadtxt(csv)
     testList = []
-    for row in trainingEntries[:20]:
+    for row in trainingEntries[:4]:
         testList.append(BGKInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0]))
     # Now submit them
+    # Pass a negative rank number because we are simulating a request from an Active Learner
     submitFGSJobs(testList, "testDB.db", "DUMMY_TAG_42", -1)
     # And then spin until they are done
     keepSpinning = True
     gndCnt = 0
-    while keepSpinning:
+    while gndCnt < 4:
         time.sleep(20)
         print("GNDCnt currently " + str(gndCnt))
         gndCnt = len(getAllGNDData("testDB.db", SolverCode.BGK))
-        if gndCnt < 20:
-            keepSpinning = True
     print("Ran to completion")
     # Send termination packet
     submitTerminationJob("testDB.db", "DUMMY_TAG_42", -1, SolverCode.BGK)
