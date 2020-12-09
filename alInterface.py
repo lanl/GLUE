@@ -554,7 +554,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
     packetType = configStruct['solverCode']
     alBackend = configStruct['alBackend']
     GNDthreshold = configStruct['ActiveLearningVariables']['GNDthreshold']
-    numALRequesters = -1 * configStruct['ActiveLearningVariables']['NumberOfRequestingActiveLearners']
+    numALRequesters = configStruct['ActiveLearningVariables']['NumberOfRequestingActiveLearners']
 
     reqNumArr = [0] * (numRanks + numALRequesters)
 
@@ -573,8 +573,8 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 with redirect_stdout(alOut), redirect_stdout(alErr):
                     interpModel = getInterpModel(packetType, alBackend, dbPath)
             GNDcnt = nuGNDcnt
-        for i in range(numALRequesters, numRanks):
-            rank = i
+        for i in range(0, numRanks + numALRequesters):
+            rank = i - numALRequesters
             req = reqNumArr[i]
             sqlDB = sqlite3.connect(dbPath)
             # SELECT request
