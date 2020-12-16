@@ -24,10 +24,6 @@
 			"description": "Active Learning Backend to use Corresponding to LearnerBackend Enum",
 			"type": "integer"
 		},
-		"GNDthreshold":{
-			"description": "Threshold for number of fine grain simulations before retraining active learning models",
-			"type": "integer"
-		},
 		"SQLitePath":{
 			"description": "Optional Path to SQLite binary",
 			"type": "string"
@@ -139,6 +135,19 @@
 				"NodesPerJobForFlux":{
 					"description": "Number of nodes per 'slot' flux: probably 1",
 					"type": "integer"
+				}
+			}
+		},
+		"ActiveLearningVariables":{
+			"type": "object",
+			"description": "General Parameters for Active Learning",
+			"properties":{
+				"GNDthreshold":{
+					"description": "Threshold for number of fine grain simulations before retraining active learning models",
+					"type": "integer"
+				},
+				"NumberOfRequestingActiveLearners":{
+					"description": "Number of active learning agents expected to make fine grain sim requests"
 				}
 			}
 		}

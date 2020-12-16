@@ -553,9 +553,10 @@ def pollAndProcessFGSRequests(configStruct, uname):
     tag = configStruct['tag']
     packetType = configStruct['solverCode']
     alBackend = configStruct['alBackend']
-    GNDthreshold = configStruct['GNDthreshold']
+    GNDthreshold = configStruct['ActiveLearningVariables']['GNDthreshold']
+    numALRequesters = configStruct['ActiveLearningVariables']['NumberOfRequestingActiveLearners']
 
-    reqNumArr = [0] * numRanks
+    reqNumArr = [0] * (numRanks + numALRequesters)
 
     #Spin until file exists
     while not os.path.exists(dbPath):
@@ -572,8 +573,8 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 with redirect_stdout(alOut), redirect_stdout(alErr):
                     interpModel = getInterpModel(packetType, alBackend, dbPath)
             GNDcnt = nuGNDcnt
-        for i in range(0, numRanks):
-            rank = i
+        for i in range(0, numRanks + numALRequesters):
+            rank = i - numALRequesters
             req = reqNumArr[i]
             sqlDB = sqlite3.connect(dbPath)
             # SELECT request
