@@ -315,8 +315,6 @@ def lammpsProvisioningBoilerplate(jobFile, configStruct):
         # TODO: Keeping glue override flag for now but will remove later
         jobFile.write("if [ -n \"${GLUE_OVERRIDE}\" ]; then\n")
         jobFile.write("\texport LAMMPS_BIN=`which lmp`\n")
-        jobFile.write("elif [ -z \"${SPACK_ROOT}\" ]; then\n")
-        jobFile.write("\texport LAMMPS_BIN=" + configStruct['LAMMPSPath'] + "\n")
         jobFile.write("else\n")
         # Load lammps
         # TODO: Genralize this to support more than just MPI
@@ -328,7 +326,10 @@ def lammpsProvisioningBoilerplate(jobFile, configStruct):
         jobFile.write("\texport LAMMPS_BIN=`which lmp`\n")
         jobFile.write("fi\n")
     elif configStruct['ProvisioningInterface'] == ProvisioningInterface.MANUAL:
-        jobFile.write("export LAMMPS_BIN=`which lmp`\n")
+        if 'ManualProvisioning' in configStruct and 'LAMMPSPath' in configStruct['ManualProvisioning']:
+            jobFile.write("\texport LAMMPS_BIN=" + configStruct['ManualProvisioning']['LAMMPSPath'] + "\n")
+        else:
+            jobFile.write("export LAMMPS_BIN=`which lmp`\n")
     else:
         raise Exception('Using Unsupported Provisioning Mode')
 

@@ -51,9 +51,6 @@ def processGlueCodeArguments():
     fName = args['db']
     if not 'dbFileName' in configStruct:
         configStruct['dbFileName'] = fName
-    lammps = args['lammps']
-    if not 'LAMMPSPath' in configStruct:
-        configStruct['LAMMPSPath'] = lammps
     sqlite = args['sqlite']
     if not 'SQLitePath' in configStruct:
         configStruct['SQLitePath'] = sqlite
