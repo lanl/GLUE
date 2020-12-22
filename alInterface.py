@@ -354,7 +354,6 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
     solverCode = configStruct['solverCode']
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']
-    lammps = configStruct['LAMMPSPath']
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
