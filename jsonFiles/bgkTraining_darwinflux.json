@@ -11,7 +11,8 @@
 	"FluxScheduler":{
 		"SlotsPerJobForFlux": 22,
 		"CoresPerSlotForFlux": 1,
-		"NodesPerJobForFlux": 1
+		"NodesPerJobForFlux": 1,
+		"ConcurrentJobs": 24
 	},
 	"SpackVariables":{
 		"SpackRoot": "/usr/projects/aldr/spack2",
@@ -19,4 +20,3 @@
 		"SpackLAMMPS": "lammps+mpi~ffmpeg"
 	}
 }
-
