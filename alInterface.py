@@ -170,7 +170,23 @@ def checkSlurmQueue(uname):
     try:
         runproc = subprocess.run(
             ["squeue", "-u", uname],
-            stdout=subprocess.PIPE, 
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        if runproc.returncode == 0:
+            return str(runproc.stdout,"utf-8")
+        else:
+            print(str(runproc.stderr,"utf-8"), file=sys.stderr)
+            return ""
+    except FileNotFoundError as err:
+        print(err, file=sys.stderr)
+        return ""
+
+def checkFluxQueue():
+    try:
+        runproc = subprocess.run(
+            ["flux", "jobs"],
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
         if runproc.returncode == 0:
@@ -207,10 +223,17 @@ def getQueueUsability(uname, configStruct):
         maxJobs = configStruct['SlurmScheduler']['MaxSlurmJobs']
         if queueState[0] < maxJobs:
             return True
+        else:
+            return False
     elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         return True
     elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
-        return True
+        queueState = getFluxQueue()
+        maxJobs = configStruct['FluxScheduler']['ConcurrentJobs']
+        if queueState[0] < maxJobs:
+            return True
+        else:
+            return False
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
@@ -219,6 +242,16 @@ def getSlurmQueue(uname):
     if slurmOut == "":
         return (sys.maxsize, [])
     strList = slurmOut.splitlines()
+    if len(strList) > 1:
+        return (len(strList) - 1, strList[1:])
+    else:
+        return (0, [])
+
+def getFluxQueue():
+    fluxOut = checkFluxQueue()
+    if fluxOut == "":
+        return (sys.maxsize, [])
+    strList = fluxOut.splitlines()
     if len(strList) > 1:
         return (len(strList) - 1, strList[1:])
     else:

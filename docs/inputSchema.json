@@ -142,6 +142,10 @@
 				"NodesPerJobForFlux":{
 					"description": "Number of nodes per 'slot' flux: probably 1",
 					"type": "integer"
+				},
+				"ConcurrentJobs":{
+					"description": "Maximum number of concurrent flux jobs",
+					"type": "integer"
 				}
 			}
 		},
