@@ -598,11 +598,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
     # One task queue to rule them (the ranks) all
     taskQueue = []
     # Array to handle missing requests
-    # TODO: Simplify this. it can probably be a one liner
-    reqArray = []
-    for i in range(0, numRanks + numALRequesters):
-        rank = i - numALRequesters
-        reqArray.append([rank, -1, []])
+    reqArray = [[i-numALRequesters, -1, []] for i in range(0, numRanks + numALRequesters)]
 
     #Spin until file exists
     while not os.path.exists(dbPath):
