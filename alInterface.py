@@ -664,7 +664,6 @@ def pollAndProcessFGSRequests(configStruct, uname):
             reqID = task[1]
             requestedMode = task[2]
             taskArgs = task[3]
-            print(task)
             # Process tasks based on mode
             modeSwitch = defaultMode
             if requestedMode != ALInterfaceMode.DEFAULT:
@@ -689,7 +688,6 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 else:
                     queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS)
             elif modeSwitch == ALInterfaceMode.FAKE:
-                print("Doing a fake")
                 if packetType == SolverCode.BGK:
                     # Simplest stencil imaginable
                     bgkInput = taskArgs
