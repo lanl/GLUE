@@ -684,7 +684,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 (isLegit, output) = interpModel(taskArgs)
                 insertALPrediction(dbPath, taskArgs, output, packetType)
                 if isLegit:
-                    insertResult(rank, tag, dbPath, reqid, output, ResultProvenance.ACTIVELEARNER)
+                    insertResult(rank, tag, dbPath, reqID, output, ResultProvenance.ACTIVELEARNER)
                 else:
                     queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS)
             elif modeSwitch == ALInterfaceMode.FAKE:
