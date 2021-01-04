@@ -632,8 +632,9 @@ def pollAndProcessFGSRequests(configStruct, uname):
             sqlCursor = sqlDB.cursor()
             for row in sqlCursor.execute(selString, selArgs):
                 # Process row for later
-                solverInput = processReqRow(row, packetType)
-                resultQueue.append((row[2],) + solverInput)
+                (solverInput, reqType) = processReqRow(row, packetType)
+                # (reqID, alMode, inputTuple)
+                resultQueue.append((row[2], reqType, solverInput))
             sqlCursor.close()
             sqlDB.close()
             #Get latest received request ID
@@ -651,22 +652,26 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     if result[0] in missingIDs:
                         # We were, so lets queue it
                         # HERE
-                        newTask = (rank,result[0]) + result[1]
+                        #Format is (rank, reqID, alMode, inputTuple)
+                        newTask = (rank, result[0], result[1], result[2])
                         taskQueue.append(newTask)
                         missingIDs.remove(result[0])
         #And now we process that task queue
         #TODO: Refactor slurm/flux queue logic up to here for throttling active jobs
-        for indexTask in taskQueue:
+        for task in taskQueue:
             # A shim to reuse old logic
-            rank = indexTask[0]
-            task = indexTask[1:]
+            rank = task[0]
+            reqID = task[1]
+            requestedMode = task[2]
+            taskArgs = task[3]
+            print(task)
             # Process tasks based on mode
             modeSwitch = defaultMode
-            if task[2] != ALInterfaceMode.DEFAULT:
-                modeSwitch = task[2]
+            if requestedMode != ALInterfaceMode.DEFAULT:
+                modeSwitch = requestedMode
             if modeSwitch == ALInterfaceMode.FGS or modeSwitch == ALInterfaceMode.FASTFGS:
                 # Submit as LAMMPS job
-                queueFGSJob(configStruct, uname, task[0], task[1], rank, modeSwitch)
+                queueFGSJob(configStruct, uname, reqID, taskArgs, rank, modeSwitch)
             elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                 # General (Active) Learner
                 #  model = getLatestModelFromLearners()
@@ -677,31 +682,32 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 #      outputs = fineScaleSim(inputs)
                 #      queueUpdateModel(inputs, outputs)
                 #      return outputs
-                (isLegit, output) = interpModel(task[1])
-                insertALPrediction(dbPath, task[1], output, packetType)
+                (isLegit, output) = interpModel(taskArgs)
+                insertALPrediction(dbPath, taskArgs, output, packetType)
                 if isLegit:
-                    insertResult(rank, tag, dbPath, task[0], output, ResultProvenance.ACTIVELEARNER)
+                    insertResult(rank, tag, dbPath, reqid, output, ResultProvenance.ACTIVELEARNER)
                 else:
-                    queueFGSJob(configStruct, uname, task[0], task[1], rank, ALInterfaceMode.FGS)
+                    queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS)
             elif modeSwitch == ALInterfaceMode.FAKE:
+                print("Doing a fake")
                 if packetType == SolverCode.BGK:
                     # Simplest stencil imaginable
-                    bgkInput = task[1]
+                    bgkInput = taskArgs
                     bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
                     bgkOutput.DiffCoeff[7] = (bgkInput.Temperature + bgkInput.Density[0] +  bgkInput.Charges[3]) / 3
                     # Write the result
-                    insertResult(rank, tag, dbPath, task[0], bgkOutput, ResultProvenance.FAKE)
+                    insertResult(rank, tag, dbPath, reqID, bgkOutput, ResultProvenance.FAKE)
                 else:
                     raise Exception('Using Unsupported Solver Code')
             elif modeSwitch == ALInterfaceMode.ANALYTIC:
                 if packetType == SolverCode.BGK:
                     # TODO: Probably verify there are only two species
-                    if task[1].Density[2] != 0.0 or task[1].Density[3] != 0.0:
+                    if taskArgs.Density[2] != 0.0 or taskArgs.Density[3] != 0.0:
                         raise Exception('Using Analytic ICF with more than two species')
-                    (cond, visc, diffCoeff) = ICFAnalytical_solution(task[1].Density, task[1].Charges, task[1].Temperature)
+                    (cond, visc, diffCoeff) = ICFAnalytical_solution(taskArgs.Density, taskArgs.Charges, taskArgs.Temperature)
                     bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
                     # Write the result
-                    insertResult(rank, tag, dbPath, task[0], bgkOutput, ResultProvenance.ANALYTIC)
+                    insertResult(rank, tag, dbPath, reqID, bgkOutput, ResultProvenance.ANALYTIC)
                 else:
                     raise Exception('Using Unsupported Analytic Solution')
             elif modeSwitch == ALInterfaceMode.KILL:
