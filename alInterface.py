@@ -602,7 +602,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
     reqArray = []
     for i in range(0, numRanks + numALRequesters):
         rank = i - numALRequesters
-        reqArray.append((rank, -1, []))
+        reqArray.append([rank, -1, []])
 
     #Spin until file exists
     while not os.path.exists(dbPath):
@@ -620,11 +620,13 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     interpModel = getInterpModel(packetType, alBackend, dbPath)
             GNDcnt = nuGNDcnt
         #Now populate the task queue
-        for (rank, latestID, missingIDs) in reqArray:
+        for i in range(0, numRanks + numALRequesters):
+            rank = reqArray[i][0]
+            latestID = reqArray[i][1]
+            missingIDs = reqArray[i][2]
             selString = getSelString(packetType, latestID, missingIDs)
             selArgs = (rank, tag)
             resultQueue = []
-            print(selString)
             # SELECT request
             sqlDB = sqlite3.connect(dbPath)
             sqlCursor = sqlDB.cursor()
@@ -642,7 +644,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     # Add what we were missing
                     missingIDs += range(latestID+1, newLatestID+1)
                     # And update latestID
-                    latestID = newLatestID
+                    reqArray[i][1] = newLatestID
                 #And then process those results
                 for result in resultQueue:
                     # Were we looking for this?
@@ -651,6 +653,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                         # HERE
                         newTask = (rank,result[0]) + result[1]
                         taskQueue.append(newTask)
+                        missingIDs.remove(result[0])
         #And now we process that task queue
         #TODO: Refactor slurm/flux queue logic up to here for throttling active jobs
         for indexTask in taskQueue:
