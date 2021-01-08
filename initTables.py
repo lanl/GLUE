@@ -17,11 +17,15 @@ def initSQLTables(configStruct):
     if packetType == SolverCode.BGK:
         dropReqString = "DROP TABLE IF EXISTS BGKREQS;"
         dropResString = "DROP TABLE IF EXISTS BGKRESULTS;"
+        dropResString = "DROP TABLE IF EXISTS BGKFASTRESULTS;"
         reqString = "CREATE TABLE BGKREQS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, TEMPERATURE REAL, "
         reqString += getSQLArrGenString("DENSITY", float, 4)
         reqString += getSQLArrGenString("CHARGES", float, 4)
         reqString +=  "REQTYPE INT);"
         resString = "CREATE TABLE BGKRESULTS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, VISCOSITY REAL, THERMAL_CONDUCT REAL, "
+        resString += getSQLArrGenString("DIFFCOEFF", float, 10)
+        resString += "PROVENANCE INT NOT NULL);"
+        resString = "CREATE TABLE BGKFASTRESULTS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, VISCOSITY REAL, THERMAL_CONDUCT REAL, "
         resString += getSQLArrGenString("DIFFCOEFF", float, 10)
         resString += "PROVENANCE INT NOT NULL);"
         gndString = "CREATE TABLE IF NOT EXISTS BGKGND(TEMPERATURE REAL, "
