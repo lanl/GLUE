@@ -502,7 +502,7 @@ class BGKPytorchInterpModel(InterpModelWrapper):
 def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlDB):
     if isinstance(fgsResult, BGKOutputs):
         sqlCursor = sqlDB.cursor()
-        insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        insString = "INSERT INTO BGKFASTRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
@@ -512,6 +512,16 @@ def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlDB):
         insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+    else:
+        raise Exception('Using Unsupported Solver Code')
+
+def mergeBufferTable(solverCode, sqlDB):
+    if solverCode == SolverCode.BGK:
+        sqlCursor = sqlDB.cursor()
+        mergeStr = "MERGE BGKRESULTS AS TARGET USING BGKFASTRESULTS AS SOURCE THEN DELETE;"
+        sqlCursor.execute(insString, (,))
         sqlDB.commit()
         sqlCursor.close()
     else:
@@ -699,6 +709,8 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     raise Exception('Using Unsupported Analytic Solution')
             elif modeSwitch == ALInterfaceMode.KILL:
                 keepSpinning = False
+        #And now merge and purge buffer tables
+        mergeBufferTable(SolverCode.BGK, sqlDB)
     #Close SQL Connection
     sqlDB.close()
 
