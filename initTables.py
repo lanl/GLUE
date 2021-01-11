@@ -18,7 +18,7 @@ def initSQLTables(configStruct):
     if packetType == SolverCode.BGK:
         dropReqString = "DROP TABLE IF EXISTS BGKREQS;"
         dropResString = "DROP TABLE IF EXISTS BGKRESULTS;"
-        dropResString = "DROP TABLE IF EXISTS BGKFASTRESULTS;"
+        dropResFString = "DROP TABLE IF EXISTS BGKFASTRESULTS;"
         reqString = "CREATE TABLE BGKREQS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, TEMPERATURE REAL, "
         reqString += getSQLArrGenString("DENSITY", float, 4)
         reqString += getSQLArrGenString("CHARGES", float, 4)
@@ -56,6 +56,7 @@ def initSQLTables(configStruct):
 
     sqlCursor.execute(dropReqString)
     sqlCursor.execute(dropResString)
+    sqlCursor.execute(dropResFString)
     sqlDB.commit()
 
     sqlCursor.execute(reqString)
