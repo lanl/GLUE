@@ -5,11 +5,11 @@ $(dirname $BASH_SOURCE)/stressTest_analyticICF
 if [ $? -eq 0 ]
 then
   sleep 2
-  rm ./testDB.db
+  #rm ./testDB.db
   exit 0
 else
   sleep 2
-  rm ./testDB.db
+  #rm ./testDB.db
   echo "Analytic Stress Test Failed"
   exit 1
 fi
