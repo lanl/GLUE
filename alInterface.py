@@ -523,7 +523,7 @@ def mergeBufferTable(solverCode, sqlDB):
         mergeStr = "INSERT INTO BGKRESULTS SELECT * FROM BGKFASTRESULTS;"
         delStr = "DELETE FROM BGKFASTRESULTS;"
         sqlCursor.execute(mergeStr)
-        sqlCuror.execute(delStr)
+        sqlCursor.execute(delStr)
         sqlDB.commit()
         sqlCursor.close()
     else:
