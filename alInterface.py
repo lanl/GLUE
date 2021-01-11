@@ -609,7 +609,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
     while not os.path.exists(dbPath):
         time.sleep(1)
     #Set up persistent SQL Connection
-    sqlDB = sqlite3.connect(dbPath)
+    sqlDB = sqlite3.connect(dbPath, timeout=45.0)
     #Get starting GNDCount of 0
     GNDcnt = 0
     #And start the glue loop
