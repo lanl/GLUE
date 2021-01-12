@@ -82,9 +82,13 @@ def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
         bgkOutput = BGKOutputs(Viscosity=viscosity, ThermalConductivity=thermalConductivity, DiffCoeff=diffCoeffs)
         # Write the tuple
         if(lammpsMode == ALInterfaceMode.FGS):
-            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FGS)
+            sqlDB = sqlite3.connect(dbPath)
+            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FGS, sqlDB)
+            sqlDB.close()
         elif(lammpsMode == ALInterfaceMode.FASTFGS):
-            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FASTFGS)
+            sqlDB = sqlite3.connect(dbPath)
+            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FASTFGS, sqlDB)
+            sqlDB.close()
         else:
             raise Exception('Using Unsupported FGS Mode')
         outputList = []
