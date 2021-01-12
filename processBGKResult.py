@@ -1,5 +1,5 @@
 import argparse
-from alInterface import  insertResult,  getGroundishTruthVersion
+from alInterface import  insertResult,  getGroundishTruthVersion, insertResultSlow
 from glueCodeTypes import BGKOutputs, ALInterfaceMode, ResultProvenance, SolverCode
 from writeBGKLammpsScript import write_output_coeff
 import numpy as np
@@ -82,12 +82,12 @@ def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
         bgkOutput = BGKOutputs(Viscosity=viscosity, ThermalConductivity=thermalConductivity, DiffCoeff=diffCoeffs)
         # Write the tuple
         if(lammpsMode == ALInterfaceMode.FGS):
-            sqlDB = sqlite3.connect(dbPath)
-            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FGS, sqlDB)
+            sqlDB = sqlite3.connect(dbPath, timeout=45.0)
+            insertResultSlow(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FGS, sqlDB)
             sqlDB.close()
         elif(lammpsMode == ALInterfaceMode.FASTFGS):
-            sqlDB = sqlite3.connect(dbPath)
-            insertResult(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FASTFGS, sqlDB)
+            sqlDB = sqlite3.connect(dbPath, timeout=45.0)
+            insertResultSlow(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FASTFGS, sqlDB)
             sqlDB.close()
         else:
             raise Exception('Using Unsupported FGS Mode')

@@ -499,6 +499,24 @@ class BGKPytorchInterpModel(InterpModelWrapper):
         isLegit = simpleALErrorChecker(modErr)
         return (isLegit, output)
 
+def insertResultSlow(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlDB):
+    if isinstance(fgsResult, BGKOutputs):
+        sqlCursor = sqlDB.cursor()
+        insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
+        sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+    elif isinstance(fgsResult, BGKMassesOutputs):
+        sqlCursor = sqlDB.cursor()
+        insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
+        sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+    else:
+        raise Exception('Using Unsupported Solver Code')
+
 def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlDB):
     if isinstance(fgsResult, BGKOutputs):
         sqlCursor = sqlDB.cursor()
