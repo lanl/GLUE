@@ -764,7 +764,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
             elif modeSwitch == ALInterfaceMode.KILL:
                 keepSpinning = False
         #And empty out the task queue....
-        del(task[:])
+        del(taskQueue[:])
         #And now merge and purge buffer tables
         mergeBufferTable(SolverCode.BGK, sqlDB)
     #Close SQL Connection
