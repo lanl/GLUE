@@ -535,6 +535,29 @@ def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlDB):
     else:
         raise Exception('Using Unsupported Solver Code')
 
+#TODO: Figure out correct location for this
+def icfComparator(lhs, rhs, epsilon):
+    retVal = True
+    if rhs.Temperature != 0.0 and (lhs.Temperature - rhs.Temperature) / rhs.Temperature > epsilon:
+        retVal = False
+    for i in range(4):
+        if rhs.Density[i] != 0.0 and (lhs.Density[i] - rhs.Density[i]) / rhs.Density[i] > epsilon:
+            return False
+        if rhs.Charges[i] != 0.0 and (lhs.Charges[i] - rhs.Charges[i]) / rhs.Charges[i] > epsilon:
+            return False
+    return retVal
+
+def cacheCheck(inArgs, configStruct, dbCache):
+    if isinstance(inArgs, BGKInputs):
+        #TODO: Make this cleaner
+        epsilon = configStruct['ICFParameters']['RelativeError']
+        for entry in dbCache:
+            if icfComparator(inArgs, entry[0], epsilon):
+                return entry[1]
+        return None
+    else:
+        return None
+
 def mergeBufferTable(solverCode, sqlDB):
     if solverCode == SolverCode.BGK:
         sqlCursor = sqlDB.cursor()
@@ -547,21 +570,30 @@ def mergeBufferTable(solverCode, sqlDB):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB):
+def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbCache):
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']
     # This is a brute force call. We only want an exact LAMMPS result
-    # So first, check if we have already processed this request
     outFGS = None
-    selQuery = getGNDStringAndTuple(inArgs, configStruct)
-    sqlCursor = sqlDB.cursor()
-    for row in sqlCursor.execute(selQuery[0], selQuery[1]):
-        if isinstance(inArgs, BGKInputs):
-            if row[22] == getGroundishTruthVersion(SolverCode.BGK):
-                outFGS = BGKOutputs(Viscosity=row[10], ThermalConductivity=row[11], DiffCoeff=row[12:22])
-        elif isinstance(inArgs, BGKMassesInputs):
-            if row[26] == getGroundishTruthVersion(SolverCode.BGKMASSES):
-                outFGS = BGKMassesOutputs(Viscosity=row[14], ThermalConductivity=row[15], DiffCoeff=row[16:26])
+    # So first, check if we have already found a DB hit on a previous query
+    outFGS = cacheCheck(inArgs, configStruct, dbCache)
+    # If no hit, we check the DB
+    if outFGS == None:
+        selQuery = getGNDStringAndTuple(inArgs, configStruct)
+        sqlCursor = sqlDB.cursor()
+        for row in sqlCursor.execute(selQuery[0], selQuery[1]):
+            if isinstance(inArgs, BGKInputs):
+                if row[22] == getGroundishTruthVersion(SolverCode.BGK):
+                    outFGS = BGKOutputs(Viscosity=row[10], ThermalConductivity=row[11], DiffCoeff=row[12:22])
+            elif isinstance(inArgs, BGKMassesInputs):
+                if row[26] == getGroundishTruthVersion(SolverCode.BGKMASSES):
+                    outFGS = BGKMassesOutputs(Viscosity=row[14], ThermalConductivity=row[15], DiffCoeff=row[16:26])
+        # Did we get a hit?
+        if outFGS != None:
+            # Put it in the DBCache for later
+            #TODO: Cap the size of this cache
+            dbCache.append((inArgs, outFGS))
+    #Did we get a hit from either?
     if outFGS != None:
         # We had a hit, so send that
         insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB, sqlDB)
@@ -622,6 +654,8 @@ def pollAndProcessFGSRequests(configStruct, uname):
     taskQueue = []
     # Array to handle missing requests
     reqArray = [[i-numALRequesters, -1, []] for i in range(0, numRanks + numALRequesters)]
+    # Cache for DB hits
+    dbCache = []
 
     #Spin until file exists
     while not os.path.exists(dbPath):
@@ -689,7 +723,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 modeSwitch = requestedMode
             if modeSwitch == ALInterfaceMode.FGS or modeSwitch == ALInterfaceMode.FASTFGS:
                 # Submit as LAMMPS job
-                queueFGSJob(configStruct, uname, reqID, taskArgs, rank, modeSwitch, sqlDB)
+                queueFGSJob(configStruct, uname, reqID, taskArgs, rank, modeSwitch, sqlDB, dbCache)
             elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                 # General (Active) Learner
                 #  model = getLatestModelFromLearners()
@@ -705,7 +739,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 if isLegit:
                     insertResult(rank, tag, dbPath, reqID, output, ResultProvenance.ACTIVELEARNER, sqlDB)
                 else:
-                    queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS, sqlDB)
+                    queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS, sqlDB, dbCache)
             elif modeSwitch == ALInterfaceMode.FAKE:
                 if packetType == SolverCode.BGK:
                     # Simplest stencil imaginable
