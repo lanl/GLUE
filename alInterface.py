@@ -763,6 +763,8 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     raise Exception('Using Unsupported Analytic Solution')
             elif modeSwitch == ALInterfaceMode.KILL:
                 keepSpinning = False
+        #And empty out the task queue....
+        del(task[:])
         #And now merge and purge buffer tables
         mergeBufferTable(SolverCode.BGK, sqlDB)
     #Close SQL Connection
