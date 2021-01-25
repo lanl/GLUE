@@ -449,6 +449,9 @@ def getInterpModel(packetType, alBackend, dbPath):
     if alBackend == LearnerBackend.PYTORCH:
         import nn_learner
         return BGKPytorchInterpModel(nn_learner.retrain(dbPath))
+    if alBackend == LearnerBackend.RANDFOREST:
+        import rf_learner
+        return BGKModel(rf_learner.retrain(dbPath))
     else:
         raise Exception('Using Unsupported Active Learning Backewnd')
 
