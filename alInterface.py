@@ -451,7 +451,7 @@ def getInterpModel(packetType, alBackend, dbPath):
         return BGKPytorchInterpModel(nn_learner.retrain(dbPath))
     if alBackend == LearnerBackend.RANDFOREST:
         import rf_learner
-        return BGKModel(rf_learner.retrain(dbPath))
+        return BGKRandForestInterpModel(rf_learner.retrain(dbPath)) 
     else:
         raise Exception('Using Unsupported Active Learning Backewnd')
 
@@ -497,6 +497,16 @@ class BGKPytorchInterpModel(InterpModelWrapper):
         modErr = self.model.iserrok(err)
         isLegit = simpleALErrorChecker(modErr)
         return (isLegit, output)
+
+class BGKRandForestInterpModel(InterpModelWrapper):
+        def __init__(self, newModel):
+            # TODO: Asynchrony!
+            self.model = newModel
+        def __call__(self, inputStruct):
+            (output,err) = self.model(inputStruct)
+            modErr = self.model.iserrok(err)
+            isLegit = simpleALErrorChecker(modErr)
+            return (isLegit, output)
 
 def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance):
     if isinstance(fgsResult, BGKOutputs):
