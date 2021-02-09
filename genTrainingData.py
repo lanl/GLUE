@@ -14,6 +14,7 @@ def genTrainingData(configStruct, uname):
     pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
     trainingDir = os.path.join(pythonScriptDir, "training")
     dbPath = configStruct['dbFileName']
+    dbCache = []
     sqlDB = sqlite3.connect(dbPath)
 
     if code == SolverCode.BGK:
@@ -21,14 +22,14 @@ def genTrainingData(configStruct, uname):
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0])
-            queueFGSJob(configStruct, uname, reqid, inArgs, 0, ALInterfaceMode.FGS, sqlDB)
+            queueFGSJob(configStruct, uname, reqid, inArgs, 0, ALInterfaceMode.FGS, sqlDB, dbCache)
             reqid += 1
     elif code == SolverCode.BGKMASSES:
         csv = os.path.join(trainingDir, "bgk_masses.csv")
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKMassesInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0], Masses=[row[5], row[6], 0.0, 0.0])
-            queueFGSJob(configStruct, uname, reqid, inArgs, 0, ALInterfaceMode.FGS, sqlDB)
+            queueFGSJob(configStruct, uname, reqid, inArgs, 0, ALInterfaceMode.FGS, sqlDB, dbCache)
             reqid += 1
     else:
         raise Exception('Using Unsupported Solver Code')
