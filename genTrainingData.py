@@ -5,6 +5,7 @@ from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, Learner
 from alInterface import  getAllGNDData, queueFGSJob
 import getpass
 import json
+import sqlite3
 from glueArgParser import processGlueCodeArguments
 
 def genTrainingData(configStruct, uname):
@@ -12,23 +13,26 @@ def genTrainingData(configStruct, uname):
     reqid = 0
     pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
     trainingDir = os.path.join(pythonScriptDir, "training")
+    dbPath = configStruct['dbFileName']
+    sqlDB = sqlite3.connect(dbPath)
 
     if code == SolverCode.BGK:
         csv = os.path.join(trainingDir, "bgk.csv")
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0])
-            queueFGSJob(configStruct, uname, reqid, inArgs, 0, ALInterfaceMode.FGS)
+            queueFGSJob(configStruct, uname, reqid, inArgs, 0, ALInterfaceMode.FGS, sqlDB)
             reqid += 1
     elif code == SolverCode.BGKMASSES:
         csv = os.path.join(trainingDir, "bgk_masses.csv")
         trainingEntries = np.loadtxt(csv)
         for row in trainingEntries:
             inArgs = BGKMassesInputs(Temperature=row[0], Density=[row[1], row[2], 0.0, 0.0], Charges=[row[3], row[4], 0.0, 0.0], Masses=[row[5], row[6], 0.0, 0.0])
-            queueFGSJob(configStruct, uname, reqid, inArgs, 0, ALInterfaceMode.FGS)
+            queueFGSJob(configStruct, uname, reqid, inArgs, 0, ALInterfaceMode.FGS, sqlDB)
             reqid += 1
     else:
         raise Exception('Using Unsupported Solver Code')
+    sqlDB.close()
 
 def printResults(gndTable, code):
     if code == SolverCode.BGK:

@@ -458,16 +458,14 @@ def getInterpModel(packetType, alBackend, dbPath):
     else:
         raise Exception('Using Unsupported Active Learning Backewnd')
 
-def insertALPrediction(dbPath, inFGS, outFGS, solverCode):
+def insertALPrediction(dbPath, inFGS, outFGS, solverCode, sqlDB):
     if solverCode == SolverCode.BGK:
-        sqlDB = sqlite3.connect(dbPath)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKALLOGS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         insArgs = (inFGS.Temperature,) + tuple(inFGS.Density) + tuple(inFGS.Charges) + (getGroundishTruthVersion(solverCode),) + (outFGS.Viscosity, outFGS.ThermalConductivity) + tuple(outFGS.DiffCoeff) + (getGroundishTruthVersion(solverCode),)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
-        sqlDB.close()
     else:
         raise Exception("Using Unsupported Solver Code")
 
@@ -501,36 +499,61 @@ class BGKPytorchInterpModel(InterpModelWrapper):
         isLegit = simpleALErrorChecker(modErr)
         return (isLegit, output)
 
-def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance):
+def insertResultSlow(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlDB):
     if isinstance(fgsResult, BGKOutputs):
-        sqlDB = sqlite3.connect(dbPath, timeout=60.0)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
-        sqlDB.close()
     elif isinstance(fgsResult, BGKMassesOutputs):
-        sqlDB = sqlite3.connect(dbPath, timeout=60.0)
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
-        sqlDB.close()
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch):
+def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlDB):
+    if isinstance(fgsResult, BGKOutputs):
+        sqlCursor = sqlDB.cursor()
+        insString = "INSERT INTO BGKFASTRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
+        sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+    elif isinstance(fgsResult, BGKMassesOutputs):
+        sqlCursor = sqlDB.cursor()
+        insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
+        sqlCursor.execute(insString, insArgs)
+        sqlDB.commit()
+        sqlCursor.close()
+    else:
+        raise Exception('Using Unsupported Solver Code')
+
+def mergeBufferTable(solverCode, sqlDB):
+    if solverCode == SolverCode.BGK:
+        sqlCursor = sqlDB.cursor()
+        mergeStr = "INSERT INTO BGKRESULTS SELECT * FROM BGKFASTRESULTS;"
+        delStr = "DELETE FROM BGKFASTRESULTS;"
+        sqlCursor.execute(mergeStr)
+        sqlCursor.execute(delStr)
+        sqlDB.commit()
+        sqlCursor.close()
+    else:
+        raise Exception('Using Unsupported Solver Code')
+
+def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB):
     tag = configStruct['tag']
     dbPath = configStruct['dbFileName']
     # This is a brute force call. We only want an exact LAMMPS result
     # So first, check if we have already processed this request
     outFGS = None
     selQuery = getGNDStringAndTuple(inArgs, configStruct)
-    sqlDB = sqlite3.connect(dbPath)
     sqlCursor = sqlDB.cursor()
     for row in sqlCursor.execute(selQuery[0], selQuery[1]):
         if isinstance(inArgs, BGKInputs):
@@ -541,13 +564,13 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch):
                 outFGS = BGKMassesOutputs(Viscosity=row[14], ThermalConductivity=row[15], DiffCoeff=row[16:26])
     if outFGS != None:
         # We had a hit, so send that
-        insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB)
+        insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB, sqlDB)
     else:
         # Nope, so now we see if we need an FGS job
         if useAnalyticSolution(inArgs):
             # It was, so let's get that solution
             results = getAnalyticSolution(inArgs)
-            insertResult(rank, tag, dbPath, reqID, results, ResultProvenance.FGS)
+            insertResult(rank, tag, dbPath, reqID, results, ResultProvenance.FGS, sqlDB)
         else:
             # Call fgs with args as scheduled job
             # job will write result back
@@ -603,6 +626,8 @@ def pollAndProcessFGSRequests(configStruct, uname):
     #Spin until file exists
     while not os.path.exists(dbPath):
         time.sleep(1)
+    #Set up persistent SQL Connection
+    sqlDB = sqlite3.connect(dbPath, timeout=45.0)
     #Get starting GNDCount of 0
     GNDcnt = 0
     #And start the glue loop
@@ -624,7 +649,6 @@ def pollAndProcessFGSRequests(configStruct, uname):
             selArgs = (rank, tag)
             resultQueue = []
             # SELECT request
-            sqlDB = sqlite3.connect(dbPath)
             sqlCursor = sqlDB.cursor()
             for row in sqlCursor.execute(selString, selArgs):
                 # Process row for later
@@ -632,7 +656,6 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 # (reqID, alMode, inputTuple)
                 resultQueue.append((row[2], reqType, solverInput))
             sqlCursor.close()
-            sqlDB.close()
             #Get latest received request ID
             if len(resultQueue) > 0:
                 newLatestID = max(resultQueue, key = lambda i : i[0])[0]
@@ -666,7 +689,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 modeSwitch = requestedMode
             if modeSwitch == ALInterfaceMode.FGS or modeSwitch == ALInterfaceMode.FASTFGS:
                 # Submit as LAMMPS job
-                queueFGSJob(configStruct, uname, reqID, taskArgs, rank, modeSwitch)
+                queueFGSJob(configStruct, uname, reqID, taskArgs, rank, modeSwitch, sqlDB)
             elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                 # General (Active) Learner
                 #  model = getLatestModelFromLearners()
@@ -678,11 +701,11 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 #      queueUpdateModel(inputs, outputs)
                 #      return outputs
                 (isLegit, output) = interpModel(taskArgs)
-                insertALPrediction(dbPath, taskArgs, output, packetType)
+                insertALPrediction(dbPath, taskArgs, output, packetType, sqlDB)
                 if isLegit:
-                    insertResult(rank, tag, dbPath, reqID, output, ResultProvenance.ACTIVELEARNER)
+                    insertResult(rank, tag, dbPath, reqID, output, ResultProvenance.ACTIVELEARNER, sqlDB)
                 else:
-                    queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS)
+                    queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS, sqlDB)
             elif modeSwitch == ALInterfaceMode.FAKE:
                 if packetType == SolverCode.BGK:
                     # Simplest stencil imaginable
@@ -690,7 +713,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
                     bgkOutput.DiffCoeff[7] = (bgkInput.Temperature + bgkInput.Density[0] +  bgkInput.Charges[3]) / 3
                     # Write the result
-                    insertResult(rank, tag, dbPath, reqID, bgkOutput, ResultProvenance.FAKE)
+                    insertResult(rank, tag, dbPath, reqID, bgkOutput, ResultProvenance.FAKE, sqlDB)
                 else:
                     raise Exception('Using Unsupported Solver Code')
             elif modeSwitch == ALInterfaceMode.ANALYTIC:
@@ -701,11 +724,15 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     (cond, visc, diffCoeff) = ICFAnalytical_solution(taskArgs.Density, taskArgs.Charges, taskArgs.Temperature)
                     bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
                     # Write the result
-                    insertResult(rank, tag, dbPath, reqID, bgkOutput, ResultProvenance.ANALYTIC)
+                    insertResult(rank, tag, dbPath, reqID, bgkOutput, ResultProvenance.ANALYTIC, sqlDB)
                 else:
                     raise Exception('Using Unsupported Analytic Solution')
             elif modeSwitch == ALInterfaceMode.KILL:
                 keepSpinning = False
+        #And now merge and purge buffer tables
+        mergeBufferTable(SolverCode.BGK, sqlDB)
+    #Close SQL Connection
+    sqlDB.close()
 
 if __name__ == "__main__":
     configStruct = processGlueCodeArguments()
