@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <sqlite3.h>
 #include <mpi.h>
 
@@ -225,7 +226,35 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 	//If rank 0
 	if(myRank == 0)
 	{
-		//Process requests, making sure to handle 0 specially because that is us
+		//First, submit all rank 0 requests
+		///TODO
+		//Then, do the rest
+		int resultBatches[commSize];
+		memcpy(resultBatches, batchBuffer, sizeof(int)*commSize);
+		///TODO: Need to preserve range of results we expect and number of results
+		for(int rank = 1; rank < commSize; rank++)
+		{
+			//Do we still have requests from that rank?
+			if(batchBuffer[rank] != 0)
+			{
+				//recv those requests
+				///TODO
+				//Send to glue code
+				///TODO
+				batchBuffer[rank]--;
+			}
+		}
+		//Now, we process results
+		for(int rank = 1; rank < commSize; rank++)
+		{
+			//Do we still have results for that rank?
+			if(resultBatches[rank] != 0)
+			{
+				///TODO
+				resultBatches[rank]--;
+			}
+		}
+		//And then handle the requests from rank 0
 		///TODO
 	}
 	else
