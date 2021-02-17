@@ -2,7 +2,9 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
+#include <vector>
+#include <iterator>
+#include <algorithm>
 #include <sqlite3.h>
 #include <mpi.h>
 
@@ -213,14 +215,14 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 	MPI_Comm_rank(glueComm, &myRank);
 	MPI_Comm_size(glueComm, &commSize);
 	//Compute number of required request batches
-	int batchBuffer[commSize] = {};
+	std::vector<int> batchBuffer(commSize, 0);
 	batchBuffer[myRank] = numInputs / globalGlueBufferSize;
 	if(numInputs % globalGlueBufferSize != 0)
 	{
 		batchBuffer[myRank]++;
 	}
 	//Reduce to provide that to 0
-	MPI_Reduce(batchBuffer, batchBuffer, commSize, MPI_INT, MPI_MAX, 0, glueComm);
+	MPI_Reduce(batchBuffer.data(), batchBuffer.data(), commSize, MPI_INT, MPI_MAX, 0, glueComm);
 	//Prepare results buffer
 	bgk_result_t* reqBuffer = (bgk_result_t*)malloc(sizeof(bgk_result_t*) * numInputs);
 	//If rank 0
@@ -229,8 +231,7 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 		//First, submit all rank 0 requests
 		///TODO
 		//Then, do the rest
-		int resultBatches[commSize];
-		memcpy(resultBatches, batchBuffer, sizeof(int)*commSize);
+		std::vector<int> resultBatches(batchBuffer);
 		///TODO: Need to preserve range of results we expect and number of results
 		for(int rank = 1; rank < commSize; rank++)
 		{
