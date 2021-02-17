@@ -209,20 +209,21 @@ void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **process
 
 bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 {
+	//Thanks to Andrew Reisner for helping with a lot of the thought process behind the MPI aspects of the algorithm
 	///TODO: Will probably refactor to a template
 	//Get clueComm rank and size
 	int myRank, commSize;
 	MPI_Comm_rank(glueComm, &myRank);
 	MPI_Comm_size(glueComm, &commSize);
 	//Compute number of required request batches
-	std::vector<int> batchBuffer(commSize, 0);
-	batchBuffer[myRank] = numInputs / globalGlueBufferSize;
+	std::vector<int> reqBatches(commSize, 0);
+	reqBatches[myRank] = numInputs / globalGlueBufferSize;
 	if(numInputs % globalGlueBufferSize != 0)
 	{
-		batchBuffer[myRank]++;
+		reqBatches[myRank]++;
 	}
 	//Reduce to provide that to 0
-	MPI_Reduce(batchBuffer.data(), batchBuffer.data(), commSize, MPI_INT, MPI_MAX, 0, glueComm);
+	MPI_Reduce(reqBatches.data(), reqBatches.data(), commSize, MPI_INT, MPI_MAX, 0, glueComm);
 	//Prepare results buffer
 	bgk_result_t* reqBuffer = (bgk_result_t*)malloc(sizeof(bgk_result_t*) * numInputs);
 	//If rank 0
@@ -231,18 +232,25 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 		//First, submit all rank 0 requests
 		///TODO
 		//Then, do the rest
-		std::vector<int> resultBatches(batchBuffer);
+		std::vector<int> resultBatches(reqBatches);
 		///TODO: Need to preserve range of results we expect and number of results
+		std::vector<bgk_request_t> reqs(globalGlueBufferSize);
 		for(int rank = 1; rank < commSize; rank++)
 		{
 			//Do we still have requests from that rank?
-			if(batchBuffer[rank] != 0)
+			if(reqBatches[rank] != 0)
 			{
-				//recv those requests
-				///TODO
+				//Blocking recv those requests
+				MPI_Status reqStatus;
+				MPI_Recv(reqs.data(), globalGlueBufferSize*sizeof(bgk_request_t), MPI_BYTE, rank, reqBatches[rank], glueComm, &reqStatus);
+				//And determine how many were actually sent to us
+				int numReqs;
+				MPI_Get_count(&reqStatus, MPI_BYTE, &numReqs);
+				numReqs = numReqs / sizeof(bgk_request_t);
 				//Send to glue code
 				///TODO
-				batchBuffer[rank]--;
+				//And decrement the number of expected batches from this rank
+				reqBatches[rank]--;
 			}
 		}
 		//Now, we process results
@@ -261,11 +269,32 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 	else
 	{
 		//Everyone else, send your requests to rank 0
-		for(int i = 0; i < batchBuffer[myRank]; i++)
+		unsigned int curIndex = 0;
+		std::vector<MPI_Request> sendReqs(reqBatches[myRank]);
+		std::vector<MPI_Status> sendStatuses(reqBatches[myRank]);
+		for(int i = reqBatches[myRank]; i > 0; i--)
 		{
-			//Send requests to buffer on rank 0
-			///TODO
-			//Wait for results
+			//Compute size of send
+			int reqSize;
+			if(curIndex + globalGlueBufferSize > numInputs)
+			{
+				reqSize = numInputs - curIndex;
+			}
+			else
+			{
+					reqSize = globalGlueBufferSize;
+			}
+			//Queue up send of this data to rank 0
+			MPI_Isend(&input[curIndex], sizeof(bgk_request_t)*reqSize, MPI_BYTE, 0, i, glueComm, &sendReqs[i-1]);
+			//Increment curIndex
+			curIndex += globalGlueBufferSize;
+		}
+		//Wait on all the sends
+		MPI_Waitall(reqBatches[myRank], sendReqs.data(), sendStatuses.data());
+		//Then get results
+		for(int i = 0; i < reqBatches[myRank]; i++)
+		{
+			//Blocking recv for results
 			///TODO
 		}
 	}
