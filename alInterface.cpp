@@ -15,6 +15,7 @@
 AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
 AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
 sqlite3* globalGlueDBHandle;
+const unsigned int globalGlueBufferSize = 1024;
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
 {
@@ -206,22 +207,40 @@ void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **process
 bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 {
 	///TODO: Will probably refactor to a template
-	///TODO
-	//Compute number of required request batches
-	int numBatches;
-	//Reduce to provide that to 0
-	//Get clueComm rank
-	int myRank;
+	//Get clueComm rank and size
+	int myRank, commSize;
 	MPI_Comm_rank(glueComm, &myRank);
-	//Send requests to buffer on rank 0
+	MPI_Comm_size(glueComm, &commSize);
+	//Compute number of required request batches
+	int batchBuffer[commSize] = {};
+	batchBuffer[myRank] = numInputs / globalGlueBufferSize;
+	if(numInputs % globalGlueBufferSize != 0)
+	{
+		batchBuffer[myRank]++;
+	}
+	//Reduce to provide that to 0
+	MPI_Reduce(batchBuffer, batchBuffer, commSize, MPI_INT, MPI_MAX, 0, glueComm);
+	//Prepare results buffer
+	bgk_result_t* reqBuffer = (bgk_result_t*)malloc(sizeof(bgk_result_t*) * numInputs);
 	//If rank 0
 	if(myRank == 0)
 	{
-		//Process requests
+		//Process requests, making sure to handle 0 specially because that is us
+		///TODO
 	}
-	//Wait for results
+	else
+	{
+		//Everyone else, send your requests to rank 0
+		for(int i = 0; i < batchBuffer[myRank]; i++)
+		{
+			//Send requests to buffer on rank 0
+			///TODO
+			//Wait for results
+			///TODO
+		}
+	}
 	//Return results
-	return nullptr;
+	return reqBuffer;
 }
 
 void closeGlue(MPI_Comm glueComm)
