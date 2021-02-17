@@ -6,6 +6,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <sqlite3.h>
 
 int getReqNumber();
 
@@ -27,6 +28,7 @@ template <typename T> struct AsyncSelectTable_t
 
 extern AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
 extern AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
+extern sqlite3* globalGlueDBHandle;
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName);
 static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColName);

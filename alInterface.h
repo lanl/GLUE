@@ -3,6 +3,7 @@
 
 #include <sqlite3.h>
 #include <math.h>
+#include <mpi.h>
 
 enum ALInterfaceMode_e
 {
@@ -112,6 +113,7 @@ typedef struct lbmToOneDMD_request_s lbmToOneDMD_request_t;
 extern "C"
 {
 #endif
+	//All of these will likely be deprecated in order months
 	bgk_result_t bgk_req_single(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle);
 	bgk_result_t bgk_req_single_with_reqtype(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
 	bgk_result_t* bgk_req_batch(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
@@ -134,6 +136,12 @@ extern "C"
 	
 	sqlite3 * initDB(int mpiRank, char * fName);
 	void closeDB(sqlite3* dbHandle);
+
+	//These are the new interfaces
+	void connectGlue(char * fName, MPI_Comm glueComm);
+	bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm);
+	void closeGlue(MPI_Comm glueComm);
+
 #ifdef __cplusplus
 }
 #endif

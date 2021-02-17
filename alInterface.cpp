@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <sqlite3.h>
+#include <mpi.h>
 
 #ifdef DB_EXISTENCE_SPIN
 #include <experimental/filesystem>
@@ -13,6 +14,7 @@
 ///TODO: Verify this is the correct way to do a global variable
 AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
 AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
+sqlite3* globalGlueDBHandle;
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
 {
@@ -179,4 +181,59 @@ void closeDB(sqlite3* dbHandle)
 void resFreeWrapper(void * buffer)
 {
 	free(buffer);
+}
+
+void connectGlue(char * fName, MPI_Comm glueComm)
+{
+	//Not a collective operation because only rank 0 needs to do this
+	//If glueComm rank is 0
+	int myRank;
+	MPI_Comm_rank(glueComm, &myRank);
+	if(myRank == 0)
+	{
+		//Connect to that DB
+		sqlite3_open(fName, &globalGlueDBHandle);
+	}
+}
+
+void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **processedInput, int * numProcessedInputs)
+{
+	///TODO
+	//Look for and remove duplicates
+	return;
+}
+
+bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
+{
+	///TODO: Will probably refactor to a template
+	///TODO
+	//Compute number of required request batches
+	int numBatches;
+	//Reduce to provide that to 0
+	//Get clueComm rank
+	int myRank;
+	MPI_Comm_rank(glueComm, &myRank);
+	//Send requests to buffer on rank 0
+	//If rank 0
+	if(myRank == 0)
+	{
+		//Process requests
+	}
+	//Wait for results
+	//Return results
+	return nullptr;
+}
+
+void closeGlue(MPI_Comm glueComm)
+{
+	//Not a collective operation because only rank 0 needs to do this
+	//If glueComm rank is 0
+	int myRank;
+	MPI_Comm_rank(glueComm, &myRank);
+	if(myRank == 0)
+	{
+		///TODO: Send killswitch
+		//Disconnect from that DB
+		sqlite3_close(globalGlueDBHandle);
+	}
 }
