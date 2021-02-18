@@ -27,6 +27,7 @@ class LearnerBackend(IntEnum):
     MYSTIC = 1
     PYTORCH = 2
     FAKE = 3
+    RANDFOREST = 4
 
 class SchedulerInterface(IntEnum):
     SLURM = 0
