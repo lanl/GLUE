@@ -13,10 +13,12 @@ def initSQLTables(configStruct):
     packetType = configStruct['solverCode']
     reqString = ""
     resString = ""
+    resFString = ""
     gndString = ""
     if packetType == SolverCode.BGK:
         dropReqString = "DROP TABLE IF EXISTS BGKREQS;"
         dropResString = "DROP TABLE IF EXISTS BGKRESULTS;"
+        dropResFString = "DROP TABLE IF EXISTS BGKFASTRESULTS;"
         reqString = "CREATE TABLE BGKREQS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, TEMPERATURE REAL, "
         reqString += getSQLArrGenString("DENSITY", float, 4)
         reqString += getSQLArrGenString("CHARGES", float, 4)
@@ -24,6 +26,9 @@ def initSQLTables(configStruct):
         resString = "CREATE TABLE BGKRESULTS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, VISCOSITY REAL, THERMAL_CONDUCT REAL, "
         resString += getSQLArrGenString("DIFFCOEFF", float, 10)
         resString += "PROVENANCE INT NOT NULL);"
+        resFString = "CREATE TABLE BGKFASTRESULTS(TAG TEXT NOT NULL, RANK INT NOT NULL, REQ INT NOT NULL, VISCOSITY REAL, THERMAL_CONDUCT REAL, "
+        resFString += getSQLArrGenString("DIFFCOEFF", float, 10)
+        resFString += "PROVENANCE INT NOT NULL);"
         gndString = "CREATE TABLE IF NOT EXISTS BGKGND(TEMPERATURE REAL, "
         gndString += getSQLArrGenString("DENSITY", float, 4)
         gndString += getSQLArrGenString("CHARGES", float, 4)
@@ -51,12 +56,14 @@ def initSQLTables(configStruct):
 
     sqlCursor.execute(dropReqString)
     sqlCursor.execute(dropResString)
+    sqlCursor.execute(dropResFString)
     sqlDB.commit()
 
     sqlCursor.execute(reqString)
     sqlCursor.execute(resString)
     sqlCursor.execute(gndString)
     sqlCursor.execute(logString)
+    sqlCursor.execute(resFString)
 
     sqlDB.commit()
     sqlDB.close()

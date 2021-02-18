@@ -40,7 +40,7 @@ endif
 
 all: libalGlue.a
 
-test: sniffTest_mpi sniffTest_serial alTester_serial sniffTest_fortranBGK
+test: sniffTest_mpi sniffTest_serial alTester_serial sniffTest_fortranBGK stressTest_analyticICF
 
 libalGlue.a: alInterface.o alInterface_f.o alGlueTypes_f.o
 	${AR} ${AR_FLAGS} libalGlue.a alInterface.o alInterface_f.o
@@ -75,6 +75,12 @@ sniffTest_fortranBGK_c.o: sniffTest_fortranBGK_c.cpp
 sniffTest_fortranBGK: libalGlue.a sniffTest_fortranBGK_f.o sniffTest_fortranBGK_c.o
 	${CXX} sniffTest_fortranBGK_f.o sniffTest_fortranBGK_c.o ${LDFLAGS} ${FORTLDFLAGS} -o sniffTest_fortranBGK
 
+stressTest_analyticICF: libalGlue.a stressTest_analyticICF.o
+	${CXX} ${CXXFLAGS} stressTest_analyticICF.o ${LDFLAGS} -o stressTest_analyticICF
+
+stressTest_analyticICF.o: stressTest_analyticICF.c
+	${CC} ${CFLAGS} -c stressTest_analyticICF.c
+
 alTester.o: alTester.cpp
 	${CXX} -c alTester.cpp
 
@@ -82,4 +88,4 @@ alTester_serial: libalGlue.a alTester.o
 	${CXX} alTester.o ${LDFLAGS} -o alTester_serial
 
 clean:
-	rm -f ./*.o ./*.a ./*.mod ./sniffTest_serial ./sniffTest_mpi ./alTester_serial
+	rm -f ./*.o ./*.a ./*.mod ./sniffTest_serial ./sniffTest_mpi ./alTester_serial ./stressTest_analyticICF
