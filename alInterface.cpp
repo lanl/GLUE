@@ -222,18 +222,26 @@ void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **process
 	return;
 }
 
-std::set<int> icf_insertReqs(bgk_request_t *input, int numInputs, int reqRank, sqlite3 * dbHandle)
+std::tuple<int,int> icf_insertReqs(bgk_request_t *input, int numInputs, int reqRank, sqlite3 * dbHandle)
 {
-	std::set<int> outstandingRequests;
 	std::string tag("TAG");
+	int start,end;
 	for(int i = 0; i < numInputs; i++)
 	{
 		int reqNum = getReqNumberForRank(reqRank);
+		if(i == 0)
+		{
+			start = reqNum;
+		}
+		else if(i == numInputs - 1)
+		{
+			end = reqNum;
+		}
 		///TODO: Remove "TAG" requirement
 		writeRequest<bgk_request_t>(input[i], reqRank, const_cast<char *>(tag.c_str()), dbHandle, reqNum, ALInterfaceMode_e::DEFAULT);
-		outstandingRequests.insert(reqNum);
 	}
-	return outstandingRequests;
+	std::tuple<int, int> reqRange(start, end);
+	return reqRange;
 }
 
 bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
@@ -258,13 +266,12 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 	//If rank 0
 	if(myRank == 0)
 	{
+		std::vector<std::vector<std::tuple<int,int>>> reqsPerBatch;
 		//First, submit all rank 0 requests
-		std::vector<std::set<int>> outsandingReqIDs(commSize);
-		std::set<int> zeroReqs = icf_insertReqs(input, numInputs, 0, globalGlueDBHandle);
-		outsandingReqIDs[0].insert(zeroReqs.begin(), zeroReqs.end());
+		std::tuple<int, int> zeroReqs = icf_insertReqs(input, numInputs, 0, globalGlueDBHandle);
+		reqsPerBatch[0].push_back(zeroReqs);
 		//Then, do the rest
 		std::vector<int> resultBatches(reqBatches);
-		///TODO: Need to preserve range of results we expect and number of results
 		std::vector<bgk_request_t> reqs(globalGlueBufferSize);
 		for(int rank = 1; rank < commSize; rank++)
 		{
@@ -279,7 +286,9 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 				MPI_Get_count(&reqStatus, MPI_BYTE, &numReqs);
 				numReqs = numReqs / sizeof(bgk_request_t);
 				//Send to glue code
-				///TODO
+				std::tuple<int, int> batchRange  = icf_insertReqs(reqs.data(), numReqs, rank, globalGlueDBHandle);
+				// Put requests in req list
+				reqsPerBatch[rank].push_back(batchRange);
 				//And decrement the number of expected batches from this rank
 				reqBatches[rank]--;
 			}
