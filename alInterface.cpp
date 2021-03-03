@@ -64,6 +64,19 @@ int getReqNumber()
 	return retNum;
 }
 
+int getReqNumberForRank(int rank)
+{
+	//Static variables are dirty but this is an okay use
+	static std::vector<int> reqNumber;
+	if (reqNumber.size() <= rank)
+	{
+		reqNumber.resize(rank+1, 0);
+	}
+	int retVal = reqNumber[rank];
+	reqNumber[rank]++;
+	return retVal;
+}
+
 bgk_result_t bgk_req_single_with_reqtype(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
 {
 	return req_single_with_reqtype<bgk_request_t, bgk_result_t>(input, mpiRank, tag, dbHandle, reqType);
@@ -202,9 +215,25 @@ void connectGlue(char * fName, MPI_Comm glueComm)
 
 void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **processedInput, int * numProcessedInputs)
 {
-	///TODO
 	//Look for and remove duplicates
+	///TODO
+	*processedInput = input;
+	*numProcessedInputs = numInputs;
 	return;
+}
+
+std::set<int> icf_insertReqs(bgk_request_t *input, int numInputs, int reqRank, sqlite3 * dbHandle)
+{
+	std::set<int> outstandingRequests;
+	std::string tag("TAG");
+	for(int i = 0; i < numInputs; i++)
+	{
+		int reqNum = getReqNumberForRank(reqRank);
+		///TODO: Remove "TAG" requirement
+		writeRequest<bgk_request_t>(input[i], reqRank, const_cast<char *>(tag.c_str()), dbHandle, reqNum, ALInterfaceMode_e::DEFAULT);
+		outstandingRequests.insert(reqNum);
+	}
+	return outstandingRequests;
 }
 
 bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
@@ -230,7 +259,9 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 	if(myRank == 0)
 	{
 		//First, submit all rank 0 requests
-		///TODO
+		std::vector<std::set<int>> outsandingReqIDs(commSize);
+		std::set<int> zeroReqs = icf_insertReqs(input, numInputs, 0, globalGlueDBHandle);
+		outsandingReqIDs[0].insert(zeroReqs.begin(), zeroReqs.end());
 		//Then, do the rest
 		std::vector<int> resultBatches(reqBatches);
 		///TODO: Need to preserve range of results we expect and number of results

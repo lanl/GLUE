@@ -139,6 +139,7 @@ extern "C"
 
 	//These are the new interfaces
 	void connectGlue(char * fName, MPI_Comm glueComm);
+	void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **processedInput, int * numProcessedInputs);
 	bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm);
 	void closeGlue(MPI_Comm glueComm);
 
