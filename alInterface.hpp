@@ -6,6 +6,8 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <vector>
+#include <tuple>
 #include <sqlite3.h>
 
 int getReqNumber();
@@ -212,5 +214,25 @@ template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInp
 	return retVal;
 }
 
+template <typename T> std::vector<std::tuple<int,T>> getRangeOfResults(int nextID, int maxID, int rank, sqlite3 *dbHandle)
+{
+	///TODO
+	std::vector<std::tuple<int,T>> retVec;
+	return retVec;
+}
+
+template <typename T> bool getHighestReqID(std::tuple<int, T> lhs, std::tuple<int, T> rhs)
+{
+	int lhsID = std::get<0>(lhs);
+	int rhsID = std::get<0>(rhs);
+	if(lhsID < rhsID)
+	{
+		return rhsID;
+	}
+	else
+	{
+		return lhsID;
+	}
+}
 
 #endif /* __alInterface_hpp */

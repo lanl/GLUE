@@ -7,6 +7,7 @@
 #include <tuple>
 #include <iterator>
 #include <algorithm>
+#include <numeric>
 #include <sqlite3.h>
 #include <mpi.h>
 
@@ -251,11 +252,63 @@ std::vector<bgk_result_t> * icf_extractResults(std::tuple<int, int> reqRange, in
 	///TODO: Consider thought to reducing memory footprint because we can potentially use 2N for this
 	std::vector<bgk_result_t> * retVec = new std::vector<bgk_result_t>(std::get<1>(reqRange) - std::get<0>(reqRange) + 1);
 	// Similar logic to in alInterface.py:pollAndProcessFGSRequests
-	//  Get Results from std::get<0>reqRange  until std::get<1>reqRange
-	//  Highest result id is new nextExpected
-	//  Use missingSet to ensure that all IDs from std::get<0>reqRange to nextExpected are received and, if not, insert
-	//  Repeat request for results from *missingSet.begin() to std::get<1>reqRange until
-	//    missingSet.empty() && nextExpected > std::get<1>reqRange
+	std::set<int> missingSet;
+	// Start by requesting the full range
+	int nextExpected = std::get<0>(reqRange);
+	int maxExpected = std::get<1>(reqRange);
+	int latestID = nextExpected - 1;
+	while(nextExpected <= maxExpected || missingSet.empty() != true)
+	{
+		//  Get Results from nextExpected  until maxExpected
+		std::vector<std::tuple<int,bgk_result_t>> sqlResults = getRangeOfResults<bgk_result_t>(nextExpected, maxExpected, reqRank, dbHandle);
+		// Pull maxID from that
+		auto maxIter = std::max_element(sqlResults.begin(), sqlResults.end(), getHighestReqID<bgk_result_t>);
+		//Is the maxID greater than our previous latestID?
+		if(std::get<0>(*maxIter) > latestID)
+		{
+			//It is, add the difference to the missingSet so we can tick those off
+			int newLatest =  std::get<0>(*maxIter);
+			int latestDelta = latestID - newLatest;
+			///TODO: Probably a better way to do this
+			///TODO: Figure out the off by one errors that are probably here
+			//Basically a python range() statement
+			std::vector<int> newMissing(latestDelta);
+			std::iota(newMissing.begin(), newMissing.end(), latestID);
+			///Super expensive insert into the set
+			missingSet.insert(newMissing.begin(), newMissing.end());
+			//And then update latestID
+			latestID = newLatest;
+		}
+		// Process Results (basically copy to retVec) and find MaxID
+		for (auto it = sqlResults.begin(); it != sqlResults.end(); ++it)
+		{
+			//Get the request ID
+			int reqID = std::get<0>(*it);
+			//Is this an ID that was in our missingSet? (it should be?)
+			if(missingSet.empty() != true)
+			{
+				auto missingIt = missingSet.find(reqID);
+				if(missingIt != missingSet.end())
+				{
+					//It was found so we need to remove it
+					missingSet.erase(missingIt);
+				}
+				//And copy in data
+				(*retVec)[reqID] = std::get<1>(*it);
+			}
+		}
+		// Are we still missing any entries?
+		if(missingSet.empty())
+		{
+			//If not then the next expected is latestID+1
+			nextExpected = latestID+1;
+		}
+		else
+		{
+			//We are so it will be the lowest reqID that we are missing
+			nextExpected = *(missingSet.begin());
+		}
+	}
 	return retVec;
 }
 
