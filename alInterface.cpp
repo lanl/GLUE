@@ -2,7 +2,9 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <vector>
+#include <tuple>
 #include <iterator>
 #include <algorithm>
 #include <sqlite3.h>
@@ -244,6 +246,19 @@ std::tuple<int,int> icf_insertReqs(bgk_request_t *input, int numInputs, int reqR
 	return reqRange;
 }
 
+std::vector<bgk_result_t> * icf_extractResults(std::tuple<int, int> reqRange, int reqRank, sqlite3 *dbHandle)
+{
+	///TODO: Consider thought to reducing memory footprint because we can potentially use 2N for this
+	std::vector<bgk_result_t> * retVec = new std::vector<bgk_result_t>(std::get<1>(reqRange) - std::get<0>(reqRange) + 1);
+	// Similar logic to in alInterface.py:pollAndProcessFGSRequests
+	//  Get Results from std::get<0>reqRange  until std::get<1>reqRange
+	//  Highest result id is new nextExpected
+	//  Use missingSet to ensure that all IDs from std::get<0>reqRange to nextExpected are received and, if not, insert
+	//  Repeat request for results from *missingSet.begin() to std::get<1>reqRange until
+	//    missingSet.empty() && nextExpected > std::get<1>reqRange
+	return retVec;
+}
+
 bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 {
 	//Thanks to Andrew Reisner for helping with a lot of the thought process behind the MPI aspects of the algorithm
@@ -262,7 +277,7 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 	//Reduce to provide that to 0
 	MPI_Reduce(reqBatches.data(), reqBatches.data(), commSize, MPI_INT, MPI_MAX, 0, glueComm);
 	//Prepare results buffer
-	bgk_result_t* reqBuffer = (bgk_result_t*)malloc(sizeof(bgk_result_t*) * numInputs);
+	bgk_result_t* resultsBuffer = (bgk_result_t*)malloc(sizeof(bgk_result_t*) * numInputs);
 	//If rank 0
 	if(myRank == 0)
 	{
@@ -299,12 +314,20 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 			//Do we still have results for that rank?
 			if(resultBatches[rank] != 0)
 			{
-				///TODO
+				//Get results
+				std::vector<bgk_result_t> * batchResults = icf_extractResults(reqsPerBatch[rank][resultBatches[rank]], rank, globalGlueDBHandle);
+				//Send results with a BLOCKING send
+				///TODO send batchResults.data()
+				//Free memory
+				delete batchResults;
+				//And decrement result batches counter
 				resultBatches[rank]--;
 			}
 		}
 		//And then handle the requests from rank 0
-		///TODO
+		std::vector<bgk_result_t> * batchResults = icf_extractResults(reqsPerBatch[0][1], 0, globalGlueDBHandle);
+		memcpy(resultsBuffer, batchResults->data(), numInputs*sizeof(bgk_result_t));
+		delete batchResults;
 	}
 	else
 	{
@@ -339,7 +362,7 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 		}
 	}
 	//Return results
-	return reqBuffer;
+	return resultsBuffer;
 }
 
 void closeGlue(MPI_Comm glueComm)
