@@ -260,7 +260,7 @@ std::vector<bgk_result_t> * icf_extractResults(std::tuple<int, int> reqRange, in
 	while(nextExpected <= maxExpected || missingSet.empty() != true)
 	{
 		//  Get Results from nextExpected  until maxExpected
-		std::vector<std::tuple<int,bgk_result_t>> sqlResults = getRangeOfResults<bgk_result_t>(nextExpected, maxExpected, reqRank, dbHandle);
+		std::vector<std::tuple<int,bgk_result_t>> sqlResults = getRangeOfResults<bgk_result_t>(nextExpected, maxExpected, reqRank, dbHandle, ALInterfaceMode_e::DEFAULT);
 		// Pull maxID from that
 		auto maxIter = std::max_element(sqlResults.begin(), sqlResults.end(), getHighestReqID<bgk_result_t>);
 		//Is the maxID greater than our previous latestID?

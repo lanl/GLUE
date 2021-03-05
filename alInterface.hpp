@@ -81,6 +81,19 @@ template <> std::string getReqSQLString<lbmToOneDMD_request_t>(lbmToOneDMD_reque
 	exit(1);
 }
 
+template <typename T> std::string getResultSQLStringReqRange(int mpiRank, char * tag, std::tuple<int,int> reqRange)
+{
+	exit(1);
+}
+template <> std::string getResultSQLStringReqRange<bgk_result_t>(int mpiRank, char * tag, std::tuple<int,int> reqRange)
+{
+	char sqlBuf[2048];
+	sprintf(sqlBuf, "SELECT * FROM BGKRESULTS WHERE REQ>=%d AND REQ <=%d  AND TAG=\'%s\' AND RANK=%d;", std::get<0>(reqRange), std::get<1>(reqRange), tag, mpiRank);
+	std::string retString(sqlBuf);
+	return retString;
+}
+
+
 template <typename T> std::string getResultSQLString(int mpiRank, char * tag, int reqNum)
 {
 	exit(1);
@@ -214,10 +227,65 @@ template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInp
 	return retVal;
 }
 
-template <typename T> std::vector<std::tuple<int,T>> getRangeOfResults(int nextID, int maxID, int rank, sqlite3 *dbHandle)
+template <typename T> std::vector<std::tuple<int,T>> getRangeOfResults(int nextID, int maxID, int mpiRank, sqlite3 *dbHandle, unsigned int reqType)
 {
-	///TODO
 	std::vector<std::tuple<int,T>> retVec;
+	//Put request IDs in a tuple
+	std::tuple<int,int> reqRange(nextID, maxID);
+	std::string tag("TAG");
+	char sqlBuf[2048];
+	char *err = nullptr;
+	//Spin on file until result is available
+	bool haveResult = false;
+	if(reqType == ALInterfaceMode_e::KILL)
+	{
+		haveResult = true;
+	}
+	while(!haveResult)
+	{
+		//Send SELECT with sqlite3_exec. 
+		std::string sqlString = getResultSQLStringReqRange<T>(mpiRank, const_cast<char *>(tag.c_str()), reqRange);
+		sprintf(sqlBuf, sqlString.c_str());
+		//sprintf(sqlBuf, sqlString.c_str(), reqNum, const_cast<char *>(tag.c_str()), mpiRank);
+		int rc = makeSQLRequest<T>(dbHandle, sqlBuf, &err);
+		while (rc != SQLITE_OK)
+		{
+			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
+			rc = makeSQLRequest<T>(dbHandle, sqlBuf, &err);
+			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
+			{
+				fprintf(stderr, "Error in getRangeOfResults<T>\n");
+				fprintf(stderr, "SQL error %d: %s\n", rc, err);
+				sqlite3_free(err);
+				sqlite3_close(dbHandle);
+				exit(1);
+			}
+		}
+		//SQL did something, so Get table
+		auto globalTable = getGlobalTable<T>();
+		//And get lock (less needed in this mode)
+		globalTable.tableMutex.lock();
+		//Check if any results we want are in table
+		auto it = globalTable.resultTable.begin();
+		while(it != globalTable.resultTable.end())
+		{
+			if(it->first <= maxID || it->first >= nextID)
+			{
+				//Hit so copy it out...
+				retVec.push_back(std::tuple<int,T>(it->first, it->second));
+				//and remove it
+				it = globalTable.resultTable.erase(it);
+				//And we have at least one result so
+				haveResult = true;
+			}
+			else
+			{
+				++it;
+			}
+		}
+		//Relase lock
+		globalTable.tableMutex.unlock();
+	}
 	return retVec;
 }
 
