@@ -348,6 +348,7 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 			{
 				//Blocking recv those requests
 				MPI_Status reqStatus;
+				//MPI IDs decrement [total, 1]
 				MPI_Recv(reqs.data(), globalGlueBufferSize*sizeof(bgk_request_t), MPI_BYTE, rank, reqBatches[rank], glueComm, &reqStatus);
 				//And determine how many were actually sent to us
 				int numReqs;
@@ -367,10 +368,12 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 			//Do we still have results for that rank?
 			if(resultBatches[rank] != 0)
 			{
-				//Get results
+				//Get results from glue code
 				std::vector<bgk_result_t> * batchResults = icf_extractResults(reqsPerBatch[rank][resultBatches[rank]], rank, globalGlueDBHandle);
 				//Send results with a BLOCKING send
-				///TODO send batchResults.data()
+				// Need to do blocking sends because of memory concerns
+				//MPI IDs decrement [total, 1]
+				MPI_Send(batchResults.data(), batchResults.size()*sizeof(bgk_result_t), MPI_BYTE, rank, resultBatches[rank], glueComm); 
 				//Free memory
 				delete batchResults;
 				//And decrement result batches counter
@@ -401,6 +404,8 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 					reqSize = globalGlueBufferSize;
 			}
 			//Queue up send of this data to rank 0
+			// non-blocking send as we aren't going to clobber the send buffers
+			//MPI IDs decrement [total, 1]
 			MPI_Isend(&input[curIndex], sizeof(bgk_request_t)*reqSize, MPI_BYTE, 0, i, glueComm, &sendReqs[i-1]);
 			//Increment curIndex
 			curIndex += globalGlueBufferSize;
@@ -408,11 +413,29 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 		//Wait on all the sends
 		MPI_Waitall(reqBatches[myRank], sendReqs.data(), sendStatuses.data());
 		//Then get results
-		for(int i = 0; i < reqBatches[myRank]; i++)
+		curIndex = 0;
+		std::vector<MPI_Request> recvReqs(reqBatches[myRank]);
+		std::vector<MPI_Status> recvStatuses(reqBatches[myRank]);
+		for(int i = reqBatches[myRank]; i > 0; i--)
 		{
-			//Blocking recv for results
-			///TODO
+			//Compute size of recv
+			int reqSize;
+			if(curIndex + globalGlueBufferSize > numInputs)
+			{
+				reqSize = numInputs - curIndex;
+			}
+			else
+			{
+				reqSize = globalGlueBufferSize;
+			}
+			//Recv for results
+			// non-blocking because we are writing straight to results buffer
+			//MPI IDs decrement [total, 1]
+			MPI_irecv(&resultsBuffer[curIndex], sizeof(bgk_result_t)*reqSize, MPI_BYTE, 0, i, glueComm, &recvReqs[i-1]);
+			//Increment curIndex
+			curIndex += globalGlueBufferSize;
 		}
+		MPI_Waitall(reqBatches[myRank], recvReqs.data(), recvStatuses.data());
 	}
 	//Return results
 	return resultsBuffer;
