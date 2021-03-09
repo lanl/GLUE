@@ -16,3 +16,4 @@ sniffTest_mpi
 alTester_serial
 sniffTest_fortranBGK
 stressTest_analyticICF
+stressTest_analyticICF_collective

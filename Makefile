@@ -42,7 +42,7 @@ endif
 
 all: libalGlue.a
 
-test: sniffTest_mpi sniffTest_serial alTester_serial sniffTest_fortranBGK stressTest_analyticICF
+test: sniffTest_mpi sniffTest_serial alTester_serial sniffTest_fortranBGK stressTest_analyticICF stressTest_analyticICF_collective
 
 libalGlue.a: alInterface.o alInterface_f.o alGlueTypes_f.o
 	${AR} ${AR_FLAGS} libalGlue.a alInterface.o alInterface_f.o
@@ -82,6 +82,12 @@ stressTest_analyticICF: libalGlue.a stressTest_analyticICF.o
 
 stressTest_analyticICF.o: stressTest_analyticICF.c
 	${MPICC} ${CFLAGS} -c stressTest_analyticICF.c
+
+stressTest_analyticICF_collective: libalGlue.a stressTest_analyticICF_collective.o
+	${MPICXX} ${CXXFLAGS} stressTest_analyticICF_collective.o ${LDFLAGS} -o stressTest_analyticICF_collective
+
+stressTest_analyticICF_collective.o: stressTest_analyticICF_collective.c
+	${MPICC} ${CFLAGS} -c stressTest_analyticICF_collective.c
 
 alTester.o: alTester.cpp
 	${MPICXX} -c alTester.cpp
