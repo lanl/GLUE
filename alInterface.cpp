@@ -443,13 +443,16 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 
 void closeGlue(MPI_Comm glueComm)
 {
+	///TODO: Template this to send appropriate packet type
 	//Not a collective operation because only rank 0 needs to do this
 	//If glueComm rank is 0
 	int myRank;
 	MPI_Comm_rank(glueComm, &myRank);
 	if(myRank == 0)
 	{
-		///TODO: Send killswitch
+		std::string tag("TAG");
+		//Engage that killswitch
+		bgk_stop_service(0, const_cast<char *>(tag.c_str()), globalGlueDBHandle);
 		//Disconnect from that DB
 		sqlite3_close(globalGlueDBHandle);
 	}
