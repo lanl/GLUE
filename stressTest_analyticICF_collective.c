@@ -24,17 +24,20 @@ int main(int argc, char ** argv)
 	}
 
 	//Set up communicator
-	///TODO
+	MPI_Comm glueComm;
+	MPI_Comm_dup(MPI_COMM_WORLD, &glueComm);
+
 	//Connect to DB
-	connectGlue(fName, MPI_COMM_WORLD);
+	connectGlue(fName, glueComm);
 
+	int glueRank;
+	MPI_Comm_rank(glueComm, &glueRank);
 
-	/*
-	//Set up buffer
+	//Set up buffer with rank specific data
 	bgk_request_t * reqBuffer = malloc(sizeof(bgk_request_t) * numReqs);
 	for(int i = 0; i < numReqs; i++)
 	{
-		reqBuffer[i].temperature = 160 + 0.05 * i;
+		reqBuffer[i].temperature = 160 + 0.05 * i * (glueRank + 1);
 		reqBuffer[i].density[0] = 4.44819405e+24;
 		reqBuffer[i].density[1] = 4.44819405e+24;
 		reqBuffer[i].density[2] = 0.0;
@@ -44,28 +47,26 @@ int main(int argc, char ** argv)
 		reqBuffer[i].charges[2] = 0.0;
 		reqBuffer[i].charges[3] = 0.0;
 	}
-
 	for(int i = 0; i < numSteps; i++)
 	{
-		//And send buffer
+		//And send buffe
 		gettimeofday(&start, NULL);
-		bgk_result_t *result = bgk_req_batch(reqBuffer, numReqs, 0, tag, dbHandle);
+		bgk_result_t* result = icf_req(reqBuffer, numReqs, glueComm);
 		gettimeofday(&end, NULL);
 		secs  = end.tv_sec  - start.tv_sec;
 		usecs = end.tv_usec - start.tv_usec;
 		mtime = ((secs) * 1000 + usecs/1000.0) + 0.5;
 		printf("%d: %ld millisecs\n", i, mtime);
 
+		///TODO: We actually DO care about results right now so check that
 		//And we don't care about result because it probably worked
 		free(result);
 	}
-
 	//Cleanup
 	free(reqBuffer);
-	*/
 
 	//Terminate glue code
-	closeGlue(MPI_COMM_WORLD);
+	closeGlue(glueComm);
 
 	//Close MPI
 	MPI_Finalize();
