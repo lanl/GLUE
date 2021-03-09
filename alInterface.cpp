@@ -373,7 +373,7 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 				//Send results with a BLOCKING send
 				// Need to do blocking sends because of memory concerns
 				//MPI IDs decrement [total, 1]
-				MPI_Send(batchResults.data(), batchResults.size()*sizeof(bgk_result_t), MPI_BYTE, rank, resultBatches[rank], glueComm); 
+				MPI_Send(batchResults->data(), batchResults->size()*sizeof(bgk_result_t), MPI_BYTE, rank, resultBatches[rank], glueComm); 
 				//Free memory
 				delete batchResults;
 				//And decrement result batches counter
@@ -431,7 +431,7 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 			//Recv for results
 			// non-blocking because we are writing straight to results buffer
 			//MPI IDs decrement [total, 1]
-			MPI_irecv(&resultsBuffer[curIndex], sizeof(bgk_result_t)*reqSize, MPI_BYTE, 0, i, glueComm, &recvReqs[i-1]);
+			MPI_Irecv(&resultsBuffer[curIndex], sizeof(bgk_result_t)*reqSize, MPI_BYTE, 0, i, glueComm, &recvReqs[i-1]);
 			//Increment curIndex
 			curIndex += globalGlueBufferSize;
 		}
