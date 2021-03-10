@@ -1,8 +1,7 @@
 #include "alInterface.h"
+#include <mpi.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
-#include <sys/time.h>
 
 
 int main(int argc, char ** argv)
@@ -49,14 +48,13 @@ int main(int argc, char ** argv)
 	}
 	for(int i = 0; i < numSteps; i++)
 	{
-		//And send buffe
-		gettimeofday(&start, NULL);
+		//And send buffer
+		double start = MPI_Wtime();
 		bgk_result_t* result = icf_req(reqBuffer, numReqs, glueComm);
-		gettimeofday(&end, NULL);
-		secs  = end.tv_sec  - start.tv_sec;
-		usecs = end.tv_usec - start.tv_usec;
-		mtime = ((secs) * 1000 + usecs/1000.0) + 0.5;
-		printf("%d: %ld millisecs\n", i, mtime);
+		double end = MPI_Wtime();
+		double secs = end - start;
+		double msecs = secs * 1000;
+		printf("%d: %ld millisecs\n", i, msecs);
 
 		///TODO: We actually DO care about results right now so check that
 		//And we don't care about result because it probably worked
