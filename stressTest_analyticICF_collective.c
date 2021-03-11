@@ -69,13 +69,28 @@ int main(int argc, char ** argv)
 					fprintf(stdout, "[%d,%d] : ", r, i);
 					//Print request
 					fprintf(stdout, "BGKInputs(");
-					fprintf(stdout,"Temperature=%f", reqBuffer[i].temperature);
+					fprintf(stdout,"Temperature=%f, ", reqBuffer[i].temperature);
 					fprintf(stdout, "Density=[%.8e, %.8e, %.8e, %.8e], ", reqBuffer[i].density[0], reqBuffer[i].density[1], reqBuffer[i].density[2], reqBuffer[i].density[3]);
-					fprintf(stdout, "Charges=[%.8e, %.8e, %.8e, %.8e], ", reqBuffer[i].charges[0], reqBuffer[i].charges[1], reqBuffer[i].charges[2], reqBuffer[i].charges[3]);
+					fprintf(stdout, "Charges=[%.8e, %.8e, %.8e, %.8e]", reqBuffer[i].charges[0], reqBuffer[i].charges[1], reqBuffer[i].charges[2], reqBuffer[i].charges[3]);
 					fprintf(stdout, ")");
+					//Print divider
 					fprintf(stdout, " -> ");
 					//Print result
-					///TODO
+					fprintf(stdout, "BGKOutputs(");
+					fprintf(stdout, "Viscosity=%f, ", result[i].viscosity);
+					fprintf(stdout, "ThermalConductivity=%f, ", result[i].thermalConductivity);
+					fprintf(stdout, "DiffCoeff=[");
+					for(int j = 0; j < 10; j++)
+					{
+						fprintf(stdout, "%f",  result[i].diffusionCoefficient[j]);
+						if(j != 9)
+						{
+							fprintf(stdout, ", ");
+						}
+					}
+					fprintf(stdout, "]");
+					fprintf(stdout, ")");
+					//Print endline
 					fprintf(stdout, "/n");
 				}
 			}
