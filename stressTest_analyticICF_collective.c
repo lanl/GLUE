@@ -29,8 +29,9 @@ int main(int argc, char ** argv)
 	//Connect to DB
 	connectGlue(fName, glueComm);
 
-	int glueRank;
+	int glueRank, glueSize;
 	MPI_Comm_rank(glueComm, &glueRank);
+	MPI_Comm_size(glueComm, &glueSize);
 
 	//Set up buffer with rank specific data
 	bgk_request_t * reqBuffer = malloc(sizeof(bgk_request_t) * numReqs);
@@ -46,7 +47,7 @@ int main(int argc, char ** argv)
 		reqBuffer[i].charges[2] = 0.0;
 		reqBuffer[i].charges[3] = 0.0;
 	}
-	for(int i = 0; i < numSteps; i++)
+	for(int t = 0; t < numSteps; t++)
 	{
 		//And send buffer
 		double start = MPI_Wtime();
@@ -54,9 +55,31 @@ int main(int argc, char ** argv)
 		double end = MPI_Wtime();
 		double secs = end - start;
 		double msecs = secs * 1000;
-		printf("%d: %ld millisecs\n", i, msecs);
+		printf("%d: %ld millisecs\n", t, msecs);
 
-		///TODO: We actually DO care about results right now so check that
+		//We actually DO care about results right now so check that
+		for(int r = 0; r < glueSize; r++)
+		{
+			MPI_Barrier(glueComm);
+			if(glueRank == r)
+			{
+				//Print data
+				for(int i = 0; i < numReqs; i++)
+				{
+					fprintf(stdout, "[%d,%d] : ", r, i);
+					//Print request
+					fprintf(stdout, "BGKInputs(");
+					fprintf(stdout,"Temperature=%f", reqBuffer[i].temperature);
+					fprintf(stdout, "Density=[%.8e, %.8e, %.8e, %.8e], ", reqBuffer[i].density[0], reqBuffer[i].density[1], reqBuffer[i].density[2], reqBuffer[i].density[3]);
+					fprintf(stdout, "Charges=[%.8e, %.8e, %.8e, %.8e], ", reqBuffer[i].charges[0], reqBuffer[i].charges[1], reqBuffer[i].charges[2], reqBuffer[i].charges[3]);
+					fprintf(stdout, ")");
+					fprintf(stdout, " -> ");
+					//Print result
+					///TODO
+					fprintf(stdout, "/n");
+				}
+			}
+		}
 		//And we don't care about result because it probably worked
 		free(result);
 	}
