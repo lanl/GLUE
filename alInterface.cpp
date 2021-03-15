@@ -229,20 +229,18 @@ std::tuple<int,int> icf_insertReqs(bgk_request_t *input, int numInputs, int reqR
 {
 	std::string tag("TAG");
 	int start,end;
+	int reqNum;
 	for(int i = 0; i < numInputs; i++)
 	{
-		int reqNum = getReqNumberForRank(reqRank);
+		reqNum = getReqNumberForRank(reqRank);
 		if(i == 0)
 		{
 			start = reqNum;
 		}
-		else if(i == numInputs - 1)
-		{
-			end = reqNum;
-		}
 		///TODO: Remove "TAG" requirement
 		writeRequest<bgk_request_t>(input[i], reqRank, const_cast<char *>(tag.c_str()), dbHandle, reqNum, ALInterfaceMode_e::DEFAULT);
 	}
+	end = reqNum;
 	std::tuple<int, int> reqRange(start, end);
 	return reqRange;
 }
@@ -256,19 +254,19 @@ std::vector<bgk_result_t> * icf_extractResults(std::tuple<int, int> reqRange, in
 	// Start by requesting the full range
 	int nextExpected = std::get<0>(reqRange);
 	int maxExpected = std::get<1>(reqRange);
-	int latestID = nextExpected - 1;
+	int latestID = nextExpected;
 	while(nextExpected <= maxExpected || missingSet.empty() != true)
 	{
 		//  Get Results from nextExpected  until maxExpected
 		std::vector<std::tuple<int,bgk_result_t>> sqlResults = getRangeOfResults<bgk_result_t>(nextExpected, maxExpected, reqRank, dbHandle, ALInterfaceMode_e::DEFAULT);
 		// Pull maxID from that
-		auto maxIter = std::max_element(sqlResults.begin(), sqlResults.end(), getHighestReqID<bgk_result_t>);
+		auto maxIter = std::max_element(sqlResults.begin(), sqlResults.end(), reqIDMin<bgk_result_t>);
 		//Is the maxID greater than our previous latestID?
 		if(std::get<0>(*maxIter) > latestID)
 		{
 			//It is, add the difference to the missingSet so we can tick those off
 			int newLatest =  std::get<0>(*maxIter);
-			int latestDelta = latestID - newLatest;
+			int latestDelta = newLatest - latestID + 1;
 			///TODO: Probably a better way to do this
 			///TODO: Figure out the off by one errors that are probably here
 			//Basically a python range() statement
@@ -321,25 +319,28 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 	MPI_Comm_rank(glueComm, &myRank);
 	MPI_Comm_size(glueComm, &commSize);
 	//Compute number of required request batches
+	std::vector<int> localReqBatches(commSize, 0);
 	std::vector<int> reqBatches(commSize, 0);
-	reqBatches[myRank] = numInputs / globalGlueBufferSize;
+	localReqBatches[myRank] = numInputs / globalGlueBufferSize;
 	if(numInputs % globalGlueBufferSize != 0)
 	{
-		reqBatches[myRank]++;
+		localReqBatches[myRank]++;
 	}
 	//Reduce to provide that to 0
-	MPI_Reduce(reqBatches.data(), reqBatches.data(), commSize, MPI_INT, MPI_MAX, 0, glueComm);
+	MPI_Reduce(localReqBatches.data(), reqBatches.data(), commSize, MPI_INT, MPI_MAX, 0, glueComm);
 	//Prepare results buffer
 	bgk_result_t* resultsBuffer = (bgk_result_t*)malloc(sizeof(bgk_result_t*) * numInputs);
 	//If rank 0
 	if(myRank == 0)
 	{
-		std::vector<std::vector<std::tuple<int,int>>> reqsPerBatch;
+		std::vector<int> resultBatches(reqBatches);
+		std::vector<std::vector<std::tuple<int,int>>> reqsPerBatch(commSize);
 		//First, submit all rank 0 requests
 		std::tuple<int, int> zeroReqs = icf_insertReqs(input, numInputs, 0, globalGlueDBHandle);
 		reqsPerBatch[0].push_back(zeroReqs);
+		//And we know we have one batch for zero because it is special
+		resultBatches[0] = 1;
 		//Then, do the rest
-		std::vector<int> resultBatches(reqBatches);
 		std::vector<bgk_request_t> reqs(globalGlueBufferSize);
 		for(int rank = 1; rank < commSize; rank++)
 		{
@@ -381,7 +382,7 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 			}
 		}
 		//And then handle the requests from rank 0
-		std::vector<bgk_result_t> * batchResults = icf_extractResults(reqsPerBatch[0][1], 0, globalGlueDBHandle);
+		std::vector<bgk_result_t> * batchResults = icf_extractResults(reqsPerBatch[0][0], 0, globalGlueDBHandle);
 		memcpy(resultsBuffer, batchResults->data(), numInputs*sizeof(bgk_result_t));
 		delete batchResults;
 	}

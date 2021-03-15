@@ -289,17 +289,17 @@ template <typename T> std::vector<std::tuple<int,T>> getRangeOfResults(int nextI
 	return retVec;
 }
 
-template <typename T> bool getHighestReqID(std::tuple<int, T> lhs, std::tuple<int, T> rhs)
+template <typename T> bool reqIDMin(std::tuple<int, T> lhs, std::tuple<int, T> rhs)
 {
 	int lhsID = std::get<0>(lhs);
 	int rhsID = std::get<0>(rhs);
 	if(lhsID < rhsID)
 	{
-		return rhsID;
+		return true;
 	}
 	else
 	{
-		return lhsID;
+		return false;
 	}
 }
 
