@@ -248,6 +248,7 @@ std::tuple<int,int> icf_insertReqs(bgk_request_t *input, int numInputs, int reqR
 std::vector<bgk_result_t> * icf_extractResults(std::tuple<int, int> reqRange, int reqRank, sqlite3 *dbHandle)
 {
 	///TODO: Consider thought to reducing memory footprint because we can potentially use 2N for this
+	///ERROR: This logic may only work for the first batch...
 	std::vector<bgk_result_t> * retVec = new std::vector<bgk_result_t>(std::get<1>(reqRange) - std::get<0>(reqRange) + 1);
 	// Similar logic to in alInterface.py:pollAndProcessFGSRequests
 	std::set<int> missingSet;
@@ -268,7 +269,6 @@ std::vector<bgk_result_t> * icf_extractResults(std::tuple<int, int> reqRange, in
 			int newLatest =  std::get<0>(*maxIter);
 			int latestDelta = newLatest - latestID + 1;
 			///TODO: Probably a better way to do this
-			///TODO: Figure out the off by one errors that are probably here
 			//Basically a python range() statement
 			std::vector<int> newMissing(latestDelta);
 			std::iota(newMissing.begin(), newMissing.end(), latestID);
@@ -329,7 +329,7 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 	//Reduce to provide that to 0
 	MPI_Reduce(localReqBatches.data(), reqBatches.data(), commSize, MPI_INT, MPI_MAX, 0, glueComm);
 	//Prepare results buffer
-	bgk_result_t* resultsBuffer = (bgk_result_t*)malloc(sizeof(bgk_result_t*) * numInputs);
+	bgk_result_t* resultsBuffer = static_cast<bgk_result_t*>(malloc(sizeof(bgk_result_t) * numInputs));
 	//If rank 0
 	if(myRank == 0)
 	{
@@ -383,7 +383,7 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 		}
 		//And then handle the requests from rank 0
 		std::vector<bgk_result_t> * batchResults = icf_extractResults(reqsPerBatch[0][0], 0, globalGlueDBHandle);
-		memcpy(resultsBuffer, batchResults->data(), numInputs*sizeof(bgk_result_t));
+		std::copy(batchResults->begin(), batchResults->end(), resultsBuffer);
 		delete batchResults;
 	}
 	else
