@@ -9,9 +9,11 @@
 #include <vector>
 #include <tuple>
 #include <memory>
+#include <algorithm>
 #include <sqlite3.h>
 
 int getReqNumber();
+int getReqNumberForRank(int rank);
 
 template <typename T> struct AsyncSelectTable_t
 {
@@ -228,7 +230,22 @@ template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInp
 	return retVal;
 }
 
-///TODO: Return unique_ptr because we are copy construcotring a big set...
+template<typename T> std::unique_ptr<std::vector<int>> col_insertReqs(T *input, int numInputs, int reqRank, sqlite3 * dbHandle)
+{
+	//Return  a full vector as we have no guarantee of contiguous reqIDs
+	auto retVec = std::make_unique<std::vector<int>>(numInputs, -1);
+	std::string tag("TAG");
+	int start,end;
+	int reqNum;
+	for(int i = 0; i < numInputs; i++)
+	{
+		reqNum = getReqNumberForRank(reqRank);
+		(*retVec)[i] = reqNum;
+		///TODO: Remove "TAG" requirement
+		writeRequest<T>(input[i], reqRank, const_cast<char *>(tag.c_str()), dbHandle, reqNum, ALInterfaceMode_e::DEFAULT);
+	}
+	return retVec;
+}
 
 template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeOfResults(int nextID, int maxID, int mpiRank, sqlite3 *dbHandle, unsigned int reqType)
 {
@@ -292,6 +309,197 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 		globalTable.tableMutex.unlock();
 	}
 	return retVec;
+}
+
+template <typename T> std::vector<T> * col_extractResults(std::unique_ptr<std::vector<int>> &reqList, int reqRank, sqlite3 *dbHandle)
+{
+	///TODO: Consider thought to reducing memory footprint because we can potentially use 2N for this
+	std::vector<T> * retVec = new std::vector<T>(reqList->size());
+
+	//We have guarantee that reqRange[0] is lowest ID but not that all IDs are contiguous
+	//Need to request lowest to max until all results have been received
+	//
+
+	// Start by requesting the full range
+	int rStart, rEnd;
+	rStart = *(reqList->begin());
+	rEnd = reqList->back();
+	bool isDone = false;
+
+	while(!isDone)
+	{
+		//Assume we are done until we aren't
+		isDone = true;
+		///TODO: Use logic to update rStart and rEnd to make smaller requests as time goes on
+		//Get results of query
+		auto sqlResults = getRangeOfResults<T>(rStart, rEnd, reqRank, dbHandle, ALInterfaceMode_e::DEFAULT);
+		if(!sqlResults->empty())
+		{
+			//Basically look for matches between the two vectors in a not horrible way
+			//  Probably O(N^2)...
+			for(int i = 0; i < reqList->size(); i++)
+			{
+				//Have we processed this request yet?
+				if(reqList->at(i) != -1)
+				{
+					//Nope, so let's see if our sqlResults have a corresponding entry
+					auto matchIter = std::find_if(
+						sqlResults->begin(), sqlResults->end(),
+						[&](const std::tuple<int, T>& x) { return std::get<0>(x) == reqList->at(i);}
+					);
+					if(matchIter != sqlResults->end())
+					{
+						//We have a hit so copy out the request and set the reqList entry to -1
+						retVec->at(i) = std::get<1>(*matchIter);
+						reqList->at(i) = -1;
+					}
+					else
+					{
+						//Otherwise, no hit and we need to try again
+						isDone = false;
+					}
+				}
+			}
+		}
+		else
+		{
+			isDone = false;
+		}
+	}
+	return retVec;
+}
+
+template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI_Comm glueComm)
+{
+	//Thanks to Andrew Reisner for helping with a lot of the thought process behind the MPI aspects of the algorithm
+	//Get clueComm rank and size
+	int myRank, commSize;
+	MPI_Comm_rank(glueComm, &myRank);
+	MPI_Comm_size(glueComm, &commSize);
+	//Compute number of required request batches
+	std::vector<int> localReqBatches(commSize, 0);
+	std::vector<int> reqBatches(commSize, 0);
+	localReqBatches[myRank] = numInputs / globalGlueBufferSize;
+	if(numInputs % globalGlueBufferSize != 0)
+	{
+		localReqBatches[myRank]++;
+	}
+	//Reduce to provide that to 0
+	MPI_Reduce(localReqBatches.data(), reqBatches.data(), commSize, MPI_INT, MPI_MAX, 0, glueComm);
+	//Prepare results buffer
+	T* resultsBuffer = static_cast<T*>(malloc(sizeof(T) * numInputs));
+	//If rank 0
+	if(myRank == 0)
+	{
+		std::vector<int> resultBatches(reqBatches);
+		//A vector of vectors of unique pointers to vectors of request ID mappings
+		std::vector<std::vector<std::unique_ptr<std::vector<int>>>> reqsPerBatch(commSize);
+		//First, submit all rank 0 requests
+		auto zeroReqs = col_insertReqs<S>(input, numInputs, 0, globalGlueDBHandle);
+		reqsPerBatch[0].push_back(std::move(zeroReqs));
+		//And we know we have one batch for zero because it is special
+		resultBatches[0] = 1;
+		//Then, do the rest
+		std::vector<S> reqs(globalGlueBufferSize);
+		for(int rank = 1; rank < commSize; rank++)
+		{
+			//Do we still have requests from that rank?
+			if(reqBatches[rank] != 0)
+			{
+				//Blocking recv those requests
+				MPI_Status reqStatus;
+				//MPI IDs decrement [total, 1]
+				MPI_Recv(reqs.data(), globalGlueBufferSize*sizeof(S), MPI_BYTE, rank, reqBatches[rank], glueComm, &reqStatus);
+				//And determine how many were actually sent to us
+				int numReqs;
+				MPI_Get_count(&reqStatus, MPI_BYTE, &numReqs);
+				numReqs = numReqs / sizeof(S);
+				//Send to glue code
+				auto batchRange  = col_insertReqs<S>(reqs.data(), numReqs, rank, globalGlueDBHandle);
+				// Put requests in req list
+				reqsPerBatch[rank].push_back(std::move(batchRange));
+				//And decrement the number of expected batches from this rank
+				reqBatches[rank]--;
+			}
+		}
+		//Now, we process results
+		for(int rank = 1; rank < commSize; rank++)
+		{
+			//Do we still have results for that rank?
+			if(resultBatches[rank] != 0)
+			{
+				//Get results from glue code
+				std::vector<T> * batchResults = col_extractResults<T>(reqsPerBatch[rank][resultBatches[rank]], rank, globalGlueDBHandle);
+				//Send results with a BLOCKING send
+				// Need to do blocking sends because of memory concerns
+				//MPI IDs decrement [total, 1]
+				MPI_Send(batchResults->data(), batchResults->size()*sizeof(T), MPI_BYTE, rank, resultBatches[rank], glueComm); 
+				//Free memory
+				delete batchResults;
+				//And decrement result batches counter
+				resultBatches[rank]--;
+			}
+		}
+		//And then handle the requests from rank 0
+		std::vector<T> * batchResults = col_extractResults<T>(reqsPerBatch[0][0], 0, globalGlueDBHandle);
+		std::copy(batchResults->begin(), batchResults->end(), resultsBuffer);
+		delete batchResults;
+	}
+	else
+	{
+		//Everyone else, send your requests to rank 0
+		unsigned int curIndex = 0;
+		std::vector<MPI_Request> sendReqs(reqBatches[myRank]);
+		std::vector<MPI_Status> sendStatuses(reqBatches[myRank]);
+		for(int i = reqBatches[myRank]; i > 0; i--)
+		{
+			//Compute size of send
+			int reqSize;
+			if(curIndex + globalGlueBufferSize > numInputs)
+			{
+				reqSize = numInputs - curIndex;
+			}
+			else
+			{
+					reqSize = globalGlueBufferSize;
+			}
+			//Queue up send of this data to rank 0
+			// non-blocking send as we aren't going to clobber the send buffers
+			//MPI IDs decrement [total, 1]
+			MPI_Isend(&input[curIndex], sizeof(T)*reqSize, MPI_BYTE, 0, i, glueComm, &sendReqs[i-1]);
+			//Increment curIndex
+			curIndex += globalGlueBufferSize;
+		}
+		//Wait on all the sends
+		MPI_Waitall(reqBatches[myRank], sendReqs.data(), sendStatuses.data());
+		//Then get results
+		curIndex = 0;
+		std::vector<MPI_Request> recvReqs(reqBatches[myRank]);
+		std::vector<MPI_Status> recvStatuses(reqBatches[myRank]);
+		for(int i = reqBatches[myRank]; i > 0; i--)
+		{
+			//Compute size of recv
+			int reqSize;
+			if(curIndex + globalGlueBufferSize > numInputs)
+			{
+				reqSize = numInputs - curIndex;
+			}
+			else
+			{
+				reqSize = globalGlueBufferSize;
+			}
+			//Recv for results
+			// non-blocking because we are writing straight to results buffer
+			//MPI IDs decrement [total, 1]
+			MPI_Irecv(&resultsBuffer[curIndex], sizeof(T)*reqSize, MPI_BYTE, 0, i, glueComm, &recvReqs[i-1]);
+			//Increment curIndex
+			curIndex += globalGlueBufferSize;
+		}
+		MPI_Waitall(reqBatches[myRank], recvReqs.data(), recvStatuses.data());
+	}
+	//Return results
+	return resultsBuffer;
+
 }
 
 template <typename T> bool reqIDMin(std::tuple<int, T> lhs, std::tuple<int, T> rhs)
