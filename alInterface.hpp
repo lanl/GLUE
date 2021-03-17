@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <memory>
 #include <sqlite3.h>
 
 int getReqNumber();

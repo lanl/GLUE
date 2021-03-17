@@ -8,6 +8,7 @@
 #include <iterator>
 #include <algorithm>
 #include <numeric>
+#include <memory>
 #include <sqlite3.h>
 #include <mpi.h>
 
@@ -225,34 +226,41 @@ void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **process
 	return;
 }
 
-std::tuple<int,int> icf_insertReqs(bgk_request_t *input, int numInputs, int reqRank, sqlite3 * dbHandle)
+std::unique_ptr<std::vector<int>> icf_insertReqs(bgk_request_t *input, int numInputs, int reqRank, sqlite3 * dbHandle)
 {
+	//Return  a full vector as we have no guarantee of contiguous reqIDs
+	auto retVec = std::make_unique<std::vector<int>>(numInputs, -1);
 	std::string tag("TAG");
 	int start,end;
 	int reqNum;
 	for(int i = 0; i < numInputs; i++)
 	{
 		reqNum = getReqNumberForRank(reqRank);
-		if(i == 0)
-		{
-			start = reqNum;
-		}
+		(*retVec)[i] = reqNum;
 		///TODO: Remove "TAG" requirement
 		writeRequest<bgk_request_t>(input[i], reqRank, const_cast<char *>(tag.c_str()), dbHandle, reqNum, ALInterfaceMode_e::DEFAULT);
 	}
-	end = reqNum;
-	std::tuple<int, int> reqRange(start, end);
-	return reqRange;
+	return retVec;
 }
 
-std::vector<bgk_result_t> * icf_extractResults(std::tuple<int, int> reqRange, int reqRank, sqlite3 *dbHandle)
+
+std::vector<bgk_result_t> * icf_extractResults(std::unique_ptr<std::vector<int>> &reqRange, int reqRank, sqlite3 *dbHandle)
 {
 	///TODO: Consider thought to reducing memory footprint because we can potentially use 2N for this
-	///ERROR: This logic may only work for the first batch...
-	std::vector<bgk_result_t> * retVec = new std::vector<bgk_result_t>(std::get<1>(reqRange) - std::get<0>(reqRange) + 1);
+	std::vector<bgk_result_t> * retVec = new std::vector<bgk_result_t>(reqRange->size());
+	
+	//We have guarantee that reqRange[0] is lowest ID but not that all IDs are contiguous
+	//Need to request lowest to max until all results have been received
+	//
+
+	// Start by requesting the full range
+	
+
+/*
+
 	// Similar logic to in alInterface.py:pollAndProcessFGSRequests
 	std::set<int> missingSet;
-	// Start by requesting the full range
+	
 	int nextExpected = std::get<0>(reqRange);
 	int maxExpected = std::get<1>(reqRange);
 	int latestID = nextExpected;
@@ -307,6 +315,7 @@ std::vector<bgk_result_t> * icf_extractResults(std::tuple<int, int> reqRange, in
 			nextExpected = *(missingSet.begin());
 		}
 	}
+*/
 	return retVec;
 }
 
@@ -334,10 +343,11 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 	if(myRank == 0)
 	{
 		std::vector<int> resultBatches(reqBatches);
-		std::vector<std::vector<std::tuple<int,int>>> reqsPerBatch(commSize);
+		//A vector of vectors of unique pointers to vectors of request ID mappings
+		std::vector<std::vector<std::unique_ptr<std::vector<int>>>> reqsPerBatch(commSize);
 		//First, submit all rank 0 requests
-		std::tuple<int, int> zeroReqs = icf_insertReqs(input, numInputs, 0, globalGlueDBHandle);
-		reqsPerBatch[0].push_back(zeroReqs);
+		auto zeroReqs = icf_insertReqs(input, numInputs, 0, globalGlueDBHandle);
+		reqsPerBatch[0].push_back(std::move(zeroReqs));
 		//And we know we have one batch for zero because it is special
 		resultBatches[0] = 1;
 		//Then, do the rest
@@ -356,9 +366,9 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 				MPI_Get_count(&reqStatus, MPI_BYTE, &numReqs);
 				numReqs = numReqs / sizeof(bgk_request_t);
 				//Send to glue code
-				std::tuple<int, int> batchRange  = icf_insertReqs(reqs.data(), numReqs, rank, globalGlueDBHandle);
+				auto batchRange  = icf_insertReqs(reqs.data(), numReqs, rank, globalGlueDBHandle);
 				// Put requests in req list
-				reqsPerBatch[rank].push_back(batchRange);
+				reqsPerBatch[rank].push_back(std::move(batchRange));
 				//And decrement the number of expected batches from this rank
 				reqBatches[rank]--;
 			}
