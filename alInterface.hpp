@@ -228,9 +228,11 @@ template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInp
 	return retVal;
 }
 
-template <typename T> std::vector<std::tuple<int,T>> getRangeOfResults(int nextID, int maxID, int mpiRank, sqlite3 *dbHandle, unsigned int reqType)
+///TODO: Return unique_ptr because we are copy construcotring a big set...
+
+template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeOfResults(int nextID, int maxID, int mpiRank, sqlite3 *dbHandle, unsigned int reqType)
 {
-	std::vector<std::tuple<int,T>> retVec;
+	auto retVec = std::make_unique<std::vector<std::tuple<int,T>>>();
 	//Put request IDs in a tuple
 	std::tuple<int,int> reqRange(nextID, maxID);
 	std::string tag("TAG");
@@ -246,6 +248,7 @@ template <typename T> std::vector<std::tuple<int,T>> getRangeOfResults(int nextI
 	{
 		//Send SELECT with sqlite3_exec. 
 		std::string sqlString = getResultSQLStringReqRange<T>(mpiRank, const_cast<char *>(tag.c_str()), reqRange);
+		//std::cerr << "Gonna send " << sqlString << std::endl;
 		sprintf(sqlBuf, sqlString.c_str());
 		//sprintf(sqlBuf, sqlString.c_str(), reqNum, const_cast<char *>(tag.c_str()), mpiRank);
 		int rc = makeSQLRequest<T>(dbHandle, sqlBuf, &err);
@@ -273,7 +276,8 @@ template <typename T> std::vector<std::tuple<int,T>> getRangeOfResults(int nextI
 			if(it->first <= maxID || it->first >= nextID)
 			{
 				//Hit so copy it out...
-				retVec.push_back(std::tuple<int,T>(it->first, it->second));
+				std::tuple<int, T> retTup(it->first, it->second);
+				retVec->push_back(retTup);
 				//and remove it
 				it = globalTable.resultTable.erase(it);
 				//And we have at least one result so

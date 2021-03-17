@@ -56,7 +56,6 @@ int main(int argc, char ** argv)
 		double secs = end - start;
 		double msecs = secs * 1000;
 		printf("%d: %ld millisecs\n", t, msecs);
-
 		//We actually DO care about results right now so check that
 		for(int r = 0; r < glueSize; r++)
 		{
@@ -91,12 +90,17 @@ int main(int argc, char ** argv)
 					fprintf(stdout, "]");
 					fprintf(stdout, ")");
 					//Print endline
-					fprintf(stdout, "/n");
+					fprintf(stdout, "\n");
 				}
 			}
 		}
 		//And we don't care about result because it probably worked
 		free(result);
+		//Now update a variable so we can see if we did this correctly
+		for(int i = 0; i < numReqs; i++)
+		{
+			reqBuffer[i].temperature += 0.01 * i * (glueRank + 1);
+		}
 	}
 	//Cleanup
 	free(reqBuffer);

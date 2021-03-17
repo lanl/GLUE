@@ -243,79 +243,61 @@ std::unique_ptr<std::vector<int>> icf_insertReqs(bgk_request_t *input, int numIn
 	return retVec;
 }
 
-
-std::vector<bgk_result_t> * icf_extractResults(std::unique_ptr<std::vector<int>> &reqRange, int reqRank, sqlite3 *dbHandle)
+std::vector<bgk_result_t> * icf_extractResults(std::unique_ptr<std::vector<int>> &reqList, int reqRank, sqlite3 *dbHandle)
 {
 	///TODO: Consider thought to reducing memory footprint because we can potentially use 2N for this
-	std::vector<bgk_result_t> * retVec = new std::vector<bgk_result_t>(reqRange->size());
+	std::vector<bgk_result_t> * retVec = new std::vector<bgk_result_t>(reqList->size());
 	
 	//We have guarantee that reqRange[0] is lowest ID but not that all IDs are contiguous
 	//Need to request lowest to max until all results have been received
 	//
 
 	// Start by requesting the full range
-	
+	int rStart, rEnd;
+	rStart = *(reqList->begin());
+	rEnd = reqList->back();
+	bool isDone = false;
 
-/*
-
-	// Similar logic to in alInterface.py:pollAndProcessFGSRequests
-	std::set<int> missingSet;
-	
-	int nextExpected = std::get<0>(reqRange);
-	int maxExpected = std::get<1>(reqRange);
-	int latestID = nextExpected;
-	while(nextExpected <= maxExpected || missingSet.empty() != true)
+	while(!isDone)
 	{
-		//  Get Results from nextExpected  until maxExpected
-		std::vector<std::tuple<int,bgk_result_t>> sqlResults = getRangeOfResults<bgk_result_t>(nextExpected, maxExpected, reqRank, dbHandle, ALInterfaceMode_e::DEFAULT);
-		// Pull maxID from that
-		auto maxIter = std::max_element(sqlResults.begin(), sqlResults.end(), reqIDMin<bgk_result_t>);
-		//Is the maxID greater than our previous latestID?
-		if(std::get<0>(*maxIter) > latestID)
+		//Assume we are done until we aren't
+		isDone = true;
+		///TODO: Use logic to update rStart and rEnd to make smaller requests as time goes on
+		//Get results of query
+		auto sqlResults = getRangeOfResults<bgk_result_t>(rStart, rEnd, reqRank, dbHandle, ALInterfaceMode_e::DEFAULT);
+		if(!sqlResults->empty())
 		{
-			//It is, add the difference to the missingSet so we can tick those off
-			int newLatest =  std::get<0>(*maxIter);
-			int latestDelta = newLatest - latestID + 1;
-			///TODO: Probably a better way to do this
-			//Basically a python range() statement
-			std::vector<int> newMissing(latestDelta);
-			std::iota(newMissing.begin(), newMissing.end(), latestID);
-			///Super expensive insert into the set
-			missingSet.insert(newMissing.begin(), newMissing.end());
-			//And then update latestID
-			latestID = newLatest;
-		}
-		// Process Results (basically copy to retVec) and find MaxID
-		for (auto it = sqlResults.begin(); it != sqlResults.end(); ++it)
-		{
-			//Get the request ID
-			int reqID = std::get<0>(*it);
-			//Is this an ID that was in our missingSet? (it should be?)
-			if(missingSet.empty() != true)
+			//Basically look for matches between the two vectors in a not horrible way
+			//  Probably O(N^2)...
+			for(int i = 0; i < reqList->size(); i++)
 			{
-				auto missingIt = missingSet.find(reqID);
-				if(missingIt != missingSet.end())
+				//Have we processed this request yet?
+				if(reqList->at(i) != -1)
 				{
-					//It was found so we need to remove it
-					missingSet.erase(missingIt);
+					//Nope, so let's see if our sqlResults have a corresponding entry
+					auto matchIter = std::find_if(
+						sqlResults->begin(), sqlResults->end(),
+						[&](const std::tuple<int, bgk_result_t>& x) { return std::get<0>(x) == reqList->at(i);}
+					);
+					if(matchIter != sqlResults->end())
+					{
+						//We have a hit so copy out the request and set the reqList entry to -1
+						retVec->at(i) = std::get<1>(*matchIter);
+						reqList->at(i) = -1;
+					}
+					else
+					{
+						//Otherwise, no hit and we need to try again
+						isDone = false;
+					}
 				}
-				//And copy in data
-				(*retVec)[reqID] = std::get<1>(*it);
 			}
-		}
-		// Are we still missing any entries?
-		if(missingSet.empty())
-		{
-			//If not then the next expected is latestID+1
-			nextExpected = latestID+1;
 		}
 		else
 		{
-			//We are so it will be the lowest reqID that we are missing
-			nextExpected = *(missingSet.begin());
+			isDone = false;
 		}
 	}
-*/
 	return retVec;
 }
 
