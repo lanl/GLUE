@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <queue>
 #include <memory>
 #include <algorithm>
 #include <sqlite3.h>
@@ -265,7 +266,6 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 	{
 		//Send SELECT with sqlite3_exec. 
 		std::string sqlString = getResultSQLStringReqRange<T>(mpiRank, const_cast<char *>(tag.c_str()), reqRange);
-		//std::cerr << "Gonna send " << sqlString << std::endl;
 		sprintf(sqlBuf, sqlString.c_str());
 		//sprintf(sqlBuf, sqlString.c_str(), reqNum, const_cast<char *>(tag.c_str()), mpiRank);
 		int rc = makeSQLRequest<T>(dbHandle, sqlBuf, &err);
@@ -392,11 +392,11 @@ template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI
 	if(myRank == 0)
 	{
 		std::vector<int> resultBatches(reqBatches);
-		//A vector of vectors of unique pointers to vectors of request ID mappings
-		std::vector<std::vector<std::unique_ptr<std::vector<int>>>> reqsPerBatch(commSize);
+		//A vector of queues of unique pointers of vectors of request ID mappings
+		std::vector<  std::queue< std::unique_ptr<std::vector<int>>>> reqsPerBatch(commSize);
 		//First, submit all rank 0 requests
 		auto zeroReqs = col_insertReqs<S>(input, numInputs, 0, globalGlueDBHandle);
-		reqsPerBatch[0].push_back(std::move(zeroReqs));
+		reqsPerBatch[0].push(std::move(zeroReqs));
 		//And we know we have one batch for zero because it is special
 		resultBatches[0] = 1;
 		//Then, do the rest
@@ -417,7 +417,9 @@ template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI
 				//Send to glue code
 				auto batchRange  = col_insertReqs<S>(reqs.data(), numReqs, rank, globalGlueDBHandle);
 				// Put requests in req list
-				reqsPerBatch[rank].push_back(std::move(batchRange));
+				//   Because of Choices, batch N is in reqBatches[0] and 0 is in reqBatches[N-1]
+				//   What we actually want is a FIFO?
+				reqsPerBatch[rank].push(std::move(batchRange));
 				//And decrement the number of expected batches from this rank
 				reqBatches[rank]--;
 			}
@@ -425,11 +427,17 @@ template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI
 		//Now, we process results
 		for(int rank = 1; rank < commSize; rank++)
 		{
+			///TODO: This needs a while loop because we only done one iter per rank
 			//Do we still have results for that rank?
 			if(resultBatches[rank] != 0)
 			{
+				int batchNum = resultBatches[rank];
 				//Get results from glue code
-				std::vector<T> * batchResults = col_extractResults<T>(reqsPerBatch[rank][resultBatches[rank]], rank, globalGlueDBHandle);
+				///TODO: Probably passing a bad first argument...
+				//Probably want batchNum -1
+				auto reqIDVec = std::move(reqsPerBatch[rank].front());
+				reqsPerBatch[rank].pop();
+				std::vector<T> * batchResults = col_extractResults<T>(reqIDVec, rank, globalGlueDBHandle);
 				//Send results with a BLOCKING send
 				// Need to do blocking sends because of memory concerns
 				//MPI IDs decrement [total, 1]
@@ -441,7 +449,9 @@ template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI
 			}
 		}
 		//And then handle the requests from rank 0
-		std::vector<T> * batchResults = col_extractResults<T>(reqsPerBatch[0][0], 0, globalGlueDBHandle);
+		auto reqIDVec = std::move(reqsPerBatch[0].front());
+		reqsPerBatch[0].pop();
+		std::vector<T> * batchResults = col_extractResults<T>(reqIDVec, 0, globalGlueDBHandle);
 		std::copy(batchResults->begin(), batchResults->end(), resultsBuffer);
 		delete batchResults;
 	}
@@ -449,9 +459,9 @@ template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI
 	{
 		//Everyone else, send your requests to rank 0
 		unsigned int curIndex = 0;
-		std::vector<MPI_Request> sendReqs(reqBatches[myRank]);
-		std::vector<MPI_Status> sendStatuses(reqBatches[myRank]);
-		for(int i = reqBatches[myRank]; i > 0; i--)
+		std::vector<MPI_Request> sendReqs(localReqBatches[myRank]);
+		std::vector<MPI_Status> sendStatuses(localReqBatches[myRank]);
+		for(int i = localReqBatches[myRank]; i > 0; i--)
 		{
 			//Compute size of send
 			int reqSize;
@@ -466,17 +476,17 @@ template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI
 			//Queue up send of this data to rank 0
 			// non-blocking send as we aren't going to clobber the send buffers
 			//MPI IDs decrement [total, 1]
-			MPI_Isend(&input[curIndex], sizeof(T)*reqSize, MPI_BYTE, 0, i, glueComm, &sendReqs[i-1]);
+			MPI_Isend(&input[curIndex], sizeof(S)*reqSize, MPI_BYTE, 0, i, glueComm, &sendReqs[i-1]);
 			//Increment curIndex
 			curIndex += globalGlueBufferSize;
 		}
 		//Wait on all the sends
-		MPI_Waitall(reqBatches[myRank], sendReqs.data(), sendStatuses.data());
+		MPI_Waitall(localReqBatches[myRank], sendReqs.data(), sendStatuses.data());
 		//Then get results
 		curIndex = 0;
-		std::vector<MPI_Request> recvReqs(reqBatches[myRank]);
-		std::vector<MPI_Status> recvStatuses(reqBatches[myRank]);
-		for(int i = reqBatches[myRank]; i > 0; i--)
+		std::vector<MPI_Request> recvReqs(localReqBatches[myRank]);
+		std::vector<MPI_Status> recvStatuses(localReqBatches[myRank]);
+		for(int i = localReqBatches[myRank]; i > 0; i--)
 		{
 			//Compute size of recv
 			int reqSize;
@@ -495,7 +505,7 @@ template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI
 			//Increment curIndex
 			curIndex += globalGlueBufferSize;
 		}
-		MPI_Waitall(reqBatches[myRank], recvReqs.data(), recvStatuses.data());
+		MPI_Waitall(localReqBatches[myRank], recvReqs.data(), recvStatuses.data());
 	}
 	//Return results
 	return resultsBuffer;
