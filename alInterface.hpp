@@ -404,7 +404,7 @@ template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI
 		for(int rank = 1; rank < commSize; rank++)
 		{
 			//Do we still have requests from that rank?
-			if(reqBatches[rank] != 0)
+			while(reqBatches[rank] != 0)
 			{
 				//Blocking recv those requests
 				MPI_Status reqStatus;
@@ -429,12 +429,10 @@ template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI
 		{
 			///TODO: This needs a while loop because we only done one iter per rank
 			//Do we still have results for that rank?
-			if(resultBatches[rank] != 0)
+			while(resultBatches[rank] != 0)
 			{
 				int batchNum = resultBatches[rank];
 				//Get results from glue code
-				///TODO: Probably passing a bad first argument...
-				//Probably want batchNum -1
 				auto reqIDVec = std::move(reqsPerBatch[rank].front());
 				reqsPerBatch[rank].pop();
 				std::vector<T> * batchResults = col_extractResults<T>(reqIDVec, rank, globalGlueDBHandle);
