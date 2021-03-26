@@ -33,11 +33,14 @@ int main(int argc, char ** argv)
 	MPI_Comm_rank(glueComm, &glueRank);
 	MPI_Comm_size(glueComm, &glueSize);
 
+	char npFName[128];
+	sprintf(npFName, "%d_%d_mpi.dat", glueSize, numReqs);
+
 	//Set up buffer with rank specific data
 	bgk_request_t * reqBuffer = malloc(sizeof(bgk_request_t) * numReqs);
 	for(int i = 0; i < numReqs; i++)
 	{
-		reqBuffer[i].temperature = 160 + 0.05 * i * (glueRank + 1);
+		reqBuffer[i].temperature = 160 + 10 * i * (glueRank + 1);
 		reqBuffer[i].density[0] = 4.44819405e+24;
 		reqBuffer[i].density[1] = 4.44819405e+24;
 		reqBuffer[i].density[2] = 0.0;

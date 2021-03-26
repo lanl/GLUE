@@ -9,7 +9,7 @@ def runAndPrintData(nRanks, nReqs):
     # Generate inputs and get analytic solutions
     for r in range(nRanks):
         for i in range(nReqs):
-            temp = 160 + 0.05 * i * (r + 1)
+            temp = 160 + 10 * i * (r + 1)
             dens = 4.44819405e+24
             chargeA = 0.9308375079943152
             chargeB = 11.544522277358098
