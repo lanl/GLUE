@@ -92,6 +92,38 @@ int main(int argc, char ** argv)
 					//Print endline
 					fprintf(stdout, "\n");
 				}
+				//Only fake numpy for the first timestep
+				if(t == 0)
+				{
+					FILE * fp = fopen(npFName, "a");
+					for(int i = 0; i < numReqs; i++)
+					{
+						//Row ID
+						fprintf(fp, "%d %d ", r, i);
+						// Input
+						fprintf(fp, "%.8e ", reqBuffer[i].temperature);
+						for(int j = 0; j < 4; j++)
+						{
+							fprintf(fp, "%.8e ", reqBuffer[i].density[j]);
+						}
+						for(int j = 0; j < 4; j++)
+						{
+							fprintf(fp, "%.8e ", reqBuffer[i].charges[j]);
+						}
+						//Output
+						fprintf(fp, "%.8e %.8e ", result[i].viscosity, result[i].thermalConductivity);
+						for(int j = 0; j < 10; j++)
+						{
+							fprintf(fp, "%.8e", result[i].diffusionCoefficient[j]);
+							if(j != 9)
+							{
+								fprintf(fp, " ");
+							}
+						}
+						fprintf(fp, "\n");
+					}
+					fclose(fp);
+				}
 			}
 		}
 		//And we don't care about result because it probably worked

@@ -33,12 +33,14 @@ template <typename T> struct AsyncSelectTable_t
 };
 
 extern AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
+extern std::vector<AsyncSelectTable_t<bgk_result_t>> globalColBGKResultTable;
 extern AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
 extern sqlite3* globalGlueDBHandle;
 extern const unsigned int globalGlueBufferSize;
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName);
 static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColName);
+static int readCallback_colbgk(void *NotUsed, int argc, char **argv, char **azColName);
 
 template <typename T> int makeSQLRequest(sqlite3 * dbHandle, char * message, char ** errOut)
 {
@@ -47,6 +49,15 @@ template <typename T> int makeSQLRequest(sqlite3 * dbHandle, char * message, cha
 template <> int makeSQLRequest<bgk_result_t>(sqlite3 * dbHandle, char * message, char ** errOut)
 {
 	return sqlite3_exec(dbHandle, message, readCallback_bgk, 0, errOut);
+}
+
+template <typename T> int makeColSQLRequest(sqlite3 * dbHandle, char * message, char ** errOut)
+{
+	return sqlite3_exec(dbHandle, message, dummyCallback, 0, errOut);
+}
+template <> int makeColSQLRequest<bgk_result_t>(sqlite3 * dbHandle, char * message, char ** errOut)
+{
+	return sqlite3_exec(dbHandle, message, readCallback_colbgk, 0, errOut);
 }
 
 template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
@@ -60,6 +71,15 @@ template <> AsyncSelectTable_t<bgk_result_t>& getGlobalTable<bgk_result_t>()
 template <> AsyncSelectTable_t<lbmToOneDMD_result_t>& getGlobalTable<lbmToOneDMD_result_t>()
 {
 	return globallbmToOneDMDResultTable;
+}
+
+template <typename T> AsyncSelectTable_t<T>& getGlobalColTable(int rank)
+{
+	exit(1);
+}
+template <> AsyncSelectTable_t<bgk_result_t>& getGlobalColTable<bgk_result_t>(int rank)
+{
+	return globalColBGKResultTable[rank];
 }
 
 template <typename T> std::string getReqSQLString(T input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
@@ -268,11 +288,11 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 		std::string sqlString = getResultSQLStringReqRange<T>(mpiRank, const_cast<char *>(tag.c_str()), reqRange);
 		sprintf(sqlBuf, sqlString.c_str());
 		//sprintf(sqlBuf, sqlString.c_str(), reqNum, const_cast<char *>(tag.c_str()), mpiRank);
-		int rc = makeSQLRequest<T>(dbHandle, sqlBuf, &err);
+		int rc = makeColSQLRequest<T>(dbHandle, sqlBuf, &err);
 		while (rc != SQLITE_OK)
 		{
 			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
-			rc = makeSQLRequest<T>(dbHandle, sqlBuf, &err);
+			rc = makeColSQLRequest<T>(dbHandle, sqlBuf, &err);
 			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
 			{
 				fprintf(stderr, "Error in getRangeOfResults<T>\n");
@@ -283,7 +303,7 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 			}
 		}
 		//SQL did something, so Get table
-		auto globalTable = getGlobalTable<T>();
+		auto globalTable = getGlobalColTable<T>(mpiRank);
 		//And get lock (less needed in this mode)
 		globalTable.tableMutex.lock();
 		//Check if any results we want are in table
