@@ -137,6 +137,8 @@ if __name__ == "__main__":
     defaultProcessing = ALInterfaceMode.FGS
     defaultSolver = SolverCode.BGK
 
+    # No need to preserve global arg parsing logic as we have all we need here
+
     argParser = argparse.ArgumentParser(description='Python Driver to Convert FGS BGK Result into DB Entry')
 
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
@@ -149,12 +151,12 @@ if __name__ == "__main__":
     args = vars(argParser.parse_args())
 
     tag = args['tag']
-    fName = args['db']
+    globalDBName = args['db']
     rank = args['rank']
     reqid = args['id']
     mode = ALInterfaceMode(args['mode'])
     code = SolverCode(args['code'])
 
-    resultArr = procOutputsAndProcess(tag, fName, rank, reqid, mode, code)
+    resultArr = procOutputsAndProcess(tag, globalDBName, rank, reqid, mode, code)
     if(mode == ResultProvenance.FGS):
-        insertGroundishTruth(fName, resultArr, code)
+        insertGroundishTruth(globalDBName, resultArr, code)

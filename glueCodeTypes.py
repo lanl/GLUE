@@ -37,6 +37,9 @@ class ProvisioningInterface(IntEnum):
     SPACK = 0
     MANUAL = 1
 
+class DatabaseMode(IntEnum):
+    SQLITE = 0
+
 # BGKInputs
 #  Temperature: float
 #  Density: float[4]

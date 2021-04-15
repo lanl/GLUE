@@ -392,7 +392,8 @@ def launchFGSJob(jobFile, configStruct):
 def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
     solverCode = configStruct['solverCode']
     tag = configStruct['tag']
-    dbPath = configStruct['dbFileName']
+    # Fine grain so want to use the slower shared DB
+    dbPath = configStruct['SQLiteSettings']['FGDBFilename']
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -558,7 +559,8 @@ def cacheCheck(inArgs, configStruct, dbCache):
     else:
         return None
 
-def mergeBufferTable(solverCode, sqlDB):
+def mergeBufferTable(solverCode, cgDB, configStruct):
+    #TODO: Also open up fine grain DB and copy the data across
     if solverCode == SolverCode.BGK:
         sqlCursor = sqlDB.cursor()
         mergeStr = "INSERT INTO BGKRESULTS SELECT * FROM BGKFASTRESULTS;"
@@ -572,7 +574,7 @@ def mergeBufferTable(solverCode, sqlDB):
 
 def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbCache):
     tag = configStruct['tag']
-    dbPath = configStruct['dbFileName']
+    cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
     # This is a brute force call. We only want an exact LAMMPS result
     outFGS = None
     # So first, check if we have already found a DB hit on a previous query
@@ -596,13 +598,13 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbC
     #Did we get a hit from either?
     if outFGS != None:
         # We had a hit, so send that
-        insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB, sqlDB)
+        insertResult(rank, tag, cgDBPath, reqID, outFGS, ResultProvenance.DB, sqlDB)
     else:
         # Nope, so now we see if we need an FGS job
         if useAnalyticSolution(inArgs):
             # It was, so let's get that solution
             results = getAnalyticSolution(inArgs)
-            insertResult(rank, tag, dbPath, reqID, results, ResultProvenance.FGS, sqlDB)
+            insertResult(rank, tag, cgDBPath, reqID, results, ResultProvenance.FGS, sqlDB)
         else:
             # Call fgs with args as scheduled job
             # job will write result back
@@ -643,7 +645,9 @@ def getAnalyticSolution(inArgs):
 def pollAndProcessFGSRequests(configStruct, uname):
     numRanks = configStruct['ExpectedMPIRanks']
     defaultMode = configStruct['glueCodeMode']
-    dbPath = configStruct['dbFileName']
+    # Basically all operations are cgDBPath except for polling and merging in fgDBPath's data
+    cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
+    fgDBPath = configStruct['SQLiteSettings']['FGDBFilename']
     tag = configStruct['tag']
     packetType = configStruct['solverCode']
     alBackend = configStruct['alBackend']
@@ -658,21 +662,21 @@ def pollAndProcessFGSRequests(configStruct, uname):
     dbCache = []
 
     #Spin until file exists
-    while not os.path.exists(dbPath):
+    while not os.path.exists(cgDBPath):
         time.sleep(1)
     #Set up persistent SQL Connection
-    sqlDB = sqlite3.connect(dbPath, timeout=45.0)
+    sqlDB = sqlite3.connect(cgDBPath, timeout=45.0)
     #Get starting GNDCount of 0
     GNDcnt = 0
     #And start the glue loop
     keepSpinning = True
     while keepSpinning:
         #Logic to not hammer DB/learner with unnecessary retraining requests
-        nuGNDcnt = getGNDCount(dbPath, packetType)
+        nuGNDcnt = getGNDCount(cgDBPath, packetType)
         if (nuGNDcnt - GNDcnt) > GNDthreshold or GNDcnt == 0:
             with open('alLog.out', 'w') as alOut, open('alLog.err', 'w') as alErr:
                 with redirect_stdout(alOut), redirect_stdout(alErr):
-                    interpModel = getInterpModel(packetType, alBackend, dbPath)
+                    interpModel = getInterpModel(packetType, alBackend, cgDBPath)
             GNDcnt = nuGNDcnt
         #Now populate the task queue
         for i in range(0, numRanks + numALRequesters):
@@ -735,9 +739,9 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 #      queueUpdateModel(inputs, outputs)
                 #      return outputs
                 (isLegit, output) = interpModel(taskArgs)
-                insertALPrediction(dbPath, taskArgs, output, packetType, sqlDB)
+                insertALPrediction(cgDBPath, taskArgs, output, packetType, sqlDB)
                 if isLegit:
-                    insertResult(rank, tag, dbPath, reqID, output, ResultProvenance.ACTIVELEARNER, sqlDB)
+                    insertResult(rank, tag, cgDBPath, reqID, output, ResultProvenance.ACTIVELEARNER, sqlDB)
                 else:
                     queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS, sqlDB, dbCache)
             elif modeSwitch == ALInterfaceMode.FAKE:
@@ -747,7 +751,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
                     bgkOutput.DiffCoeff[7] = (bgkInput.Temperature + bgkInput.Density[0] +  bgkInput.Charges[3]) / 3
                     # Write the result
-                    insertResult(rank, tag, dbPath, reqID, bgkOutput, ResultProvenance.FAKE, sqlDB)
+                    insertResult(rank, tag, cgDBPath, reqID, bgkOutput, ResultProvenance.FAKE, sqlDB)
                 else:
                     raise Exception('Using Unsupported Solver Code')
             elif modeSwitch == ALInterfaceMode.ANALYTIC:
@@ -758,7 +762,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     (cond, visc, diffCoeff) = ICFAnalytical_solution(taskArgs.Density, taskArgs.Charges, taskArgs.Temperature)
                     bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
                     # Write the result
-                    insertResult(rank, tag, dbPath, reqID, bgkOutput, ResultProvenance.ANALYTIC, sqlDB)
+                    insertResult(rank, tag, cgDBPath, reqID, bgkOutput, ResultProvenance.ANALYTIC, sqlDB)
                 else:
                     raise Exception('Using Unsupported Analytic Solution')
             elif modeSwitch == ALInterfaceMode.KILL:
@@ -766,7 +770,8 @@ def pollAndProcessFGSRequests(configStruct, uname):
         #And empty out the task queue....
         del(taskQueue[:])
         #And now merge and purge buffer tables
-        mergeBufferTable(SolverCode.BGK, sqlDB)
+        #TODO: This is where we will use fgDB
+        mergeBufferTable(SolverCode.BGK, sqlDB, configStruct)
     #Close SQL Connection
     sqlDB.close()
 
