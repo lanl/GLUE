@@ -103,22 +103,21 @@ def getEquivalenceSQLStringsGND(packetType):
         globalTable = dbKey + ".BGKGND"
         localTable = "BGKGND"
         selString = "WHERE ("
-        # For Reasons we will match on Result Info
-        # Probably should do request though?
-        selString += globalTable + ".VISCOSITY="
-        selString += localTable + ".VISCOSITY"
+        # We will match on Request Info
+        selString += globalTable + ".TEMPERATURE="
+        selString += localTable + ".TEMPERATURE"
         selString += " AND "
-        selString += globalTable + ".THERMAL_CONDUCT="
-        selString += localTable + ".THERMAL_CONDUCT"
-        # Diffusion coefficients...
-        for i in range(10):
-            selString += globalTable + ".DIFFCOEFF_" + str(i) + "="
-            selString += localTable + ".DIFFCOEFF_" + str(i)
+        for i in range(4):
+            selString += globalTable + ".DENSITY_" + str(i) + "="
+            selString += localTable + ".DENSITY_" + str(i)
             selString += " AND "
-        selString += globalTable + ".OUTVERSION="
-        selString += localTable + ".OUTVERSION"
+            selString += globalTable + ".CHARGES_" + str(i) + "="
+            selString += localTable + ".CHARGES_" + str(i)
+            selString += " AND "
+        # And inversion just for safety reasons
+        selString += globalTable + ".INVERSION="
+        selString += localTable + ".INVERSION"
         selString += ")"
-        # TODO: We SHOULD do the version number though
         return selString
     else:
         raise Exception('Using Unsupported Solver Code')
