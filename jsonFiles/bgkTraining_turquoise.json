@@ -1,6 +1,5 @@
 {
 	"tag": "DUMMY_TAG_42",
-	"dbFileName": "testDB.db",
 	"glueCodeMode": 0,
 	"solverCode": 0,
 	"SchedulerInterface": 0,
@@ -17,5 +16,11 @@
 		"NodesPerSlurmJob": 1,
 		"MaxSlurmJobs": 4,
 		"SlurmPartition": "standard"
+	},
+	"DatabaseMode": 0,
+	"SQLiteSettings":{
+		"CGDBFilename": "testDB.db",
+		"FGDBFilename": "otherTestDB.db"
 	}
+
 }

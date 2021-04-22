@@ -1,6 +1,5 @@
 {
 	"tag": "DUMMY_TAG_42",
-	"dbFileName": "testDB.db",
 	"glueCodeMode": 0,
 	"ExpectedMPIRanks": 1,
 	"solverCode": 0,
@@ -22,5 +21,10 @@
 	"ActiveLearningVariables":{
 		"GNDthreshold": 20,
 		"NumberOfRequestingActiveLearners": 1
+	},
+	"DatabaseMode": 0,
+	"SQLiteSettings":{
+		"CGDBFilename": "testDB.db",
+		"FGDBFilename": "otherTestDB.db"
 	}
 }

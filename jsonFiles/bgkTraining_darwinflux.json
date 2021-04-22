@@ -1,6 +1,5 @@
 {
 	"tag": "DUMMY_TAG_42",
-	"dbFileName": "testDB.db",
 	"glueCodeMode": 0,
 	"solverCode": 0,
 	"SchedulerInterface": 2,
@@ -18,5 +17,11 @@
 		"SpackRoot": "/usr/projects/aldr/spack2",
 		"SpackCompilerAndMPI": "%gcc@7.3.0 ^mpich@3.3.0%gcc@7.3.0",
 		"SpackLAMMPS": "lammps+mpi~ffmpeg"
+	},
+	"DatabaseMode": 0,
+	"SQLiteSettings":{
+		"CGDBFilename": "testDB.db",
+		"FGDBFilename": "otherTestDB.db"
 	}
+
 }

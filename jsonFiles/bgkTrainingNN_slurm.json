@@ -1,22 +1,16 @@
 {
-	"tag": "DUMMY_TAG_42",
-	"glueCodeMode": 6,
+	"tag": "makeMeOptionalAlready",
+	"glueCodeMode": 2,
+	"alBackend": 2,
 	"solverCode": 0,
 	"SchedulerInterface": 0,
-	"ICFParameters":{
-		"RelativeError": 0.0001
-	},
 	"SlurmScheduler":{
 		"ThreadsPerMPIRankForSlurm": 1,
 		"NodesPerSlurmJob": 1,
 		"MaxSlurmJobs": 4,
 		"SlurmPartition": "general"
 	},
-	"SpackVariables":{
-		"SpackRoot": "/usr/projects/aldr/spack2",
-		"SpackCompilerAndMPI": "%gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0",
-		"SpackLAMMPS": "lammps+mpi~ffmpeg"
-	},
+	"SpackCompilerAndMPI": "%gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0",
 	"DatabaseMode": 0,
 	"SQLiteSettings":{
 		"CGDBFilename": "testDB.db",
