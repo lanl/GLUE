@@ -787,8 +787,10 @@ def pollAndProcessFGSRequests(configStruct, uname):
         #And empty out the task queue....
         del(taskQueue[:])
         #And now merge and purge buffer tables
-        #TODO: This is where we will use fgDB
+        #First we want to copy the fast local results to the right table of the shared db
         mergeBufferTable(SolverCode.BGK, sqlDB, configStruct)
+        #And then copy in the coarse grain results
+        pullGlobalGNDToFastDB(SolverCode.BGK, sqlDB, configStruct)
     #Close SQL Connection
     sqlDB.close()
 
