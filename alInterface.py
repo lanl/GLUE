@@ -562,9 +562,9 @@ def pullGlobalGNDToFastDB(solverCode, fastDB, configStruct):
         # Probably still have fastDB open?
         sqlCursor = fastDB.cursor()
         # Want to ATTACH globalDB to existing connection
-        sqlAttachStr = "ATTACH DATABASE \'?\' AS ?;"
-        sqlAttachTup = (cgDBPath, dbAlias)
-        sqlCursor.execute(sqlAttachStr, sqlAttachTup)
+        sqlAttachStr = "ATTACH DATABASE \'" + cgDBPath
+        sqlAttachStr += "\' AS " + dbAlias + ";"
+        sqlCursor.execute(sqlAttachStr)
         # Now copy out the results
         sqlResultsStr = "INSERT INTO BGKRESULTS SELECT * FROM "
         sqlResultsStr += dbAlias + ".BGKRESULTS WHERE NOT EXISTS("
@@ -577,8 +577,9 @@ def pullGlobalGNDToFastDB(solverCode, fastDB, configStruct):
         sqlGNDStr += dbAlias + ".BGKGND WHERE NOT EXISTS("
         sqlGNDStr += "SELECT * FROM BGKGND WHERE("
         sqlGNDStr += getEquivalenceSQLStringsGND(solverCode, dbAlias)
-        sqlResultsStr += "));"
+        sqlGNDStr += "));"
         sqlCursor.execute(sqlGNDStr)
+        fastDB.commit()
         # And detach the DB
         sqlDetachStr = "DETACH DATABASE ?;"
         sqlDetachTup = (dbAlias,)
