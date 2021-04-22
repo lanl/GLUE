@@ -1,22 +1,16 @@
-from enum import Enum, IntEnum
 import sqlite3
-import argparse
-import collections
 from collections.abc import Iterable
-from SM import Wigner_Seitz_radius
 import os
 import stat
 import shutil
 import numpy as np
-import csv
 import time
 import subprocess
 import getpass
 import sys
-import json
 from writeBGKLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface, ProvisioningInterface
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stdout
 from Screened_Boltzman_solution import ICFAnalytical_solution
 from glueArgParser import processGlueCodeArguments
 
@@ -68,33 +62,6 @@ def getGNDStringAndTuple(fgsArgs, configStruct):
         #Version
         selString += "INVERSION=?;"
         selTup += (getGroundishTruthVersion(SolverCode.BGK),)
-    elif isinstance(fgsArgs, BGKMassesInputs):
-        # Percent error acceptable for a match
-        relError = 0.0001
-        # TODO: DRY this for later use
-        selString += "SELECT * FROM BGKMASSESGND WHERE "
-        #Temperature
-        selString += "ABS(? - TEMPERATURE) / TEMPERATURE < ?"
-        selTup += (fgsArgs.Temperature, relError)
-        selString += " AND "
-        #Density
-        for i in range(0, 4):
-            selString += "ABS(? - DENSITY_" + str(i) + ") / DENSITY_" + str(i) + " < ?"
-            selTup += (fgsArgs.Density[i], relError)
-            selString += " AND "
-        #Charges
-        for i in range(0, 4):
-            selString += "ABS(? - CHARGES_" + str(i) + ") / CHARGES_" + str(i) + " < ?"
-            selTup += (fgsArgs.Charges[i], relError)
-            selString += " AND "
-        #Masses
-        for i in range(0, 4):
-            selString += "ABS(? - MASSES_" + str(i) + ") / MASSES_" + str(i) + " < ?"
-            selTup += (fgsArgs.Masses[i], relError)
-            selString += " AND "
-        #Version
-        selString += "INVERSION=?;"
-        selTup += (getGroundishTruthVersion(SolverCode.BGKMASSES),)
     else:
         raise Exception('Using Unsupported Solver Code')
     return (selString, selTup)
@@ -107,15 +74,56 @@ def processReqRow(sqlRow, packetType):
         bgkInput.Charges.extend([sqlRow[8], sqlRow[9], sqlRow[10], sqlRow[11]])
         reqType = ALInterfaceMode(sqlRow[12])
         return (bgkInput, reqType)
-    elif packetType == SolverCode.BGKMASSES:
-        bgkInput = BGKMassesInputs(Temperature=float(sqlRow[3]), Density=[], Charges=[], Masses=[])
-        bgkInput.Density.extend([sqlRow[4], sqlRow[5], sqlRow[6], sqlRow[7]])
-        bgkInput.Charges.extend([sqlRow[8], sqlRow[9], sqlRow[10], sqlRow[11]])
-        bgkInput.Masses.extend([sqlRow[12], sqlRow[13], sqlRow[14], sqlRow[15]])
-        reqType = ALInterfaceMode(sqlRow[16])
-        return (bgkInput, reqType)
     else:
         raise Exception('Using Unsupported Solver Code')
+
+def getEquivalenceSQLStringsResults(packetType):
+    if packetType == SolverCode.BGK:
+        dbKey = "GLOBALDB"
+        globalTable = dbKey + ".BGKRESULTS"
+        localTable = "BGKRESULTS"
+        # We just need reqid, rank, and tag to match
+        selString = "WHERE ("
+        selString += globalTable + ".TAG="
+        selString += localTable + ".TAG"
+        selString += " AND "
+        selString += globalTable + ".RANK="
+        selString += localTable + ".RANK"
+        selString += " AND "
+        selString += globalTable + ".REQ="
+        selString += localTable + ".REQ"
+        selString += ")"
+        return selString
+    else:
+        raise Exception('Using Unsupported Solver Code')
+
+def getEquivalenceSQLStringsGND(packetType):
+    if packetType == SolverCode.BGK:
+        dbKey = "GLOBALDB"
+        globalTable = dbKey + ".BGKGND"
+        localTable = "BGKGND"
+        selString = "WHERE ("
+        # For Reasons we will match on Result Info
+        # Probably should do request though?
+        selString += globalTable + ".VISCOSITY="
+        selString += localTable + ".VISCOSITY"
+        selString += " AND "
+        selString += globalTable + ".THERMAL_CONDUCT="
+        selString += localTable + ".THERMAL_CONDUCT"
+        # Diffusion coefficients...
+        for i in range(10):
+            selString += globalTable + ".DIFFCOEFF_" + str(i) + "="
+            selString += localTable + ".DIFFCOEFF_" + str(i)
+            selString += " AND "
+        selString += globalTable + ".OUTVERSION="
+        selString += localTable + ".OUTVERSION"
+        selString += ")"
+        # TODO: We SHOULD do the version number though
+        return selString
+    else:
+        raise Exception('Using Unsupported Solver Code')
+
+
 
 def writeBGKLammpsInputs(fgsArgs, dirPath, glueMode):
     # TODO: Refactor constants and general cleanup
@@ -148,7 +156,7 @@ def writeBGKLammpsInputs(fgsArgs, dirPath, glueMode):
         else:
             raise Exception('Using Unsupported FGS Mode')
         interparticle_radius = []
-        lammpsDens = np.array(fgsArgs.Density) 
+        lammpsDens = np.array(fgsArgs.Density)
         lammpsTemperature = fgsArgs.Temperature
         lammpsIonization = np.array(fgsArgs.Charges)
         lammpsMasses = m
@@ -267,8 +275,6 @@ def getAllGNDData(dbPath, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT * FROM BGKGND;"
-    elif solverCode == SolverCode.BGKMASSES:
-        selString = "SELECT * FROM BGKMASSESGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -285,8 +291,6 @@ def getGNDCount(dbPath, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT COUNT(*)  FROM BGKGND;"
-    elif solverCode == SolverCode.BGKMASSES:
-        selString = "SELECT COUNT(*)  FROM BGKMASSESGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
     sqlDB = sqlite3.connect(dbPath)
@@ -508,13 +512,6 @@ def insertResultSlow(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlD
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
-    elif isinstance(fgsResult, BGKMassesOutputs):
-        sqlCursor = sqlDB.cursor()
-        insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
-        sqlCursor.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlCursor.close()
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -522,13 +519,6 @@ def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlDB):
     if isinstance(fgsResult, BGKOutputs):
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKFASTRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
-        sqlCursor.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlCursor.close()
-    elif isinstance(fgsResult, BGKMassesOutputs):
-        sqlCursor = sqlDB.cursor()
-        insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
@@ -571,6 +561,18 @@ def mergeBufferTable(solverCode, cgDB, configStruct):
         sqlCursor.close()
     else:
         raise Exception('Using Unsupported Solver Code')
+
+def pullGlobalGNDToFastDB(solverCode, fastDB, globalDB, configStruct):
+    #TODO: Copy/merge GND and Results from globalDB to fastDB
+    if solverCode == SolverCode.BGK:
+        # Probably still have fastDB open?
+        # Want to ATTACH globalDB to existing connection?
+        # TODO: Update process results to write to a different table key for results and GND
+        # TODO: Update table init to make both tables
+        # See if there is a better way to do mergeBufferTable
+        pass
+    else:
+        raise Exception('pullGlobalGNDToFastDB: Using Unsupported Solver Code')
 
 def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbCache):
     tag = configStruct['tag']
