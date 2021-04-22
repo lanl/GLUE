@@ -10,6 +10,11 @@
 		"MaxSlurmJobs": 1,
 		"SlurmPartition": "general"
 	},
+	"alBackend": 2,
+	"ActiveLearningVariables":{
+		"GNDthreshold": 20,
+		"NumberOfRequestingActiveLearners": 1
+	},
 	"SpackVariables":{
 		"SpackRoot": "/usr/projects/aldr/spack",
 		"SpackCompilerAndMPI": "%gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0",

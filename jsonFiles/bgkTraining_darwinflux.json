@@ -18,6 +18,11 @@
 		"SpackCompilerAndMPI": "%gcc@7.3.0 ^mpich@3.3.0%gcc@7.3.0",
 		"SpackLAMMPS": "lammps+mpi~ffmpeg"
 	},
+	"alBackend": 2,
+	"ActiveLearningVariables":{
+		"GNDthreshold": 20,
+		"NumberOfRequestingActiveLearners": 1
+	},
 	"DatabaseMode": 0,
 	"SQLiteSettings":{
 		"CGDBFilename": "testDB.db",

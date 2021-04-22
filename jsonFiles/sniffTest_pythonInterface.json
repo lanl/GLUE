@@ -18,6 +18,7 @@
 	"ICFParameters":{
 		"RelativeError": 0.0001
 	},
+	"alBackend": 2,
 	"ActiveLearningVariables":{
 		"GNDthreshold": 20,
 		"NumberOfRequestingActiveLearners": 1

@@ -17,6 +17,11 @@
 		"MaxSlurmJobs": 4,
 		"SlurmPartition": "standard"
 	},
+	"alBackend": 2,
+	"ActiveLearningVariables":{
+		"GNDthreshold": 20,
+		"NumberOfRequestingActiveLearners": 1
+	},
 	"DatabaseMode": 0,
 	"SQLiteSettings":{
 		"CGDBFilename": "testDB.db",
