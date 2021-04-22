@@ -17,7 +17,7 @@
 		"MaxSlurmJobs": 4,
 		"SlurmPartition": "standard"
 	},
-	"alBackend": 2,
+	"alBackend": 3,
 	"ActiveLearningVariables":{
 		"GNDthreshold": 20,
 		"NumberOfRequestingActiveLearners": 1

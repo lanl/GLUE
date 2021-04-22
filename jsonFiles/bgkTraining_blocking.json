@@ -13,7 +13,7 @@
 		"SpackCompilerAndMPI": "%gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0",
 		"SpackLAMMPS": "lammps+mpi~ffmpeg"
 	},
-	"alBackend": 2,
+	"alBackend": 3,
 	"ActiveLearningVariables":{
 		"GNDthreshold": 20,
 		"NumberOfRequestingActiveLearners": 1
