@@ -77,13 +77,12 @@ def processReqRow(sqlRow, packetType):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def getEquivalenceSQLStringsResults(packetType):
+def getEquivalenceSQLStringsResults(packetType, dbKey):
     if packetType == SolverCode.BGK:
-        dbKey = "GLOBALDB"
         globalTable = dbKey + ".BGKRESULTS"
         localTable = "BGKRESULTS"
         # We just need reqid, rank, and tag to match
-        selString = "WHERE ("
+        selString = ""
         selString += globalTable + ".TAG="
         selString += localTable + ".TAG"
         selString += " AND "
@@ -92,17 +91,15 @@ def getEquivalenceSQLStringsResults(packetType):
         selString += " AND "
         selString += globalTable + ".REQ="
         selString += localTable + ".REQ"
-        selString += ")"
         return selString
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def getEquivalenceSQLStringsGND(packetType):
+def getEquivalenceSQLStringsGND(packetType, dbKey):
     if packetType == SolverCode.BGK:
-        dbKey = "GLOBALDB"
         globalTable = dbKey + ".BGKGND"
         localTable = "BGKGND"
-        selString = "WHERE ("
+        selString = ""
         # We will match on Request Info
         selString += globalTable + ".TEMPERATURE="
         selString += localTable + ".TEMPERATURE"
@@ -117,12 +114,9 @@ def getEquivalenceSQLStringsGND(packetType):
         # And inversion just for safety reasons
         selString += globalTable + ".INVERSION="
         selString += localTable + ".INVERSION"
-        selString += ")"
         return selString
     else:
         raise Exception('Using Unsupported Solver Code')
-
-
 
 def writeBGKLammpsInputs(fgsArgs, dirPath, glueMode):
     # TODO: Refactor constants and general cleanup
@@ -549,27 +543,49 @@ def cacheCheck(inArgs, configStruct, dbCache):
         return None
 
 def mergeBufferTable(solverCode, cgDB, configStruct):
-    #TODO: Also open up fine grain DB and copy the data across
     if solverCode == SolverCode.BGK:
-        sqlCursor = sqlDB.cursor()
+        sqlCursor = cgDB.cursor()
         mergeStr = "INSERT INTO BGKRESULTS SELECT * FROM BGKFASTRESULTS;"
         delStr = "DELETE FROM BGKFASTRESULTS;"
         sqlCursor.execute(mergeStr)
         sqlCursor.execute(delStr)
-        sqlDB.commit()
+        cgDB.commit()
         sqlCursor.close()
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def pullGlobalGNDToFastDB(solverCode, fastDB, globalDB, configStruct):
-    #TODO: Copy/merge GND and Results from globalDB to fastDB
+def pullGlobalGNDToFastDB(solverCode, fastDB, configStruct):
+    # Might need to add to cgDBPath because of different dirs?
+    cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
+    dbAlias = "DBFG"
     if solverCode == SolverCode.BGK:
         # Probably still have fastDB open?
-        # Want to ATTACH globalDB to existing connection?
-        # TODO: Update process results to write to a different table key for results and GND
-        # TODO: Update table init to make both tables
-        # See if there is a better way to do mergeBufferTable
-        pass
+        sqlCursor = fastDB.cursor()
+        # Want to ATTACH globalDB to existing connection
+        sqlAttachStr = "ATTACH DATABASE \'?\' AS ?;"
+        sqlAttachTup = (cgDBPath, dbAlias)
+        sqlCursor.execute(sqlAttachStr, sqlAttachTup)
+        # Now copy out the results
+        sqlResultsStr = "INSERT INTO BGKRESULTS SELECT * FROM "
+        sqlResultsStr += dbAlias + ".BGKRESULTS WHERE NOT EXISTS("
+        sqlResultsStr += "SELECT * FROM BGKRESULTS WHERE("
+        sqlResultsStr += getEquivalenceSQLStringsResults(solverCode, dbAlias)
+        sqlResultsStr += "));"
+        sqlCursor.execute(sqlResultsStr)
+        # And the GNDish truth
+        sqlGNDStr = "INSERT INTO BGKGND SELECT * FROM "
+        sqlGNDStr += dbAlias + ".BGKGND WHERE NOT EXISTS("
+        sqlGNDStr += "SELECT * FROM BGKGND WHERE("
+        sqlGNDStr += getEquivalenceSQLStringsGND(solverCode, dbAlias)
+        sqlResultsStr += "));"
+        sqlCursor.execute(sqlGNDStr)
+        # And detach the DB
+        sqlDetachStr = "DETACH DATABASE ?;"
+        sqlDetachTup = (dbAlias,)
+        sqlCursor.execute(sqlDetachStr, sqlDetachTup)
+        # Commit commands and close cursor
+        fastDB.commit()
+        sqlCursor.close()
     else:
         raise Exception('pullGlobalGNDToFastDB: Using Unsupported Solver Code')
 
