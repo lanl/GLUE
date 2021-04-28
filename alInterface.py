@@ -556,43 +556,43 @@ def mergeBufferTable(solverCode, cgDB, configStruct):
 
 def pullGlobalGNDToFastDBPython(solverCode, fastDB, configStruct):
     # Manually copy data in by opening the DB, reading it, and then writing results
-    cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
+    fgDBPath = configStruct['SQLiteSettings']['FGDBFilename']
     if solverCode == SolverCode.BGK:
-        # Open CGDB
-        cgDB = sqlite3.connect(cgDBPath, timeout=45.0)
-        cgCursor = cgDB.cursor()
+        # Open Fine Grain DB
+        fgDB = sqlite3.connect(fgDBPath, timeout=45.0)
+        fgCursor = fgDB.cursor()
         # Copy out results
         resultList = []
         # TODO: Add logic to reduce number of reads later...
         #   Might be able to do an SQL query to find the gap
         resQuery = "SELECT * FROM BGKRESULTS;"
-        for row in cgCursor.execute(resQuery):
+        for row in fgCursor.execute(resQuery):
             # Basically just copy the result verbatim into list
             resultList.append(row)
-        # Close CGDB
-        cgCursor.close()
-        cgDB.close()
-        # Write results to fastDB
+        # Close FGDB
+        fgCursor.close()
+        fgDB.close()
+        # Write results to fastDB (CGDB)
         if len(resultList) > 0:
-            fgCursor = fastDB.cursor()
+            cgCursor = fastDB.cursor()
             # TODO: Update to do bulk insertions once this works
             for result in resultList:
                 insString = "INSERT INTO BGKRESULTS (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"
-                fgCursor.execute(insString, tuple(result))
-            fgCursor.commit()
-            fgCursor.close()
+                cgCursor.execute(insString, tuple(result))
+            cgCursor.commit()
+            cgCursor.close()
     else:
         raise Exception('pullGlobalGNDToFastDBPython: Using Unsupported Solver Code')
 
 def pullGlobalGNDToFastDBAttach(solverCode, fastDB, configStruct):
-    # Might need to add to cgDBPath because of different dirs?
-    cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
+    # Might need to add to fine grain db path  because of different dirs?
+    fgDBPath = configStruct['SQLiteSettings']['FGDBFilename']
     dbAlias = "DBFG"
     if solverCode == SolverCode.BGK:
         # Probably still have fastDB open?
         sqlCursor = fastDB.cursor()
         # Want to ATTACH globalDB to existing connection
-        sqlAttachStr = "ATTACH DATABASE \'" + cgDBPath
+        sqlAttachStr = "ATTACH DATABASE \'" + fgDBPath
         sqlAttachStr += "\' AS " + dbAlias + ";"
         sqlCursor.execute(sqlAttachStr)
         # Now copy out the results
@@ -821,7 +821,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
         #First we want to copy the fast local results to the right table of the shared db
         mergeBufferTable(SolverCode.BGK, sqlDB, configStruct)
         #And then copy in the coarse grain results
-        pullGlobalGNDToFastDBPython(SolverCode.BGK, sqlDB, configStruct)
+        pullGlobalGNDToFastDBAttach(SolverCode.BGK, sqlDB, configStruct)
     #Close SQL Connection
     sqlDB.close()
 
