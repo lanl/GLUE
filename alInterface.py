@@ -554,7 +554,37 @@ def mergeBufferTable(solverCode, cgDB, configStruct):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def pullGlobalGNDToFastDB(solverCode, fastDB, configStruct):
+def pullGlobalGNDToFastDBPython(solverCode, fastDB, configStruct):
+    # Manually copy data in by opening the DB, reading it, and then writing results
+    cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
+    if solverCode == SolverCode.BGK:
+        # Open CGDB
+        cgDB = sqlite3.connect(cgDBPath, timeout=45.0)
+        cgCursor = cgDB.cursor()
+        # Copy out results
+        resultList = []
+        # TODO: Add logic to reduce number of reads later...
+        #   Might be able to do an SQL query to find the gap
+        resQuery = "SELECT * FROM BGKRESULTS;"
+        for row in cgCursor.execute(resQuery):
+            # Basically just copy the result verbatim into list
+            resultList.append(row)
+        # Close CGDB
+        cgCursor.close()
+        cgDB.close()
+        # Write results to fastDB
+        if len(resultList) > 0:
+            fgCursor = fastDB.cursor()
+            # TODO: Update to do bulk insertions once this works
+            for result in resultList:
+                insString = "INSERT INTO BGKRESULTS (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"
+                fgCursor.execute(insString, tuple(result))
+            fgCursor.commit()
+            fgCursor.close()
+    else:
+        raise Exception('pullGlobalGNDToFastDBPython: Using Unsupported Solver Code')
+
+def pullGlobalGNDToFastDBAttach(solverCode, fastDB, configStruct):
     # Might need to add to cgDBPath because of different dirs?
     cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
     dbAlias = "DBFG"
@@ -588,7 +618,7 @@ def pullGlobalGNDToFastDB(solverCode, fastDB, configStruct):
         fastDB.commit()
         sqlCursor.close()
     else:
-        raise Exception('pullGlobalGNDToFastDB: Using Unsupported Solver Code')
+        raise Exception('pullGlobalGNDToFastDBAttach: Using Unsupported Solver Code')
 
 def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbCache):
     tag = configStruct['tag']
@@ -791,7 +821,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
         #First we want to copy the fast local results to the right table of the shared db
         mergeBufferTable(SolverCode.BGK, sqlDB, configStruct)
         #And then copy in the coarse grain results
-        pullGlobalGNDToFastDB(SolverCode.BGK, sqlDB, configStruct)
+        pullGlobalGNDToFastDBPython(SolverCode.BGK, sqlDB, configStruct)
     #Close SQL Connection
     sqlDB.close()
 
