@@ -270,7 +270,7 @@ def getAllGNDData(dbPath, solverCode):
         selString = "SELECT * FROM BGKGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
-    sqlDB = sqlite3.connect(dbPath)
+    sqlDB = sqlite3.connect(dbPath, timeout=45.0)
     sqlCursor = sqlDB.cursor()
     gndResults = []
     for row in sqlCursor.execute(selString):
@@ -286,7 +286,7 @@ def getGNDCount(dbPath, solverCode):
         selString = "SELECT COUNT(*)  FROM BGKGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
-    sqlDB = sqlite3.connect(dbPath)
+    sqlDB = sqlite3.connect(dbPath, timeout=45.0)
     sqlCursor = sqlDB.cursor()
     numGND = 0
     for row in sqlCursor.execute(selString):
