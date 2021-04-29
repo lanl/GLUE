@@ -26,5 +26,6 @@
 	"SQLiteSettings":{
 		"CGDBFilename": "testDB.db",
 		"FGDBFilename": "otherTestDB.db"
-	}
+	},
+	"ExpectedMPIRanks": 4
 }
