@@ -1,0 +1,32 @@
+{
+	"tag": "DUMMY_TAG_42",
+	"glueCodeMode": 0,
+	"solverCode": 0,
+	"SchedulerInterface": 2,
+	"ProvisioningInterface": 1,
+	"ICFParameters":{
+		"RelativeError": 0.0001
+	},
+	"FluxScheduler":{
+		"SlotsPerJobForFlux": 22,
+		"CoresPerSlotForFlux": 1,
+		"NodesPerJobForFlux": 1,
+		"ConcurrentJobs": 24
+	},
+	"SpackVariables":{
+		"SpackRoot": "/usr/projects/aldr/spack2",
+		"SpackCompilerAndMPI": "%gcc@7.3.0 ^mpich@3.3.0%gcc@7.3.0",
+		"SpackLAMMPS": "lammps+mpi~ffmpeg"
+	},
+	"alBackend": 3,
+	"ActiveLearningVariables":{
+		"GNDthreshold": 20,
+		"NumberOfRequestingActiveLearners": 1
+	},
+	"DatabaseMode": 0,
+	"SQLiteSettings":{
+		"CGDBFilename": "testDB.db",
+		"FGDBFilename": "otherTestDB.db"
+	},
+	"ExpectedMPIRanks": 4
+}

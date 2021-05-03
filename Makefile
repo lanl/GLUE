@@ -12,10 +12,10 @@ SQLITE_INCLUDE=${SQLITE_DIR}/include
 SQLITE_LIBDIR=${SQLITE_DIR}/lib
 
 AR_FLAGS=-rcs
-CXXFLAGS=-std=c++14
-CFLAGS =
-FFLAGS=
-LDFLAGS=libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3
+CXXFLAGS=-std=c++14 -g
+CFLAGS = -g
+FFLAGS= -g
+LDFLAGS=libalGlue.a -L${SQLITE_LIBDIR} -lsqlite3 -g
 
 FORTLDFLAGS=
 
@@ -42,7 +42,7 @@ endif
 
 all: libalGlue.a
 
-test: sniffTest_mpi sniffTest_serial alTester_serial sniffTest_fortranBGK stressTest_analyticICF stressTest_analyticICF_collective
+test: sniffTest_mpi sniffTest_serial alTester_serial sniffTest_fortranBGK stressTest_analyticICF stressTest_analyticICF_collective fullTest_collectiveICF
 
 libalGlue.a: alInterface.o alInterface_f.o alGlueTypes_f.o
 	${AR} ${AR_FLAGS} libalGlue.a alInterface.o alInterface_f.o
@@ -88,6 +88,12 @@ stressTest_analyticICF_collective: libalGlue.a stressTest_analyticICF_collective
 
 stressTest_analyticICF_collective.o: stressTest_analyticICF_collective.c
 	${MPICC} ${CFLAGS} -c stressTest_analyticICF_collective.c
+
+fullTest_collectiveICF: libalGlue.a fullTest_collectiveICF.o
+	${MPICXX} ${CXXFLAGS} fullTest_collectiveICF.o ${LDFLAGS} -o fullTest_collectiveICF
+
+fullTest_collectiveICF.o: fullTest_collectiveICF.c
+	${MPICC} ${CFLAGS} -c fullTest_collectiveICF.c
 
 alTester.o: alTester.cpp
 	${MPICXX} -c alTester.cpp
