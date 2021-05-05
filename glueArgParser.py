@@ -17,8 +17,6 @@ def processGlueCodeArguments():
     defaultALBackend = LearnerBackend.FAKE
     defaultGNDThresh = 5
     defaultJsonFile = ""
-    defaultGenOrRead = 0
-    defaultScheduler = SchedulerInterface.SLURM
 
     argParser = argparse.ArgumentParser(description='Command Line Arguments to Glue Code')
 
@@ -45,4 +43,4 @@ def processGlueCodeArguments():
     if 'SchedulerInterface' in configStruct:
         configStruct['SchedulerInterface'] = SchedulerInterface(configStruct['SchedulerInterface'])
 
-        return configStruct
+    return configStruct

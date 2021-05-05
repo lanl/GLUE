@@ -744,7 +744,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
             sqlCursor.close()
             #Get latest received request ID
             if len(resultQueue) > 0:
-                newLatestID = max(resultQueue, key = lambda i : i[0])[0]
+                newLatestID = max(resultQueue, key=lambda i: i[0])[0]
                 #If that latest ID is more laterest than our old latest
                 if newLatestID > latestID:
                     # Add what we were missing
@@ -756,7 +756,6 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     # Were we looking for this?
                     if result[0] in missingIDs:
                         # We were, so lets queue it
-                        # HERE
                         #Format is (rank, reqID, alMode, inputTuple)
                         newTask = (rank, result[0], result[1], result[2])
                         taskQueue.append(newTask)
