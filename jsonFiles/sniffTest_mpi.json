@@ -21,6 +21,8 @@
 		"NumberOfRequestingActiveLearners": 1
 	},
 	"DatabaseMode": 0,
+	"GenerateTrainingData": false,
+	"ReadTrainingData": false,
 	"SQLiteSettings":{
 		"CGDBFilename": "testDB.db",
 		"FGDBFilename": "otherTestDB.db"

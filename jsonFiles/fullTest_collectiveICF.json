@@ -28,5 +28,7 @@
 		"CGDBFilename": "testDB.db",
 		"FGDBFilename": "otherTestDB.db"
 	},
+	"GenerateTrainingData": false,
+	"ReadTrainingData": false,
 	"ExpectedMPIRanks": 4
 }
