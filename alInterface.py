@@ -1,22 +1,16 @@
-from enum import Enum, IntEnum
 import sqlite3
-import argparse
-import collections
 from collections.abc import Iterable
-from SM import Wigner_Seitz_radius
 import os
 import stat
 import shutil
 import numpy as np
-import csv
 import time
 import subprocess
 import getpass
 import sys
-import json
 from writeBGKLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface, ProvisioningInterface
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stdout
 from Screened_Boltzman_solution import ICFAnalytical_solution
 from glueArgParser import processGlueCodeArguments
 
@@ -68,33 +62,6 @@ def getGNDStringAndTuple(fgsArgs, configStruct):
         #Version
         selString += "INVERSION=?;"
         selTup += (getGroundishTruthVersion(SolverCode.BGK),)
-    elif isinstance(fgsArgs, BGKMassesInputs):
-        # Percent error acceptable for a match
-        relError = 0.0001
-        # TODO: DRY this for later use
-        selString += "SELECT * FROM BGKMASSESGND WHERE "
-        #Temperature
-        selString += "ABS(? - TEMPERATURE) / TEMPERATURE < ?"
-        selTup += (fgsArgs.Temperature, relError)
-        selString += " AND "
-        #Density
-        for i in range(0, 4):
-            selString += "ABS(? - DENSITY_" + str(i) + ") / DENSITY_" + str(i) + " < ?"
-            selTup += (fgsArgs.Density[i], relError)
-            selString += " AND "
-        #Charges
-        for i in range(0, 4):
-            selString += "ABS(? - CHARGES_" + str(i) + ") / CHARGES_" + str(i) + " < ?"
-            selTup += (fgsArgs.Charges[i], relError)
-            selString += " AND "
-        #Masses
-        for i in range(0, 4):
-            selString += "ABS(? - MASSES_" + str(i) + ") / MASSES_" + str(i) + " < ?"
-            selTup += (fgsArgs.Masses[i], relError)
-            selString += " AND "
-        #Version
-        selString += "INVERSION=?;"
-        selTup += (getGroundishTruthVersion(SolverCode.BGKMASSES),)
     else:
         raise Exception('Using Unsupported Solver Code')
     return (selString, selTup)
@@ -107,13 +74,47 @@ def processReqRow(sqlRow, packetType):
         bgkInput.Charges.extend([sqlRow[8], sqlRow[9], sqlRow[10], sqlRow[11]])
         reqType = ALInterfaceMode(sqlRow[12])
         return (bgkInput, reqType)
-    elif packetType == SolverCode.BGKMASSES:
-        bgkInput = BGKMassesInputs(Temperature=float(sqlRow[3]), Density=[], Charges=[], Masses=[])
-        bgkInput.Density.extend([sqlRow[4], sqlRow[5], sqlRow[6], sqlRow[7]])
-        bgkInput.Charges.extend([sqlRow[8], sqlRow[9], sqlRow[10], sqlRow[11]])
-        bgkInput.Masses.extend([sqlRow[12], sqlRow[13], sqlRow[14], sqlRow[15]])
-        reqType = ALInterfaceMode(sqlRow[16])
-        return (bgkInput, reqType)
+    else:
+        raise Exception('Using Unsupported Solver Code')
+
+def getEquivalenceSQLStringsResults(packetType, dbKey):
+    if packetType == SolverCode.BGK:
+        globalTable = dbKey + ".BGKRESULTS"
+        localTable = "BGKRESULTS"
+        # We just need reqid, rank, and tag to match
+        selString = ""
+        selString += globalTable + ".TAG="
+        selString += localTable + ".TAG"
+        selString += " AND "
+        selString += globalTable + ".RANK="
+        selString += localTable + ".RANK"
+        selString += " AND "
+        selString += globalTable + ".REQ="
+        selString += localTable + ".REQ"
+        return selString
+    else:
+        raise Exception('Using Unsupported Solver Code')
+
+def getEquivalenceSQLStringsGND(packetType, dbKey):
+    if packetType == SolverCode.BGK:
+        globalTable = dbKey + ".BGKGND"
+        localTable = "BGKGND"
+        selString = ""
+        # We will match on Request Info
+        selString += globalTable + ".TEMPERATURE="
+        selString += localTable + ".TEMPERATURE"
+        selString += " AND "
+        for i in range(4):
+            selString += globalTable + ".DENSITY_" + str(i) + "="
+            selString += localTable + ".DENSITY_" + str(i)
+            selString += " AND "
+            selString += globalTable + ".CHARGES_" + str(i) + "="
+            selString += localTable + ".CHARGES_" + str(i)
+            selString += " AND "
+        # And inversion just for safety reasons
+        selString += globalTable + ".INVERSION="
+        selString += localTable + ".INVERSION"
+        return selString
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -148,7 +149,7 @@ def writeBGKLammpsInputs(fgsArgs, dirPath, glueMode):
         else:
             raise Exception('Using Unsupported FGS Mode')
         interparticle_radius = []
-        lammpsDens = np.array(fgsArgs.Density) 
+        lammpsDens = np.array(fgsArgs.Density)
         lammpsTemperature = fgsArgs.Temperature
         lammpsIonization = np.array(fgsArgs.Charges)
         lammpsMasses = m
@@ -267,11 +268,9 @@ def getAllGNDData(dbPath, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT * FROM BGKGND;"
-    elif solverCode == SolverCode.BGKMASSES:
-        selString = "SELECT * FROM BGKMASSESGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
-    sqlDB = sqlite3.connect(dbPath)
+    sqlDB = sqlite3.connect(dbPath, timeout=45.0)
     sqlCursor = sqlDB.cursor()
     gndResults = []
     for row in sqlCursor.execute(selString):
@@ -285,11 +284,9 @@ def getGNDCount(dbPath, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT COUNT(*)  FROM BGKGND;"
-    elif solverCode == SolverCode.BGKMASSES:
-        selString = "SELECT COUNT(*)  FROM BGKMASSESGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
-    sqlDB = sqlite3.connect(dbPath)
+    sqlDB = sqlite3.connect(dbPath, timeout=45.0)
     sqlCursor = sqlDB.cursor()
     numGND = 0
     for row in sqlCursor.execute(selString):
@@ -392,7 +389,8 @@ def launchFGSJob(jobFile, configStruct):
 def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
     solverCode = configStruct['solverCode']
     tag = configStruct['tag']
-    dbPath = configStruct['dbFileName']
+    # Fine grain so want to use the slower shared DB
+    dbPath = configStruct['SQLiteSettings']['FGDBFilename']
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -520,13 +518,6 @@ def insertResultSlow(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlD
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
         sqlCursor.close()
-    elif isinstance(fgsResult, BGKMassesOutputs):
-        sqlCursor = sqlDB.cursor()
-        insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
-        sqlCursor.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlCursor.close()
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -534,13 +525,6 @@ def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlDB):
     if isinstance(fgsResult, BGKOutputs):
         sqlCursor = sqlDB.cursor()
         insString = "INSERT INTO BGKFASTRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
-        sqlCursor.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlCursor.close()
-    elif isinstance(fgsResult, BGKMassesOutputs):
-        sqlCursor = sqlDB.cursor()
-        insString = "INSERT INTO BGKMASSESRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
@@ -571,21 +555,87 @@ def cacheCheck(inArgs, configStruct, dbCache):
     else:
         return None
 
-def mergeBufferTable(solverCode, sqlDB):
+def mergeBufferTable(solverCode, cgDB, configStruct):
     if solverCode == SolverCode.BGK:
-        sqlCursor = sqlDB.cursor()
+        sqlCursor = cgDB.cursor()
         mergeStr = "INSERT INTO BGKRESULTS SELECT * FROM BGKFASTRESULTS;"
         delStr = "DELETE FROM BGKFASTRESULTS;"
         sqlCursor.execute(mergeStr)
         sqlCursor.execute(delStr)
-        sqlDB.commit()
+        cgDB.commit()
         sqlCursor.close()
     else:
         raise Exception('Using Unsupported Solver Code')
 
+def pullGlobalGNDToFastDBPython(solverCode, fastDB, configStruct):
+    # Manually copy data in by opening the DB, reading it, and then writing results
+    fgDBPath = configStruct['SQLiteSettings']['FGDBFilename']
+    if solverCode == SolverCode.BGK:
+        # Open Fine Grain DB
+        fgDB = sqlite3.connect(fgDBPath, timeout=45.0)
+        fgCursor = fgDB.cursor()
+        # Copy out results
+        resultList = []
+        # TODO: Add logic to reduce number of reads later...
+        #   Might be able to do an SQL query to find the gap
+        resQuery = "SELECT * FROM BGKRESULTS;"
+        for row in fgCursor.execute(resQuery):
+            # Basically just copy the result verbatim into list
+            resultList.append(row)
+        # Close FGDB
+        fgCursor.close()
+        fgDB.close()
+        # Write results to fastDB (CGDB)
+        if len(resultList) > 0:
+            cgCursor = fastDB.cursor()
+            # TODO: Update to do bulk insertions once this works
+            for result in resultList:
+                insString = "INSERT INTO BGKRESULTS (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"
+                cgCursor.execute(insString, tuple(result))
+            cgCursor.commit()
+            cgCursor.close()
+    else:
+        raise Exception('pullGlobalGNDToFastDBPython: Using Unsupported Solver Code')
+
+def pullGlobalGNDToFastDBAttach(solverCode, fastDB, configStruct):
+    # Might need to add to fine grain db path  because of different dirs?
+    fgDBPath = configStruct['SQLiteSettings']['FGDBFilename']
+    dbAlias = "DBFG"
+    if solverCode == SolverCode.BGK:
+        # Probably still have fastDB open?
+        sqlCursor = fastDB.cursor()
+        # Want to ATTACH globalDB to existing connection
+        sqlAttachStr = "ATTACH DATABASE \'" + fgDBPath
+        sqlAttachStr += "\' AS " + dbAlias + ";"
+        sqlCursor.execute(sqlAttachStr)
+        # Now copy out the results
+        sqlResultsStr = "INSERT INTO BGKRESULTS SELECT * FROM "
+        sqlResultsStr += dbAlias + ".BGKRESULTS WHERE NOT EXISTS("
+        sqlResultsStr += "SELECT * FROM BGKRESULTS WHERE("
+        sqlResultsStr += getEquivalenceSQLStringsResults(solverCode, dbAlias)
+        sqlResultsStr += "));"
+        sqlCursor.execute(sqlResultsStr)
+        # And the GNDish truth
+        sqlGNDStr = "INSERT INTO BGKGND SELECT * FROM "
+        sqlGNDStr += dbAlias + ".BGKGND WHERE NOT EXISTS("
+        sqlGNDStr += "SELECT * FROM BGKGND WHERE("
+        sqlGNDStr += getEquivalenceSQLStringsGND(solverCode, dbAlias)
+        sqlGNDStr += "));"
+        sqlCursor.execute(sqlGNDStr)
+        fastDB.commit()
+        # And detach the DB
+        sqlDetachStr = "DETACH DATABASE ?;"
+        sqlDetachTup = (dbAlias,)
+        sqlCursor.execute(sqlDetachStr, sqlDetachTup)
+        # Commit commands and close cursor
+        fastDB.commit()
+        sqlCursor.close()
+    else:
+        raise Exception('pullGlobalGNDToFastDBAttach: Using Unsupported Solver Code')
+
 def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbCache):
     tag = configStruct['tag']
-    dbPath = configStruct['dbFileName']
+    cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
     # This is a brute force call. We only want an exact LAMMPS result
     outFGS = None
     # So first, check if we have already found a DB hit on a previous query
@@ -609,13 +659,13 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbC
     #Did we get a hit from either?
     if outFGS != None:
         # We had a hit, so send that
-        insertResult(rank, tag, dbPath, reqID, outFGS, ResultProvenance.DB, sqlDB)
+        insertResult(rank, tag, cgDBPath, reqID, outFGS, ResultProvenance.DB, sqlDB)
     else:
         # Nope, so now we see if we need an FGS job
         if useAnalyticSolution(inArgs):
             # It was, so let's get that solution
             results = getAnalyticSolution(inArgs)
-            insertResult(rank, tag, dbPath, reqID, results, ResultProvenance.FGS, sqlDB)
+            insertResult(rank, tag, cgDBPath, reqID, results, ResultProvenance.FGS, sqlDB)
         else:
             # Call fgs with args as scheduled job
             # job will write result back
@@ -656,7 +706,9 @@ def getAnalyticSolution(inArgs):
 def pollAndProcessFGSRequests(configStruct, uname):
     numRanks = configStruct['ExpectedMPIRanks']
     defaultMode = configStruct['glueCodeMode']
-    dbPath = configStruct['dbFileName']
+    # Basically all operations are cgDBPath except for polling and merging in fgDBPath's data
+    cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
+    fgDBPath = configStruct['SQLiteSettings']['FGDBFilename']
     tag = configStruct['tag']
     packetType = configStruct['solverCode']
     alBackend = configStruct['alBackend']
@@ -671,21 +723,21 @@ def pollAndProcessFGSRequests(configStruct, uname):
     dbCache = []
 
     #Spin until file exists
-    while not os.path.exists(dbPath):
+    while not os.path.exists(cgDBPath):
         time.sleep(1)
     #Set up persistent SQL Connection
-    sqlDB = sqlite3.connect(dbPath, timeout=45.0)
+    sqlDB = sqlite3.connect(cgDBPath, timeout=45.0)
     #Get starting GNDCount of 0
     GNDcnt = 0
     #And start the glue loop
     keepSpinning = True
     while keepSpinning:
         #Logic to not hammer DB/learner with unnecessary retraining requests
-        nuGNDcnt = getGNDCount(dbPath, packetType)
-        if (nuGNDcnt - GNDcnt) > GNDthreshold or GNDcnt == 0:
+        nuGNDcnt = getGNDCount(cgDBPath, packetType)
+        if defaultMode == ALInterfaceMode.ACTIVELEARNER and ((nuGNDcnt - GNDcnt) > GNDthreshold or GNDcnt == 0):
             with open('alLog.out', 'w') as alOut, open('alLog.err', 'w') as alErr:
                 with redirect_stdout(alOut), redirect_stdout(alErr):
-                    interpModel = getInterpModel(packetType, alBackend, dbPath)
+                    interpModel = getInterpModel(packetType, alBackend, cgDBPath)
             GNDcnt = nuGNDcnt
         #Now populate the task queue
         for i in range(0, numRanks + numALRequesters):
@@ -705,7 +757,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
             sqlCursor.close()
             #Get latest received request ID
             if len(resultQueue) > 0:
-                newLatestID = max(resultQueue, key = lambda i : i[0])[0]
+                newLatestID = max(resultQueue, key=lambda i: i[0])[0]
                 #If that latest ID is more laterest than our old latest
                 if newLatestID > latestID:
                     # Add what we were missing
@@ -717,7 +769,6 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     # Were we looking for this?
                     if result[0] in missingIDs:
                         # We were, so lets queue it
-                        # HERE
                         #Format is (rank, reqID, alMode, inputTuple)
                         newTask = (rank, result[0], result[1], result[2])
                         taskQueue.append(newTask)
@@ -748,9 +799,9 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 #      queueUpdateModel(inputs, outputs)
                 #      return outputs
                 (isLegit, output) = interpModel(taskArgs)
-                insertALPrediction(dbPath, taskArgs, output, packetType, sqlDB)
+                insertALPrediction(cgDBPath, taskArgs, output, packetType, sqlDB)
                 if isLegit:
-                    insertResult(rank, tag, dbPath, reqID, output, ResultProvenance.ACTIVELEARNER, sqlDB)
+                    insertResult(rank, tag, cgDBPath, reqID, output, ResultProvenance.ACTIVELEARNER, sqlDB)
                 else:
                     queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS, sqlDB, dbCache)
             elif modeSwitch == ALInterfaceMode.FAKE:
@@ -760,7 +811,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
                     bgkOutput.DiffCoeff[7] = (bgkInput.Temperature + bgkInput.Density[0] +  bgkInput.Charges[3]) / 3
                     # Write the result
-                    insertResult(rank, tag, dbPath, reqID, bgkOutput, ResultProvenance.FAKE, sqlDB)
+                    insertResult(rank, tag, cgDBPath, reqID, bgkOutput, ResultProvenance.FAKE, sqlDB)
                 else:
                     raise Exception('Using Unsupported Solver Code')
             elif modeSwitch == ALInterfaceMode.ANALYTIC:
@@ -771,7 +822,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     (cond, visc, diffCoeff) = ICFAnalytical_solution(taskArgs.Density, taskArgs.Charges, taskArgs.Temperature)
                     bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
                     # Write the result
-                    insertResult(rank, tag, dbPath, reqID, bgkOutput, ResultProvenance.ANALYTIC, sqlDB)
+                    insertResult(rank, tag, cgDBPath, reqID, bgkOutput, ResultProvenance.ANALYTIC, sqlDB)
                 else:
                     raise Exception('Using Unsupported Analytic Solution')
             elif modeSwitch == ALInterfaceMode.KILL:
@@ -779,7 +830,10 @@ def pollAndProcessFGSRequests(configStruct, uname):
         #And empty out the task queue....
         del(taskQueue[:])
         #And now merge and purge buffer tables
-        mergeBufferTable(SolverCode.BGK, sqlDB)
+        #First we want to copy the fast local results to the right table of the shared db
+        mergeBufferTable(SolverCode.BGK, sqlDB, configStruct)
+        #And then copy in the coarse grain results
+        pullGlobalGNDToFastDBAttach(SolverCode.BGK, sqlDB, configStruct)
     #Close SQL Connection
     sqlDB.close()
 

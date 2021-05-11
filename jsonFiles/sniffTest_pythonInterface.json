@@ -1,6 +1,5 @@
 {
 	"tag": "DUMMY_TAG_42",
-	"dbFileName": "testDB.db",
 	"glueCodeMode": 0,
 	"ExpectedMPIRanks": 1,
 	"solverCode": 0,
@@ -19,8 +18,16 @@
 	"ICFParameters":{
 		"RelativeError": 0.0001
 	},
+	"alBackend": 3,
 	"ActiveLearningVariables":{
 		"GNDthreshold": 20,
 		"NumberOfRequestingActiveLearners": 1
+	},
+	"DatabaseMode": 0,
+	"GenerateTrainingData": false,
+	"ReadTrainingData": false,
+	"SQLiteSettings":{
+		"CGDBFilename": "testDB.db",
+		"FGDBFilename": "otherTestDB.db"
 	}
 }

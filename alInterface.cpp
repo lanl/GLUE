@@ -2,7 +2,13 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <vector>
+#include <tuple>
+#include <iterator>
+#include <memory>
 #include <sqlite3.h>
+#include <mpi.h>
 
 #ifdef DB_EXISTENCE_SPIN
 #include <experimental/filesystem>
@@ -13,6 +19,9 @@
 ///TODO: Verify this is the correct way to do a global variable
 AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
 AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
+std::vector<AsyncSelectTable_t<bgk_result_t>> globalColBGKResultTable;
+sqlite3* globalGlueDBHandle;
+const unsigned int globalGlueBufferSize = 1024;
 
 static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
 {
@@ -49,6 +58,36 @@ static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColNa
 	return 0;
 }
 
+static int readCallback_colbgk(void *NotUsed, int argc, char **argv, char **azColName)
+{
+	//Process row: Ignore 0 (tag)
+	int rank = atoi(argv[1]);
+	int reqID = atoi(argv[2]);
+	bgk_result_t result;
+
+	//Add results
+	result.viscosity = atof(argv[3]);
+	result.thermalConductivity = atof(argv[4]);
+	for(int i = 0; i < 10; i++)
+	{
+		result.diffusionCoefficient[i] = atof(argv[i+5]);
+	}
+	result.provenance = atoi(argv[15]);
+
+	//Get global select table of type bgk_result_t
+	globalColBGKResultTable[rank].tableMutex.lock();
+	//Check if request has been processed yet
+	auto reqIter = globalColBGKResultTable[rank].resultTable.find(reqID);
+	if (reqIter == globalColBGKResultTable[rank].resultTable.end())
+	{
+		//Write result to global map so we can use it
+		globalColBGKResultTable[rank].resultTable[reqID] = result;
+	}
+	globalColBGKResultTable[rank].tableMutex.unlock();
+
+	return 0;
+}
+
 int getReqNumber()
 {
 	//Static variables are dirty but this is an okay use
@@ -56,6 +95,19 @@ int getReqNumber()
 	int retNum = reqNumber;
 	reqNumber++;
 	return retNum;
+}
+
+int getReqNumberForRank(int rank)
+{
+	//Static variables are dirty but this is an okay use
+	static std::vector<int> reqNumber;
+	if (reqNumber.size() <= rank)
+	{
+		reqNumber.resize(rank+1, 0);
+	}
+	int retVal = reqNumber[rank];
+	reqNumber[rank]++;
+	return retVal;
 }
 
 bgk_result_t bgk_req_single_with_reqtype(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
@@ -180,3 +232,51 @@ void resFreeWrapper(void * buffer)
 {
 	free(buffer);
 }
+
+void connectGlue(char * fName, MPI_Comm glueComm)
+{
+	//Not a collective operation because only rank 0 needs to do this
+	//If glueComm rank is 0
+	int myRank, commSize;
+	MPI_Comm_rank(glueComm, &myRank);
+	MPI_Comm_size(glueComm, &commSize);
+	if(myRank == 0)
+	{
+		//Connect to that DB
+		sqlite3_open(fName, &globalGlueDBHandle);
+		//And resize result table
+		globalColBGKResultTable.resize(commSize);
+	}
+}
+
+void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **processedInput, int * numProcessedInputs)
+{
+	//Look for and remove duplicates
+	///TODO
+	*processedInput = input;
+	*numProcessedInputs = numInputs;
+	return;
+}
+
+bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
+{
+	return req_collective<bgk_request_t, bgk_result_t>(input, numInputs, glueComm);
+}
+
+void closeGlue(MPI_Comm glueComm)
+{
+	///TODO: Template this to send appropriate packet type
+	//Not a collective operation because only rank 0 needs to do this
+	//If glueComm rank is 0
+	int myRank;
+	MPI_Comm_rank(glueComm, &myRank);
+	if(myRank == 0)
+	{
+		std::string tag("TAG");
+		//Engage that killswitch
+		bgk_stop_service(0, const_cast<char *>(tag.c_str()), globalGlueDBHandle);
+		//Disconnect from that DB
+		sqlite3_close(globalGlueDBHandle);
+	}
+}
+

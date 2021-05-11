@@ -1,6 +1,5 @@
 {
 	"tag": "DUMMY_TAG_42",
-	"dbFileName": "testDB.db",
 	"glueCodeMode": 3,
 	"ExpectedMPIRanks": 1,
 	"solverCode": 0,
@@ -15,5 +14,17 @@
 		"SpackRoot": "/usr/projects/aldr/spack",
 		"SpackCompilerAndMPI": "%gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0",
 		"SpackLAMMPS": "lammps+mpi~ffmpeg"
+	},
+	"alBackend": 3,
+	"ActiveLearningVariables":{
+		"GNDthreshold": 20,
+		"NumberOfRequestingActiveLearners": 1
+	},
+	"DatabaseMode": 0,
+	"GenerateTrainingData": false,
+	"ReadTrainingData": false,
+	"SQLiteSettings":{
+		"CGDBFilename": "testDB.db",
+		"FGDBFilename": "otherTestDB.db"
 	}
 }

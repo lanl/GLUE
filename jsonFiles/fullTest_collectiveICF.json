@@ -24,11 +24,11 @@
 		"NumberOfRequestingActiveLearners": 1
 	},
 	"DatabaseMode": 0,
-	"GenerateTrainingData": true,
-	"ReadTrainingData": false,
 	"SQLiteSettings":{
 		"CGDBFilename": "testDB.db",
 		"FGDBFilename": "otherTestDB.db"
-	}
-
+	},
+	"GenerateTrainingData": false,
+	"ReadTrainingData": false,
+	"ExpectedMPIRanks": 4
 }

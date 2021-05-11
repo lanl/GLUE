@@ -13,9 +13,9 @@ def genTrainingData(configStruct, uname):
     reqid = 0
     pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
     trainingDir = os.path.join(pythonScriptDir, "training")
-    dbPath = configStruct['dbFileName']
+    cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
     dbCache = []
-    sqlDB = sqlite3.connect(dbPath)
+    sqlDB = sqlite3.connect(cgDBPath)
 
     if code == SolverCode.BGK:
         csv = os.path.join(trainingDir, "bgk.csv")
