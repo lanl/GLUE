@@ -1,8 +1,9 @@
 {
-	"tag": "DUMMY_TAG_42",
+	"tag": "TAG",
 	"glueCodeMode": 0,
 	"solverCode": 0,
 	"SchedulerInterface": 0,
+	"ProvisioningInterface": 1,
 	"ICFParameters":{
 		"RelativeError": 0.0001
 	},
@@ -27,5 +28,6 @@
 	"SQLiteSettings":{
 		"CGDBFilename": "testDB.db",
 		"FGDBFilename": "otherTestDB.db"
-	}
+	},
+	"ExpectedMPIRanks": 4
 }
