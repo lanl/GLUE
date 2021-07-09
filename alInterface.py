@@ -1,4 +1,3 @@
-import sqlite3
 from collections.abc import Iterable
 import os
 import stat
@@ -9,10 +8,11 @@ import subprocess
 import getpass
 import sys
 from writeBGKLammpsScript import check_zeros_trace_elements
-from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface, ProvisioningInterface
+from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface, ProvisioningInterface, DatabaseMode
 from contextlib import redirect_stdout
 from Screened_Boltzman_solution import ICFAnalytical_solution
 from glueArgParser import processGlueCodeArguments
+from alDBHandlers import getDBHandle
 
 def getGroundishTruthVersion(packetType):
     if packetType == SolverCode.BGK:
@@ -264,13 +264,14 @@ def getFluxQueue():
     else:
         return (0, [])
 
-def getAllGNDData(dbPath, solverCode):
+
+def getAllGNDData(dbPath, dbType, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT * FROM BGKGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
-    sqlDB = sqlite3.connect(dbPath, timeout=45.0)
+    sqlDB = getDBHandle(dbPath, dbType)
     sqlCursor = sqlDB.cursor()
     gndResults = []
     for row in sqlCursor.execute(selString):
@@ -280,13 +281,13 @@ def getAllGNDData(dbPath, solverCode):
     sqlDB.close()
     return np.array(gndResults)
 
-def getGNDCount(dbPath, solverCode):
+def getGNDCount(dbPath, dbType, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT COUNT(*)  FROM BGKGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
-    sqlDB = sqlite3.connect(dbPath, timeout=45.0)
+    sqlDB = getDBHandle(dbPath, dbType)
     sqlCursor = sqlDB.cursor()
     numGND = 0
     for row in sqlCursor.execute(selString):
@@ -725,8 +726,12 @@ def pollAndProcessFGSRequests(configStruct, uname):
     #Spin until file exists
     while not os.path.exists(cgDBPath):
         time.sleep(1)
-    #Set up persistent SQL Connection
-    sqlDB = sqlite3.connect(cgDBPath, timeout=45.0)
+    #Set up database handles
+    cgDBSettings = configStruct['DatabaseSettings']['CoarseGraindDB']
+    cgDB = getDBHandle(cgDBSettings['DatabaseURL'], cgDBSettings['DatabaseMode'], True)
+    fgDBSettings = configStruct['DatabaseSettings']['FineGraindDB']
+    fgDB = getDBHandle(fgDBSettings['DatabaseURL'], fgDBSettings['DatabaseMode'])
+
     #Get starting GNDCount of 0
     GNDcnt = 0
     #And start the glue loop
@@ -748,13 +753,13 @@ def pollAndProcessFGSRequests(configStruct, uname):
             selArgs = (rank, tag)
             resultQueue = []
             # SELECT request
-            sqlCursor = sqlDB.cursor()
+            sqlCursor = cgDB.openCursor()
             for row in sqlCursor.execute(selString, selArgs):
                 # Process row for later
                 (solverInput, reqType) = processReqRow(row, packetType)
                 # (reqID, alMode, inputTuple)
                 resultQueue.append((row[2], reqType, solverInput))
-            sqlCursor.close()
+            sqlCursor.closeCursror()
             #Get latest received request ID
             if len(resultQueue) > 0:
                 newLatestID = max(resultQueue, key=lambda i: i[0])[0]
@@ -835,7 +840,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
         #And then copy in the coarse grain results
         pullGlobalGNDToFastDBAttach(SolverCode.BGK, sqlDB, configStruct)
     #Close SQL Connection
-    sqlDB.close()
+    cglDB.closeDB()
 
 if __name__ == "__main__":
     configStruct = processGlueCodeArguments()

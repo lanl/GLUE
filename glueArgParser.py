@@ -1,7 +1,7 @@
 import argparse
 import json
 import getpass
-from glueCodeTypes import ALInterfaceMode, SolverCode, LearnerBackend, SchedulerInterface, ProvisioningInterface
+from glueCodeTypes import ALInterfaceMode, SolverCode, LearnerBackend, SchedulerInterface, ProvisioningInterface, DatabaseMode
 
 def processGlueCodeArguments():
     defaultFName = "testDB.db"
@@ -42,5 +42,13 @@ def processGlueCodeArguments():
         configStruct['ProvisioningInterface'] = ProvisioningInterface(configStruct['ProvisioningInterface'])
     if 'SchedulerInterface' in configStruct:
         configStruct['SchedulerInterface'] = SchedulerInterface(configStruct['SchedulerInterface'])
+    configStruct['DatabaseSettings']['CoarseGraindDB']['DatabaseMode'] = \
+        DatabaseMode(
+            configStruct['DatabaseSettings']['CoarseGraindDB']['DatabaseMode']
+        )
+    configStruct['DatabaseSettings']['FineGrainDB']['DatabaseMode'] = \
+        DatabaseMode(
+            configStruct['DatabaseSettings']['FineGrainDB']['DatabaseMode']
+        )
 
     return configStruct

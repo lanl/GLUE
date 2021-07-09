@@ -40,6 +40,8 @@ class ProvisioningInterface(IntEnum):
 
 class DatabaseMode(IntEnum):
     SQLITE = 0
+    MYSQL = 1
+    HDF5 = 2
 
 # BGKInputs
 #  Temperature: float
