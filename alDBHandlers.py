@@ -12,17 +12,27 @@ class ALDBHandle:
         raise Exception("Use of Abstract Base Class for ALDBHandle")
 
 class SQLiteHandle(ALDBHandle):
-    def openCursor(self):
+    def __init__(self, dbURL, persistence):
+        # Call parent constructor
+        ALDBHandle.__init__(self, dbURL, persistence)
+        # And import headers for later
         import sqlite3
-        self.handle = sqlite3.connect(self.dbURL, timeout=45.0)
-        self.cursor = self.handle.cursor()
+    def openCursor(self):
+        # Hopefully duplicate import mostly for linting purposes
+        import sqlite3
+        #Always try/except as we may have closed the DB
+        try:
+            self.cursor = self.handle.cursor()
+        except Exception as ex:
+            self.handle = sqlite3.connect(self.dbURL, timeout=45.0)
+            self.cursor = self.handle.cursor()
         return self.cursor
     def closeCursror(self):
-        # TODO: Figure out a good way to handle persistence
         self.cursor.close()
-        self.handle.close()
+        if not self.persistence:
+            self.handle.close()
     def closeDB(self):
-        pass
+        self.handle.close()
 
 def getDBHandle(dbURL, dbType, persistence=False):
     dbHandle = None
