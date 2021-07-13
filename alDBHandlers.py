@@ -8,6 +8,8 @@ class ALDBHandle:
         raise Exception("Use of Abstract Base Class for ALDBHandle")
     def closeCursror(self):
         raise Exception("Use of Abstract Base Class for ALDBHandle")
+    def commitDB(self):
+        raise Exception("Use of Abstract Base Class for ALDBHandle")
     def closeDB(self):
         raise Exception("Use of Abstract Base Class for ALDBHandle")
 
@@ -31,6 +33,8 @@ class SQLiteHandle(ALDBHandle):
         self.cursor.close()
         if not self.persistence:
             self.handle.close()
+    def commitDB(self):
+        self.handle.commit()
     def closeDB(self):
         self.handle.close()
 

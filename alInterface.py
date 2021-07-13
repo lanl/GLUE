@@ -265,36 +265,32 @@ def getFluxQueue():
         return (0, [])
 
 
-def getAllGNDData(dbPath, dbType, solverCode):
+def getAllGNDData(dbHandle, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT * FROM BGKGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
-    sqlDB = getDBHandle(dbPath, dbType)
-    sqlCursor = sqlDB.cursor()
+    sqlCursor = dbHandle.openCursor()
     gndResults = []
     for row in sqlCursor.execute(selString):
         # Add row to numpy array
         gndResults.append(row)
-    sqlCursor.close()
-    sqlDB.close()
+    dbHandle.closeCursor()
     return np.array(gndResults)
 
-def getGNDCount(dbPath, dbType, solverCode):
+def getGNDCount(dbHandle, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT COUNT(*)  FROM BGKGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
-    sqlDB = getDBHandle(dbPath, dbType)
-    sqlCursor = sqlDB.cursor()
+    sqlCursor = dbHandle.openCursor()
     numGND = 0
     for row in sqlCursor.execute(selString):
         # Should just be one row with one value
         numGND = row[0]
-    sqlCursor.close()
-    sqlDB.close()
+    dbHandle.closeCursor()
     return numGND
 
 def jobScriptBoilerplate(jobFile, outDir, configStruct):
@@ -391,7 +387,7 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
     solverCode = configStruct['solverCode']
     tag = configStruct['tag']
     # Fine grain so want to use the slower shared DB
-    dbPath = configStruct['SQLiteSettings']['FGDBFilename']
+    dbPath = configStruct['DatabaseSettings']['FineGraindDB']['DatabaseURL']
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -448,26 +444,26 @@ def uqCheckerStub(err):
     else:
         return False
 
-def getInterpModel(packetType, alBackend, dbPath):
+def getInterpModel(packetType, alBackend, dbHandle):
     if alBackend == LearnerBackend.FAKE:
         return InterpModelWrapper(alModelStub, uqCheckerStub)
     if alBackend == LearnerBackend.PYTORCH:
         import nn_learner
-        return BGKPytorchInterpModel(nn_learner.retrain(dbPath))
+        return BGKPytorchInterpModel(nn_learner.retrain(dbHandle))
     if alBackend == LearnerBackend.RANDFOREST:
         import rf_learner
-        return BGKRandForestInterpModel(rf_learner.retrain(dbPath)) 
+        return BGKRandForestInterpModel(rf_learner.retrain(dbHandle)) 
     else:
         raise Exception('Using Unsupported Active Learning Backewnd')
 
-def insertALPrediction(dbPath, inFGS, outFGS, solverCode, sqlDB):
+def insertALPrediction(inFGS, outFGS, solverCode, sqlDB):
     if solverCode == SolverCode.BGK:
-        sqlCursor = sqlDB.cursor()
+        sqlCursor =  sqlDB.openCursor()
         insString = "INSERT INTO BGKALLOGS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         insArgs = (inFGS.Temperature,) + tuple(inFGS.Density) + tuple(inFGS.Charges) + (getGroundishTruthVersion(solverCode),) + (outFGS.Viscosity, outFGS.ThermalConductivity) + tuple(outFGS.DiffCoeff) + (getGroundishTruthVersion(solverCode),)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
-        sqlCursor.close()
+        sqlDB.closeCursor()
     else:
         raise Exception("Using Unsupported Solver Code")
 
@@ -511,25 +507,25 @@ class BGKRandForestInterpModel(InterpModelWrapper):
             isLegit = simpleALErrorChecker(modErr)
             return (isLegit, output)
 
-def insertResultSlow(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlDB):
+def insertResultSlow(rank, tag, reqid, fgsResult, resultProvenance, sqlDB):
     if isinstance(fgsResult, BGKOutputs):
-        sqlCursor = sqlDB.cursor()
+        sqlCursor = sqlDB.openCursor()
         insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
-        sqlCursor.close()
+        sqlDB.closeCursor()
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def insertResult(rank, tag, dbPath, reqid, fgsResult, resultProvenance, sqlDB):
+def insertResult(rank, tag, reqid, fgsResult, resultProvenance, sqlDB):
     if isinstance(fgsResult, BGKOutputs):
-        sqlCursor = sqlDB.cursor()
+        sqlCursor = sqlDB.openCursor()
         insString = "INSERT INTO BGKFASTRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
         sqlCursor.execute(insString, insArgs)
         sqlDB.commit()
-        sqlCursor.close()
+        sqlDB.closeCursor()
     else:
         raise Exception('Using Unsupported Solver Code')
 
@@ -556,25 +552,23 @@ def cacheCheck(inArgs, configStruct, dbCache):
     else:
         return None
 
-def mergeBufferTable(solverCode, cgDB, configStruct):
+def mergeBufferTable(solverCode, cgDB):
     if solverCode == SolverCode.BGK:
-        sqlCursor = cgDB.cursor()
+        sqlCursor = cgDB.openCursor()
         mergeStr = "INSERT INTO BGKRESULTS SELECT * FROM BGKFASTRESULTS;"
         delStr = "DELETE FROM BGKFASTRESULTS;"
         sqlCursor.execute(mergeStr)
         sqlCursor.execute(delStr)
         cgDB.commit()
-        sqlCursor.close()
+        cgDB.closeCursor()
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def pullGlobalGNDToFastDBPython(solverCode, fastDB, configStruct):
+def pullGlobalGNDToFastDBPython(solverCode, cgDB, fgDB):
     # Manually copy data in by opening the DB, reading it, and then writing results
-    fgDBPath = configStruct['SQLiteSettings']['FGDBFilename']
     if solverCode == SolverCode.BGK:
         # Open Fine Grain DB
-        fgDB = sqlite3.connect(fgDBPath, timeout=45.0)
-        fgCursor = fgDB.cursor()
+        fgCursor = fgDB.openCursor()
         # Copy out results
         resultList = []
         # TODO: Add logic to reduce number of reads later...
@@ -584,25 +578,31 @@ def pullGlobalGNDToFastDBPython(solverCode, fastDB, configStruct):
             # Basically just copy the result verbatim into list
             resultList.append(row)
         # Close FGDB
-        fgCursor.close()
-        fgDB.close()
+        fgDB.closeCursor()
         # Write results to fastDB (CGDB)
         if len(resultList) > 0:
-            cgCursor = fastDB.cursor()
+            cgCursor = cgDB.openCursor()
             # TODO: Update to do bulk insertions once this works
             for result in resultList:
                 insString = "INSERT INTO BGKRESULTS (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"
                 cgCursor.execute(insString, tuple(result))
-            cgCursor.commit()
-            cgCursor.close()
+            cgDB.commit()
+            cgDB.closeCursor()
     else:
         raise Exception('pullGlobalGNDToFastDBPython: Using Unsupported Solver Code')
 
-def pullGlobalGNDToFastDBAttach(solverCode, fastDB, configStruct):
+def pullGlobalGNDToFastDBAttach(solverCode, cgDB, fgDB):
     # Might need to add to fine grain db path  because of different dirs?
-    fgDBPath = configStruct['SQLiteSettings']['FGDBFilename']
+    #TODO: Probably do two approaches
+    #  1. If both DB types are the same, attach?
+    #  2. if DB types differ... we take a memory hit?
     dbAlias = "DBFG"
     if solverCode == SolverCode.BGK:
+        #TODO: Probably go through all of this because we mixed up fast and fine grain a few times
+        #TODO: Also may need to still handle this special as we are re-opening a DB
+        #TODO: Maybe add another command to the class?
+        #WARNING WARNING WARNING: THis is gonna be an issue with different DB types...
+
         # Probably still have fastDB open?
         sqlCursor = fastDB.cursor()
         # Want to ATTACH globalDB to existing connection
@@ -636,7 +636,6 @@ def pullGlobalGNDToFastDBAttach(solverCode, fastDB, configStruct):
 
 def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbCache):
     tag = configStruct['tag']
-    cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
     # This is a brute force call. We only want an exact LAMMPS result
     outFGS = None
     # So first, check if we have already found a DB hit on a previous query
@@ -644,7 +643,7 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbC
     # If no hit, we check the DB
     if outFGS == None:
         selQuery = getGNDStringAndTuple(inArgs, configStruct)
-        sqlCursor = sqlDB.cursor()
+        sqlCursor = sqlDB.openCursor()
         for row in sqlCursor.execute(selQuery[0], selQuery[1]):
             if isinstance(inArgs, BGKInputs):
                 if row[22] == getGroundishTruthVersion(SolverCode.BGK):
@@ -652,6 +651,7 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbC
             elif isinstance(inArgs, BGKMassesInputs):
                 if row[26] == getGroundishTruthVersion(SolverCode.BGKMASSES):
                     outFGS = BGKMassesOutputs(Viscosity=row[14], ThermalConductivity=row[15], DiffCoeff=row[16:26])
+        sqlDB.closeCursor()
         # Did we get a hit?
         if outFGS != None:
             # Put it in the DBCache for later
@@ -660,13 +660,13 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbC
     #Did we get a hit from either?
     if outFGS != None:
         # We had a hit, so send that
-        insertResult(rank, tag, cgDBPath, reqID, outFGS, ResultProvenance.DB, sqlDB)
+        insertResult(rank, tag, reqID, outFGS, ResultProvenance.DB, sqlDB)
     else:
         # Nope, so now we see if we need an FGS job
         if useAnalyticSolution(inArgs):
             # It was, so let's get that solution
             results = getAnalyticSolution(inArgs)
-            insertResult(rank, tag, cgDBPath, reqID, results, ResultProvenance.FGS, sqlDB)
+            insertResult(rank, tag, reqID, results, ResultProvenance.FGS, sqlDB)
         else:
             # Call fgs with args as scheduled job
             # job will write result back
@@ -707,9 +707,6 @@ def getAnalyticSolution(inArgs):
 def pollAndProcessFGSRequests(configStruct, uname):
     numRanks = configStruct['ExpectedMPIRanks']
     defaultMode = configStruct['glueCodeMode']
-    # Basically all operations are cgDBPath except for polling and merging in fgDBPath's data
-    cgDBPath = configStruct['SQLiteSettings']['CGDBFilename']
-    fgDBPath = configStruct['SQLiteSettings']['FGDBFilename']
     tag = configStruct['tag']
     packetType = configStruct['solverCode']
     alBackend = configStruct['alBackend']
@@ -723,9 +720,6 @@ def pollAndProcessFGSRequests(configStruct, uname):
     # Cache for DB hits
     dbCache = []
 
-    #Spin until file exists
-    while not os.path.exists(cgDBPath):
-        time.sleep(1)
     #Set up database handles
     cgDBSettings = configStruct['DatabaseSettings']['CoarseGraindDB']
     cgDB = getDBHandle(cgDBSettings['DatabaseURL'], cgDBSettings['DatabaseMode'], True)
@@ -738,11 +732,11 @@ def pollAndProcessFGSRequests(configStruct, uname):
     keepSpinning = True
     while keepSpinning:
         #Logic to not hammer DB/learner with unnecessary retraining requests
-        nuGNDcnt = getGNDCount(cgDBPath, packetType)
+        nuGNDcnt = getGNDCount(cgDB, packetType)
         if defaultMode == ALInterfaceMode.ACTIVELEARNER and ((nuGNDcnt - GNDcnt) > GNDthreshold or GNDcnt == 0):
             with open('alLog.out', 'w') as alOut, open('alLog.err', 'w') as alErr:
                 with redirect_stdout(alOut), redirect_stdout(alErr):
-                    interpModel = getInterpModel(packetType, alBackend, cgDBPath)
+                    interpModel = getInterpModel(packetType, alBackend, cgDB)
             GNDcnt = nuGNDcnt
         #Now populate the task queue
         for i in range(0, numRanks + numALRequesters):
@@ -759,7 +753,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 (solverInput, reqType) = processReqRow(row, packetType)
                 # (reqID, alMode, inputTuple)
                 resultQueue.append((row[2], reqType, solverInput))
-            sqlCursor.closeCursror()
+            cgDB.closeCursor()
             #Get latest received request ID
             if len(resultQueue) > 0:
                 newLatestID = max(resultQueue, key=lambda i: i[0])[0]
@@ -792,7 +786,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 modeSwitch = requestedMode
             if modeSwitch == ALInterfaceMode.FGS or modeSwitch == ALInterfaceMode.FASTFGS:
                 # Submit as LAMMPS job
-                queueFGSJob(configStruct, uname, reqID, taskArgs, rank, modeSwitch, sqlDB, dbCache)
+                queueFGSJob(configStruct, uname, reqID, taskArgs, rank, modeSwitch, cgDB, dbCache)
             elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                 # General (Active) Learner
                 #  model = getLatestModelFromLearners()
@@ -804,11 +798,11 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 #      queueUpdateModel(inputs, outputs)
                 #      return outputs
                 (isLegit, output) = interpModel(taskArgs)
-                insertALPrediction(cgDBPath, taskArgs, output, packetType, sqlDB)
+                insertALPrediction(taskArgs, output, packetType, cgDB)
                 if isLegit:
-                    insertResult(rank, tag, cgDBPath, reqID, output, ResultProvenance.ACTIVELEARNER, sqlDB)
+                    insertResult(rank, tag, reqID, output, ResultProvenance.ACTIVELEARNER, cgDB)
                 else:
-                    queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS, sqlDB, dbCache)
+                    queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS, cgDB, dbCache)
             elif modeSwitch == ALInterfaceMode.FAKE:
                 if packetType == SolverCode.BGK:
                     # Simplest stencil imaginable
@@ -816,7 +810,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     bgkOutput = BGKOutputs(Viscosity=0.0, ThermalConductivity=0.0, DiffCoeff=[0.0]*10)
                     bgkOutput.DiffCoeff[7] = (bgkInput.Temperature + bgkInput.Density[0] +  bgkInput.Charges[3]) / 3
                     # Write the result
-                    insertResult(rank, tag, cgDBPath, reqID, bgkOutput, ResultProvenance.FAKE, sqlDB)
+                    insertResult(rank, tag, reqID, bgkOutput, ResultProvenance.FAKE, cgDB)
                 else:
                     raise Exception('Using Unsupported Solver Code')
             elif modeSwitch == ALInterfaceMode.ANALYTIC:
@@ -827,7 +821,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     (cond, visc, diffCoeff) = ICFAnalytical_solution(taskArgs.Density, taskArgs.Charges, taskArgs.Temperature)
                     bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
                     # Write the result
-                    insertResult(rank, tag, cgDBPath, reqID, bgkOutput, ResultProvenance.ANALYTIC, sqlDB)
+                    insertResult(rank, tag, reqID, bgkOutput, ResultProvenance.ANALYTIC, cgDB)
                 else:
                     raise Exception('Using Unsupported Analytic Solution')
             elif modeSwitch == ALInterfaceMode.KILL:
@@ -836,11 +830,12 @@ def pollAndProcessFGSRequests(configStruct, uname):
         del(taskQueue[:])
         #And now merge and purge buffer tables
         #First we want to copy the fast local results to the right table of the shared db
-        mergeBufferTable(SolverCode.BGK, sqlDB, configStruct)
+        mergeBufferTable(SolverCode.BGK, cgDB)
         #And then copy in the coarse grain results
-        pullGlobalGNDToFastDBAttach(SolverCode.BGK, sqlDB, configStruct)
+        pullGlobalGNDToFastDBAttach(SolverCode.BGK, cgDB, fgDB)
     #Close SQL Connection
-    cglDB.closeDB()
+    cgDB.closeDB()
+    fgDB.closeDB()
 
 if __name__ == "__main__":
     configStruct = processGlueCodeArguments()
