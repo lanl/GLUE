@@ -1,16 +1,31 @@
 from glueCodeTypes import DatabaseMode
 
 class ALDBHandle:
-    def __init__(self, dbURL, persistence):
+    """Abstract Base Class to Provide Interface to Databases
+
+    Interface to databases used by glue code to allow for using
+    different database providers depending on need of application"""
+    def __init__(self, dbURL: str, persistence: bool):
         self.dbURL = dbURL
         self.persistence = persistence
+        self.cursror = None
+        self.handle = None
     def openCursor(self):
+        # Reconnects to DB if needed and returns cursor object
+        raise Exception("Use of Abstract Base Class for ALDBHandle")
+    def writeToCursor(self, query: str, args: tuple):
+        # Takes query string and arguments tuple as input.
+        #   Query string formatted as per pyformat with args represented as `{}`
+        #   Preprocesses as needed and returns result of execute()
         raise Exception("Use of Abstract Base Class for ALDBHandle")
     def closeCursror(self):
+        # Closes cursror and, if needed, disconnects fromn DB
         raise Exception("Use of Abstract Base Class for ALDBHandle")
     def commitDB(self):
+        # Calls commit command for writes
         raise Exception("Use of Abstract Base Class for ALDBHandle")
     def closeDB(self):
+        # Disconnects from DB
         raise Exception("Use of Abstract Base Class for ALDBHandle")
 
 class SQLiteHandle(ALDBHandle):
@@ -29,6 +44,10 @@ class SQLiteHandle(ALDBHandle):
             self.handle = sqlite3.connect(self.dbURL, timeout=45.0)
             self.cursor = self.handle.cursor()
         return self.cursor
+    def writeToCursor(self, query, args):
+        procQuery = query.replace("{}", "?")
+        #TODO: Test what happens if args is an empty tuple
+        return self.cursor.execute(query, args)
     def closeCursror(self):
         self.cursor.close()
         if not self.persistence:
