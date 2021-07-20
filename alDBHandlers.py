@@ -15,7 +15,7 @@ class ALDBHandle:
         raise Exception("Use of Abstract Base Class for ALDBHandle")
     def writeToCursor(self, query: str, args: tuple):
         # Takes query string and arguments tuple as input.
-        #   Query string formatted as per pyformat with args represented as `{}`
+        #   Query string formatted with args represented as '?'
         #   Preprocesses as needed and returns result of execute()
         raise Exception("Use of Abstract Base Class for ALDBHandle")
     def closeCursror(self):
@@ -45,9 +45,9 @@ class SQLiteHandle(ALDBHandle):
             self.cursor = self.handle.cursor()
         return self.cursor
     def writeToCursor(self, query, args):
-        procQuery = query.replace("{}", "?")
+        procQuery = query
         #TODO: Test what happens if args is an empty tuple
-        return self.cursor.execute(query, args)
+        return self.cursor.execute(procQuery, args)
     def closeCursror(self):
         self.cursor.close()
         if not self.persistence:
