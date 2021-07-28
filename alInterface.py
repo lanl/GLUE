@@ -833,7 +833,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
         #First we want to copy the fast local results to the right table of the shared db
         mergeBufferTable(SolverCode.BGK, cgDB)
         #And then copy in the coarse grain results
-        pullGlobalGNDToFastDBAttach(SolverCode.BGK, cgDB, fgDB)
+        pullGlobalGNDToFastDBPython(SolverCode.BGK, cgDB, fgDB)
     #Close SQL Connection
     cgDB.closeDB()
     fgDB.closeDB()
