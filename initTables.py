@@ -9,10 +9,10 @@ from alDBHandlers import getDBHandle
 
 def initSQLTables(configStruct):
     dbHandles = []
-    cgDBSettings = configStruct['DatabaseSettings']['CoarseGraindDB']
+    cgDBSettings = configStruct['DatabaseSettings']['CoarseGrainDB']
     cgDB = getDBHandle(cgDBSettings['DatabaseURL'], cgDBSettings['DatabaseMode'], True)
     dbHandles.append(cgDB)
-    fgDBSettings = configStruct['DatabaseSettings']['FineGraindDB']
+    fgDBSettings = configStruct['DatabaseSettings']['FineGrainDB']
     fgDB = getDBHandle(fgDBSettings['DatabaseURL'], fgDBSettings['DatabaseMode'])
     dbHandles.append(fgDB)
     packetType = configStruct['solverCode']

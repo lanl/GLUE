@@ -53,7 +53,7 @@ if __name__ == "__main__":
     configStruct = processGlueCodeArguments()
     # We will not pass in uname via the json file
     uname =  getpass.getuser()
-    cgDBSettings = configStruct['DatabaseSettings']['CoarseGraindDB']
+    cgDBSettings = configStruct['DatabaseSettings']['CoarseGrainDB']
     cgDB = getDBHandle(cgDBSettings['DatabaseURL'], cgDBSettings['DatabaseMode'], True)
     if configStruct['GenerateTrainingData']:
         genTrainingData(configStruct, uname, cgDB)

@@ -387,7 +387,7 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
     solverCode = configStruct['solverCode']
     tag = configStruct['tag']
     # Fine grain so want to use the slower shared DB
-    dbPath = configStruct['DatabaseSettings']['FineGraindDB']['DatabaseURL']
+    dbPath = configStruct['DatabaseSettings']['FineGrainDB']['DatabaseURL']
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
         # Mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
@@ -722,9 +722,9 @@ def pollAndProcessFGSRequests(configStruct, uname):
     dbCache = []
 
     #Set up database handles
-    cgDBSettings = configStruct['DatabaseSettings']['CoarseGraindDB']
+    cgDBSettings = configStruct['DatabaseSettings']['CoarseGrainDB']
     cgDB = getDBHandle(cgDBSettings['DatabaseURL'], cgDBSettings['DatabaseMode'], True)
-    fgDBSettings = configStruct['DatabaseSettings']['FineGraindDB']
+    fgDBSettings = configStruct['DatabaseSettings']['FineGrainDB']
     fgDB = getDBHandle(fgDBSettings['DatabaseURL'], fgDBSettings['DatabaseMode'])
 
     #Get starting GNDCount of 0

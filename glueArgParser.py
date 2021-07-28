@@ -42,9 +42,9 @@ def processGlueCodeArguments():
         configStruct['ProvisioningInterface'] = ProvisioningInterface(configStruct['ProvisioningInterface'])
     if 'SchedulerInterface' in configStruct:
         configStruct['SchedulerInterface'] = SchedulerInterface(configStruct['SchedulerInterface'])
-    configStruct['DatabaseSettings']['CoarseGraindDB']['DatabaseMode'] = \
+    configStruct['DatabaseSettings']['CoarseGrainDB']['DatabaseMode'] = \
         DatabaseMode(
-            configStruct['DatabaseSettings']['CoarseGraindDB']['DatabaseMode']
+            configStruct['DatabaseSettings']['CoarseGrainDB']['DatabaseMode']
         )
     configStruct['DatabaseSettings']['FineGrainDB']['DatabaseMode'] = \
         DatabaseMode(
