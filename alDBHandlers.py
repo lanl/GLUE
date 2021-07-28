@@ -44,7 +44,7 @@ class SQLiteHandle(ALDBHandle):
             self.handle = sqlite3.connect(self.dbURL, timeout=45.0)
             self.cursor = self.handle.cursor()
         return self.cursor
-    def execute(self, query, args):
+    def execute(self, query, args=None):
         procQuery = query
         #TODO: Test what happens if args is an empty tuple
         if args is None:
