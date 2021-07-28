@@ -21,7 +21,7 @@ class ALDBHandle:
     def closeCursror(self):
         # Closes cursror and, if needed, disconnects fromn DB
         raise Exception("Use of Abstract Base Class for ALDBHandle")
-    def commitDB(self):
+    def commit(self):
         # Calls commit command for writes
         raise Exception("Use of Abstract Base Class for ALDBHandle")
     def closeDB(self):
