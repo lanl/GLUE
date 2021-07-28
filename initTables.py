@@ -55,7 +55,7 @@ def initSQLTables(configStruct):
         db.execute(dropReqString)
         db.execute(dropResString)
         db.execute(dropResFString)
-        db.commitDB()
+        db.commit()
 
         db.execute(reqString)
         db.execute(resString)
@@ -63,7 +63,7 @@ def initSQLTables(configStruct):
         db.execute(logString)
         db.execute(resFString)
 
-        db.commitDB()
+        db.commit()
         db.closeCursor()
         db.closeDB()
 

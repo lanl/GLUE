@@ -8,7 +8,7 @@ class ALDBHandle:
     def __init__(self, dbURL: str, persistence: bool):
         self.dbURL = dbURL
         self.persistence = persistence
-        self.cursror = None
+        self.cursor = None
         self.handle = None
     def openCursor(self):
         # Reconnects to DB if needed and returns cursor object
@@ -18,8 +18,8 @@ class ALDBHandle:
         #   Query string formatted with args represented as '?'
         #   Preprocesses as needed and returns result of execute()
         raise Exception("Use of Abstract Base Class for ALDBHandle")
-    def closeCursror(self):
-        # Closes cursror and, if needed, disconnects fromn DB
+    def closeCursor(self):
+        # Closes cursor and, if needed, disconnects fromn DB
         raise Exception("Use of Abstract Base Class for ALDBHandle")
     def commit(self):
         # Calls commit command for writes
@@ -51,7 +51,7 @@ class SQLiteHandle(ALDBHandle):
             return self.cursor.execute(procQuery)
         else:
             return self.cursor.execute(procQuery, args)
-    def closeCursror(self):
+    def closeCursor(self):
         self.cursor.close()
         if not self.persistence:
             self.handle.close()
