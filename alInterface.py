@@ -271,9 +271,9 @@ def getAllGNDData(dbHandle, solverCode):
         selString = "SELECT * FROM BGKGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
-    sqlCursor = dbHandle.openCursor()
+    dbHandle.openCursor()
     gndResults = []
-    for row in sqlCursor.execute(selString):
+    for row in dbHandle.execute(selString):
         # Add row to numpy array
         gndResults.append(row)
     dbHandle.closeCursor()
@@ -285,9 +285,9 @@ def getGNDCount(dbHandle, solverCode):
         selString = "SELECT COUNT(*)  FROM BGKGND;"
     else:
         raise Exception('Using Unsupported Solver Code')
-    sqlCursor = dbHandle.openCursor()
+    dbHandle.openCursor()
     numGND = 0
-    for row in sqlCursor.execute(selString):
+    for row in dbHandle.execute(selString):
         # Should just be one row with one value
         numGND = row[0]
     dbHandle.closeCursor()
@@ -458,10 +458,10 @@ def getInterpModel(packetType, alBackend, dbHandle):
 
 def insertALPrediction(inFGS, outFGS, solverCode, sqlDB):
     if solverCode == SolverCode.BGK:
-        sqlCursor =  sqlDB.openCursor()
+        sqlDB.openCursor()
         insString = "INSERT INTO BGKALLOGS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         insArgs = (inFGS.Temperature,) + tuple(inFGS.Density) + tuple(inFGS.Charges) + (getGroundishTruthVersion(solverCode),) + (outFGS.Viscosity, outFGS.ThermalConductivity) + tuple(outFGS.DiffCoeff) + (getGroundishTruthVersion(solverCode),)
-        sqlCursor.execute(insString, insArgs)
+        sqlDB.execute(insString, insArgs)
         sqlDB.commit()
         sqlDB.closeCursor()
     else:
@@ -509,10 +509,10 @@ class BGKRandForestInterpModel(InterpModelWrapper):
 
 def insertResultSlow(rank, tag, reqid, fgsResult, resultProvenance, sqlDB):
     if isinstance(fgsResult, BGKOutputs):
-        sqlCursor = sqlDB.openCursor()
+        sqlDB.openCursor()
         insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
-        sqlCursor.execute(insString, insArgs)
+        sqlDB.execute(insString, insArgs)
         sqlDB.commit()
         sqlDB.closeCursor()
     else:
@@ -520,10 +520,10 @@ def insertResultSlow(rank, tag, reqid, fgsResult, resultProvenance, sqlDB):
 
 def insertResult(rank, tag, reqid, fgsResult, resultProvenance, sqlDB):
     if isinstance(fgsResult, BGKOutputs):
-        sqlCursor = sqlDB.openCursor()
+        sqlDB.openCursor()
         insString = "INSERT INTO BGKFASTRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
-        sqlCursor.execute(insString, insArgs)
+        sqlDB.execute(insString, insArgs)
         sqlDB.commit()
         sqlDB.closeCursor()
     else:
@@ -554,11 +554,11 @@ def cacheCheck(inArgs, configStruct, dbCache):
 
 def mergeBufferTable(solverCode, cgDB):
     if solverCode == SolverCode.BGK:
-        sqlCursor = cgDB.openCursor()
+        cgDB.openCursor()
         mergeStr = "INSERT INTO BGKRESULTS SELECT * FROM BGKFASTRESULTS;"
         delStr = "DELETE FROM BGKFASTRESULTS;"
-        sqlCursor.execute(mergeStr)
-        sqlCursor.execute(delStr)
+        cgDB.execute(mergeStr)
+        cgDB.execute(delStr)
         cgDB.commit()
         cgDB.closeCursor()
     else:
@@ -568,30 +568,31 @@ def pullGlobalGNDToFastDBPython(solverCode, cgDB, fgDB):
     # Manually copy data in by opening the DB, reading it, and then writing results
     if solverCode == SolverCode.BGK:
         # Open Fine Grain DB
-        fgCursor = fgDB.openCursor()
+        fgDB.openCursor()
         # Copy out results
         resultList = []
         # TODO: Add logic to reduce number of reads later...
         #   Might be able to do an SQL query to find the gap
         resQuery = "SELECT * FROM BGKRESULTS;"
-        for row in fgCursor.execute(resQuery):
+        for row in fgDB.execute(resQuery):
             # Basically just copy the result verbatim into list
             resultList.append(row)
         # Close FGDB
         fgDB.closeCursor()
         # Write results to fastDB (CGDB)
         if len(resultList) > 0:
-            cgCursor = cgDB.openCursor()
+            cgDB.openCursor()
             # TODO: Update to do bulk insertions once this works
             for result in resultList:
                 insString = "INSERT INTO BGKRESULTS (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"
-                cgCursor.execute(insString, tuple(result))
+                cgDB.execute(insString, tuple(result))
             cgDB.commit()
             cgDB.closeCursor()
     else:
         raise Exception('pullGlobalGNDToFastDBPython: Using Unsupported Solver Code')
 
 def pullGlobalGNDToFastDBAttach(solverCode, cgDB, fgDB):
+    raise Exception('pullGlobalGNDToFastDBAttach: Currently Unsupported')
     # Might need to add to fine grain db path  because of different dirs?
     #TODO: Probably do two approaches
     #  1. If both DB types are the same, attach?
@@ -643,8 +644,8 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbC
     # If no hit, we check the DB
     if outFGS == None:
         selQuery = getGNDStringAndTuple(inArgs, configStruct)
-        sqlCursor = sqlDB.openCursor()
-        for row in sqlCursor.execute(selQuery[0], selQuery[1]):
+        sqlDB.openCursor()
+        for row in sqlDB.execute(selQuery[0], selQuery[1]):
             if isinstance(inArgs, BGKInputs):
                 if row[22] == getGroundishTruthVersion(SolverCode.BGK):
                     outFGS = BGKOutputs(Viscosity=row[10], ThermalConductivity=row[11], DiffCoeff=row[12:22])
@@ -747,8 +748,8 @@ def pollAndProcessFGSRequests(configStruct, uname):
             selArgs = (rank, tag)
             resultQueue = []
             # SELECT request
-            sqlCursor = cgDB.openCursor()
-            for row in sqlCursor.execute(selString, selArgs):
+            cgDB.openCursor()
+            for row in cgDB.execute(selString, selArgs):
                 # Process row for later
                 (solverInput, reqType) = processReqRow(row, packetType)
                 # (reqID, alMode, inputTuple)

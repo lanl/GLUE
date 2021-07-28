@@ -1,17 +1,20 @@
 import sqlite3
-import argparse
 import os
 import time
-import json
 from glueCodeTypes import SolverCode
 from glueArgParser import processGlueCodeArguments
 from glueSQLHelpers import getSQLArrGenString
+from alDBHandlers import getDBHandle
 
 
 def initSQLTables(configStruct):
-    dbPaths = []
-    dbPaths.append(configStruct['SQLiteSettings']['CGDBFilename'])
-    dbPaths.append(configStruct['SQLiteSettings']['FGDBFilename'])
+    dbHandles = []
+    cgDBSettings = configStruct['DatabaseSettings']['CoarseGraindDB']
+    cgDB = getDBHandle(cgDBSettings['DatabaseURL'], cgDBSettings['DatabaseMode'], True)
+    dbHandles.append(cgDB)
+    fgDBSettings = configStruct['DatabaseSettings']['FineGraindDB']
+    fgDB = getDBHandle(fgDBSettings['DatabaseURL'], fgDBSettings['DatabaseMode'])
+    dbHandles.append(fgDB)
     packetType = configStruct['solverCode']
     reqString = ""
     resString = ""
@@ -46,27 +49,23 @@ def initSQLTables(configStruct):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-    for dbPath in dbPaths:
-        sqlDB = sqlite3.connect(dbPath)
-        sqlCursor = sqlDB.cursor()
+    for db in dbHandles:
+        db.openCursor()
 
-        sqlCursor.execute(dropReqString)
-        sqlCursor.execute(dropResString)
-        sqlCursor.execute(dropResFString)
-        sqlDB.commit()
+        db.execute(dropReqString)
+        db.execute(dropResString)
+        db.execute(dropResFString)
+        db.commitDB()
 
-        sqlCursor.execute(reqString)
-        sqlCursor.execute(resString)
-        sqlCursor.execute(gndString)
-        sqlCursor.execute(logString)
-        sqlCursor.execute(resFString)
+        db.execute(reqString)
+        db.execute(resString)
+        db.execute(gndString)
+        db.execute(logString)
+        db.execute(resFString)
 
-        sqlDB.commit()
-        sqlDB.close()
-
-        #Spin until file exists
-        while not os.path.exists(dbPath):
-            time.sleep(1)
+        db.commitDB()
+        db.closeCursor()
+        db.closeDB()
 
 if __name__ == "__main__":
     configStruct = processGlueCodeArguments()

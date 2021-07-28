@@ -13,7 +13,7 @@ class ALDBHandle:
     def openCursor(self):
         # Reconnects to DB if needed and returns cursor object
         raise Exception("Use of Abstract Base Class for ALDBHandle")
-    def writeToCursor(self, query: str, args: tuple):
+    def execute(self, query: str, args: tuple=None):
         # Takes query string and arguments tuple as input.
         #   Query string formatted with args represented as '?'
         #   Preprocesses as needed and returns result of execute()
@@ -44,15 +44,18 @@ class SQLiteHandle(ALDBHandle):
             self.handle = sqlite3.connect(self.dbURL, timeout=45.0)
             self.cursor = self.handle.cursor()
         return self.cursor
-    def writeToCursor(self, query, args):
+    def execute(self, query, args):
         procQuery = query
         #TODO: Test what happens if args is an empty tuple
-        return self.cursor.execute(procQuery, args)
+        if args is None:
+            return self.cursor.execute(procQuery)
+        else:
+            return self.cursor.execute(procQuery, args)
     def closeCursror(self):
         self.cursor.close()
         if not self.persistence:
             self.handle.close()
-    def commitDB(self):
+    def commit(self):
         self.handle.commit()
     def closeDB(self):
         self.handle.close()
