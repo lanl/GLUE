@@ -445,6 +445,7 @@ def uqCheckerStub(err):
         return False
 
 def getInterpModel(packetType, alBackend, dbHandle):
+    #TODO Use packetType
     if alBackend == LearnerBackend.FAKE:
         return InterpModelWrapper(alModelStub, uqCheckerStub)
     if alBackend == LearnerBackend.PYTORCH:

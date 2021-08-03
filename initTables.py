@@ -1,6 +1,3 @@
-import sqlite3
-import os
-import time
 from glueCodeTypes import SolverCode
 from glueArgParser import processGlueCodeArguments
 from glueSQLHelpers import getSQLArrGenString
