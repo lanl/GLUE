@@ -2,7 +2,7 @@ stages:
   - build
   - test
 
-build:gnu:
+make:gnu:
   stage: build
   tags:
     - darwin-slurm-shared
@@ -18,7 +18,7 @@ build:gnu:
     - sniffTest_mpi
     expire_in: 1 day
 
-build:intel:
+make:intel:
   stage: build
   tags:
     - darwin-slurm-shared
@@ -34,7 +34,7 @@ build:intel:
     - sniffTest_mpi
     expire_in: 1 day
 
-build:clang:
+make:clang:
   stage: build
   tags:
     - darwin-slurm-shared
@@ -50,6 +50,36 @@ build:clang:
     - sniffTest_mpi
     expire_in: 1 day
 
+cmake:gnu:
+  stage: build
+  tags:
+    - darwin-slurm-shared
+  script:
+    - source envScripts/darwin-gnu.sh
+    - mkdir bld && cd bld
+    - cmake ..
+    - make
+
+cmake:intel:
+  stage: build
+  tags:
+    - darwin-slurm-shared
+  script:
+    - source envScripts/darwin-intel.sh
+    - mkdir bld && cd bld
+    - cmake ..
+    - make
+
+cmake:clang:
+  stage: build
+  tags:
+    - darwin-slurm-shared
+  script:
+    - source envScripts/darwin-clang.sh
+    - mkdir bld && cd bld
+    - cmake ..
+    - make
+
 test:gnu:
   stage: test
   tags:
@@ -58,9 +88,9 @@ test:gnu:
     - source envScripts/darwin-gnu.sh
     - mkdir serial && cd serial
     - bash ../sniffTest_serial.sh
-  needs: ["build:gnu"]
+  needs: ["make:gnu"]
   dependencies:
-    - build:gnu
+    - make:gnu
 
 test:gnu_mpi:
   stage: test
@@ -70,9 +100,9 @@ test:gnu_mpi:
     - source envScripts/darwin-gnu.sh
     - mkdir mpi && cd mpi
     - bash ../sniffTest_mpi.sh
-  needs: ["build:gnu"]
+  needs: ["make:gnu"]
   dependencies:
-    - build:gnu
+    - make:gnu
 
 test:intel:
   stage: test
@@ -82,9 +112,9 @@ test:intel:
     - source envScripts/darwin-intel.sh
     - mkdir serial && cd serial
     - bash ../sniffTest_serial.sh
-  needs: ["build:intel"]
+  needs: ["make:intel"]
   dependencies:
-    - build:intel
+    - make:intel
 
 test:clang:
   stage: test
@@ -94,6 +124,6 @@ test:clang:
     - source envScripts/darwin-clang.sh
     - mkdir serial && cd serial
     - bash ../sniffTest_serial.sh
-  needs: ["build:clang"]
+  needs: ["make:clang"]
   dependencies:
-    - build:clang
+    - make:clang
