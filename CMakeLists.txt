@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.14)
 
 project(GLUECode LANGUAGES CXX C Fortran)
 
@@ -25,7 +25,7 @@ target_link_libraries(GLUECode PUBLIC MPI::MPI_CXX MPI::MPI_C MPI::MPI_Fortran)
 
 # And add appropriate DB
 
-if(SOLVER_SIDE_DB EQUAL "SQLITE")
+if(SOLVER_SIDE_DB STREQUAL "SQLITE")
 	find_package(SQLite3 REQUIRED)
 	target_link_libraries(GLUECode PUBLIC SQLite::SQLite3)
 endif()
