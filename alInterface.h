@@ -17,6 +17,13 @@ enum ALInterfaceMode_e
 	KILL = 9
 };
 
+enum DatabaseMode_e
+{
+	SQLITE = 0,
+	MYSQL = 1,
+	HDF5 = 2
+};
+
 struct bgk_request_s
 {
 	double temperature;

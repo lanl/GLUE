@@ -2,6 +2,7 @@
 #define __alInterface_hpp
 
 #include "alInterface.h"
+#include "alDBInterfaces.hpp"
 #include <map>
 #include <mutex>
 #include <set>
@@ -37,28 +38,6 @@ extern std::vector<AsyncSelectTable_t<bgk_result_t>> globalColBGKResultTable;
 extern AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
 extern sqlite3* globalGlueDBHandle;
 extern const unsigned int globalGlueBufferSize;
-
-static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName);
-static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColName);
-static int readCallback_colbgk(void *NotUsed, int argc, char **argv, char **azColName);
-
-template <typename T> int makeSQLRequest(sqlite3 * dbHandle, char * message, char ** errOut)
-{
-	return sqlite3_exec(dbHandle, message, dummyCallback, 0, errOut);
-}
-template <> int makeSQLRequest<bgk_result_t>(sqlite3 * dbHandle, char * message, char ** errOut)
-{
-	return sqlite3_exec(dbHandle, message, readCallback_bgk, 0, errOut);
-}
-
-template <typename T> int makeColSQLRequest(sqlite3 * dbHandle, char * message, char ** errOut)
-{
-	return sqlite3_exec(dbHandle, message, dummyCallback, 0, errOut);
-}
-template <> int makeColSQLRequest<bgk_result_t>(sqlite3 * dbHandle, char * message, char ** errOut)
-{
-	return sqlite3_exec(dbHandle, message, readCallback_colbgk, 0, errOut);
-}
 
 template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
 {
@@ -144,6 +123,8 @@ template <> std::string getResultSQLString<lbmToOneDMD_result_t>(int mpiRank, ch
 template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
 {
 	std::string sqlString = getReqSQLString<T>(input, mpiRank, tag, reqNum, reqType);
+
+	///NOTE: This seems to be the start chunk?
 	char *zErrMsg = nullptr;
 	int sqlRet = makeSQLRequest<void>(dbHandle, (char *)sqlString.c_str(), &zErrMsg);
 	while( sqlRet != SQLITE_OK )
@@ -159,6 +140,9 @@ template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite
 			exit(1);
 		}
 	}
+	///NOTE: This seems to be the end chunk?
+
+
 	return;
 }
 
@@ -173,6 +157,8 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * d
 	{
 		haveResult = true;
 	}
+
+	///NOTE: This seems to be the start chunk?
 	while(!haveResult)
 	{
 		//Send SELECT with sqlite3_exec. 
@@ -192,6 +178,9 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * d
 				exit(1);
 			}
 		}
+		///NOTE: This seems to be the end chunk?
+
+
 		//SQL did something, so Get table
 		auto globalTable = getGlobalTable<T>();
 
@@ -282,12 +271,13 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 	{
 		haveResult = true;
 	}
+
+	///NOTE: This seems to be the start chunk?
 	while(!haveResult)
 	{
 		//Send SELECT with sqlite3_exec. 
 		std::string sqlString = getResultSQLStringReqRange<T>(mpiRank, const_cast<char *>(tag.c_str()), reqRange);
 		sprintf(sqlBuf, sqlString.c_str());
-		//sprintf(sqlBuf, sqlString.c_str(), reqNum, const_cast<char *>(tag.c_str()), mpiRank);
 		int rc = makeColSQLRequest<T>(dbHandle, sqlBuf, &err);
 		while (rc != SQLITE_OK)
 		{
@@ -302,6 +292,10 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 				exit(1);
 			}
 		}
+		///NOTE: This seems to be the end chunk?
+
+
+
 		//SQL did something, so Get table
 		auto globalTable = getGlobalColTable<T>(mpiRank);
 		//And get lock (less needed in this mode)
