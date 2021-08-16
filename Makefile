@@ -45,7 +45,7 @@ all: libalGlue.a
 test: sniffTest_mpi sniffTest_serial alTester_serial sniffTest_fortranBGK stressTest_analyticICF stressTest_analyticICF_collective fullTest_collectiveICF
 
 libalGlue.a: alInterface.o alInterface_f.o alGlueTypes_f.o alDBInterfaces.o
-	${AR} ${AR_FLAGS} libalGlue.a alInterface.o alInterface_f.o
+	${AR} ${AR_FLAGS} libalGlue.a alInterface.o alInterface_f.o alDBInterfaces.o
 
 alInterface.o: alInterface.cpp alInterface.h alInterface.hpp
 	${MPICXX} ${CXXFLAGS} -I${SQLITE_INCLUDE} -c alInterface.cpp
