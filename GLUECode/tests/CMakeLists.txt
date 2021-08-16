@@ -1,0 +1,2 @@
+add_executable(sniffTest_MPI sniffTest_mpi.c)
+target_link_libraries(sniffTest_MPI PRIVATE GLUECode)

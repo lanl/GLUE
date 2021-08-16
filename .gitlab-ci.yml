@@ -1,54 +1,54 @@
 stages:
   - build
-  - test
+  # - test
 
-make:gnu:
-  stage: build
-  tags:
-    - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-gnu.sh
-    - make all
-    - make test
-  artifacts:
-    paths:
-    - alinterface_f.mod
-    - libalGlue.a
-    - sniffTest_serial
-    - sniffTest_mpi
-    expire_in: 1 day
+# make:gnu:
+#   stage: build
+#   tags:
+#     - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-gnu.sh
+#     - make all
+#     - make test
+#   artifacts:
+#     paths:
+#     - alinterface_f.mod
+#     - libalGlue.a
+#     - sniffTest_serial
+#     - sniffTest_mpi
+#     expire_in: 1 day
 
-make:intel:
-  stage: build
-  tags:
-    - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-intel.sh
-    - make all CC=icpc CXX=icpc FC=ifort
-    - make test CC=icpc CXX=icpc FC=ifort
-  artifacts:
-    paths:
-    - alinterface_f.mod
-    - libalGlue.a
-    - sniffTest_serial
-    - sniffTest_mpi
-    expire_in: 1 day
+# make:intel:
+#   stage: build
+#   tags:
+#     - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-intel.sh
+#     - make all CC=icpc CXX=icpc FC=ifort
+#     - make test CC=icpc CXX=icpc FC=ifort
+#   artifacts:
+#     paths:
+#     - alinterface_f.mod
+#     - libalGlue.a
+#     - sniffTest_serial
+#     - sniffTest_mpi
+#     expire_in: 1 day
 
-make:clang:
-  stage: build
-  tags:
-    - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-clang.sh
-    - make all CC=clang CXX=clang++ FC=gfortran
-    - make test CC=clang CXX=clang++ FC=gfortran
-  artifacts:
-    paths:
-    - alinterface_f.mod
-    - libalGlue.a
-    - sniffTest_serial
-    - sniffTest_mpi
-    expire_in: 1 day
+# make:clang:
+#   stage: build
+#   tags:
+#     - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-clang.sh
+#     - make all CC=clang CXX=clang++ FC=gfortran
+#     - make test CC=clang CXX=clang++ FC=gfortran
+#   artifacts:
+#     paths:
+#     - alinterface_f.mod
+#     - libalGlue.a
+#     - sniffTest_serial
+#     - sniffTest_mpi
+#     expire_in: 1 day
 
 cmake:gnu:
   stage: build
@@ -80,50 +80,50 @@ cmake:clang:
     - cmake ..
     - make
 
-test:gnu:
-  stage: test
-  tags:
-   - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-gnu.sh
-    - mkdir serial && cd serial
-    - bash ../sniffTest_serial.sh
-  needs: ["make:gnu"]
-  dependencies:
-    - make:gnu
+# test:gnu:
+#   stage: test
+#   tags:
+#    - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-gnu.sh
+#     - mkdir serial && cd serial
+#     - bash ../sniffTest_serial.sh
+#   needs: ["make:gnu"]
+#   dependencies:
+#     - make:gnu
 
-test:gnu_mpi:
-  stage: test
-  tags:
-    - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-gnu.sh
-    - mkdir mpi && cd mpi
-    - bash ../sniffTest_mpi.sh
-  needs: ["make:gnu"]
-  dependencies:
-    - make:gnu
+# test:gnu_mpi:
+#   stage: test
+#   tags:
+#     - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-gnu.sh
+#     - mkdir mpi && cd mpi
+#     - bash ../sniffTest_mpi.sh
+#   needs: ["make:gnu"]
+#   dependencies:
+#     - make:gnu
 
-test:intel:
-  stage: test
-  tags:
-   - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-intel.sh
-    - mkdir serial && cd serial
-    - bash ../sniffTest_serial.sh
-  needs: ["make:intel"]
-  dependencies:
-    - make:intel
+# test:intel:
+#   stage: test
+#   tags:
+#    - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-intel.sh
+#     - mkdir serial && cd serial
+#     - bash ../sniffTest_serial.sh
+#   needs: ["make:intel"]
+#   dependencies:
+#     - make:intel
 
-test:clang:
-  stage: test
-  tags:
-   - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-clang.sh
-    - mkdir serial && cd serial
-    - bash ../sniffTest_serial.sh
-  needs: ["make:clang"]
-  dependencies:
-    - make:clang
+# test:clang:
+#   stage: test
+#   tags:
+#    - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-clang.sh
+#     - mkdir serial && cd serial
+#     - bash ../sniffTest_serial.sh
+#   needs: ["make:clang"]
+#   dependencies:
+#     - make:clang
