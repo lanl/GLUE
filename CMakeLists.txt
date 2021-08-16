@@ -7,7 +7,8 @@ set(CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 14)
 
 # Add option for DB Backend
-set_property(CACHE SOLVER_SIDE_DB PROPERTY STRINGS SQLITE MYSQL)
+set(SOLVER_SIDE_DB "SQLITE" CACHE STRING "Set Database Backend For C Side Of Code")
+set_property(CACHE SOLVER_SIDE_DB PROPERTY STRINGS "SQLITE" "MYSQL")
 
 
 # All builds requre MPI
@@ -29,5 +30,5 @@ target_link_libraries(GLUECode PUBLIC MPI::MPI_CXX MPI::MPI_C MPI::MPI_Fortran)
 if(SOLVER_SIDE_DB STREQUAL "SQLITE")
 	find_package(SQLite3 REQUIRED)
 	target_link_libraries(GLUECode PUBLIC SQLite::SQLite3)
-	target_compile_definitions(GLUECode PUBLIC SOLVER_SIDE_SQLITE)
+	target_compile_definitions(GLUECode PUBLIC "SOLVER_SIDE_SQLITE")
 endif()
