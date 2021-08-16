@@ -123,26 +123,7 @@ template <> std::string getResultSQLString<lbmToOneDMD_result_t>(int mpiRank, ch
 template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
 {
 	std::string sqlString = getReqSQLString<T>(input, mpiRank, tag, reqNum, reqType);
-
-	///NOTE: This seems to be the start chunk?
-	char *zErrMsg = nullptr;
-	int sqlRet = makeSQLRequest<void>(dbHandle, (char *)sqlString.c_str(), &zErrMsg);
-	while( sqlRet != SQLITE_OK )
-	{
-		sqlRet = makeSQLRequest<void>(dbHandle, (char *)sqlString.c_str(), &zErrMsg);
-		if(!(sqlRet == SQLITE_OK || sqlRet == SQLITE_BUSY || sqlRet == SQLITE_LOCKED))
-		{
-			fprintf(stderr, "Error in writeRequest<T>\n");
-			fprintf(stderr, "SQL error %d: %s\n", sqlRet, zErrMsg);
-			fprintf(stderr, "SQL Message: %s\n", sqlString.c_str());
-			sqlite3_free(zErrMsg);
-			sqlite3_close(dbHandle);
-			exit(1);
-		}
-	}
-	///NOTE: This seems to be the end chunk?
-
-
+	sendSQLCommand<T>(sqlString, dbHandle);
 	return;
 }
 
@@ -158,28 +139,11 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * d
 		haveResult = true;
 	}
 
-	///NOTE: This seems to be the start chunk?
 	while(!haveResult)
 	{
 		//Send SELECT with sqlite3_exec. 
 		std::string sqlString = getResultSQLString<T>(mpiRank, tag, reqNum);
-		sprintf(sqlBuf, sqlString.c_str(), reqNum, tag, mpiRank);
-		int rc = makeSQLRequest<T>(dbHandle, sqlBuf, &err);
-		while (rc != SQLITE_OK)
-		{
-			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
-			rc = makeSQLRequest<T>(dbHandle, sqlBuf, &err);
-			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
-			{
-				fprintf(stderr, "Error in readResult_blocking<T>\n");
-				fprintf(stderr, "SQL error %d: %s\n", rc, err);
-				sqlite3_free(err);
-				sqlite3_close(dbHandle);
-				exit(1);
-			}
-		}
-		///NOTE: This seems to be the end chunk?
-
+		sendSQLCommand<T>(sqlString, dbHandle);
 
 		//SQL did something, so Get table
 		auto globalTable = getGlobalTable<T>();
@@ -277,24 +241,7 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 	{
 		//Send SELECT with sqlite3_exec. 
 		std::string sqlString = getResultSQLStringReqRange<T>(mpiRank, const_cast<char *>(tag.c_str()), reqRange);
-		sprintf(sqlBuf, sqlString.c_str());
-		int rc = makeColSQLRequest<T>(dbHandle, sqlBuf, &err);
-		while (rc != SQLITE_OK)
-		{
-			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
-			rc = makeColSQLRequest<T>(dbHandle, sqlBuf, &err);
-			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
-			{
-				fprintf(stderr, "Error in getRangeOfResults<T>\n");
-				fprintf(stderr, "SQL error %d: %s\n", rc, err);
-				sqlite3_free(err);
-				sqlite3_close(dbHandle);
-				exit(1);
-			}
-		}
-		///NOTE: This seems to be the end chunk?
-
-
+		sendSQLCommand<T>(sqlString, dbHandle);
 
 		//SQL did something, so Get table
 		auto globalTable = getGlobalColTable<T>(mpiRank);

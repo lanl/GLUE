@@ -5,7 +5,6 @@ find_package(MPI REQUIRED)
 #TODO: Refactor file structure
 add_library(GLUECode
 	alInterface.cpp
-	alDBInterfaces.cpp
 	alGlueTypes_f.f90
 	alInterface_f.f90
 )
