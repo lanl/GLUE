@@ -1,6 +1,6 @@
 stages:
   - build
-  # - test
+  - test
 
 # make:gnu:
 #   stage: build
@@ -59,6 +59,10 @@ cmake:gnu:
     - mkdir bld && cd bld
     - cmake ..
     - make
+  artifacts:
+    paths:
+    - bld
+    expire_in: 1 day
 
 cmake:intel:
   stage: build
@@ -69,6 +73,10 @@ cmake:intel:
     - mkdir bld && cd bld
     - cmake ..
     - make
+  artifacts:
+    paths:
+    - bld
+    expire_in: 1 day
 
 cmake:clang:
   stage: build
@@ -79,51 +87,55 @@ cmake:clang:
     - mkdir bld && cd bld
     - cmake ..
     - make
+  artifacts:
+    paths:
+    - bld
+    expire_in: 1 day
 
-# test:gnu:
-#   stage: test
-#   tags:
-#    - darwin-slurm-shared
-#   script:
-#     - source envScripts/darwin-gnu.sh
-#     - mkdir serial && cd serial
-#     - bash ../sniffTest_serial.sh
-#   needs: ["make:gnu"]
-#   dependencies:
-#     - make:gnu
+test:gnu:
+  stage: test
+  tags:
+   - darwin-slurm-shared
+  script:
+    - source envScripts/darwin-gnu.sh
+    - mkdir serial && cd serial
+    - bash ../sniffTest_serial.sh
+  needs: ["cmake:gnu"]
+  dependencies:
+    - cmake:gnu
 
-# test:gnu_mpi:
-#   stage: test
-#   tags:
-#     - darwin-slurm-shared
-#   script:
-#     - source envScripts/darwin-gnu.sh
-#     - mkdir mpi && cd mpi
-#     - bash ../sniffTest_mpi.sh
-#   needs: ["make:gnu"]
-#   dependencies:
-#     - make:gnu
+test:gnu_mpi:
+  stage: test
+  tags:
+    - darwin-slurm-shared
+  script:
+    - source envScripts/darwin-gnu.sh
+    - mkdir mpi && cd mpi
+    - bash ../sniffTest_mpi.sh
+  needs: ["cmake:gnu"]
+  dependencies:
+    - cmake:gnu
 
-# test:intel:
-#   stage: test
-#   tags:
-#    - darwin-slurm-shared
-#   script:
-#     - source envScripts/darwin-intel.sh
-#     - mkdir serial && cd serial
-#     - bash ../sniffTest_serial.sh
-#   needs: ["make:intel"]
-#   dependencies:
-#     - make:intel
+test:intel:
+  stage: test
+  tags:
+   - darwin-slurm-shared
+  script:
+    - source envScripts/darwin-intel.sh
+    - mkdir serial && cd serial
+    - bash ../sniffTest_serial.sh
+  needs: ["cmake:intel"]
+  dependencies:
+    - cmake:intel
 
-# test:clang:
-#   stage: test
-#   tags:
-#    - darwin-slurm-shared
-#   script:
-#     - source envScripts/darwin-clang.sh
-#     - mkdir serial && cd serial
-#     - bash ../sniffTest_serial.sh
-#   needs: ["make:clang"]
-#   dependencies:
-#     - make:clang
+test:clang:
+  stage: test
+  tags:
+   - darwin-slurm-shared
+  script:
+    - source envScripts/darwin-clang.sh
+    - mkdir serial && cd serial
+    - bash ../sniffTest_serial.sh
+  needs: ["cmake:clang"]
+  dependencies:
+    - cmake:clang
