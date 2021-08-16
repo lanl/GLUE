@@ -32,3 +32,7 @@ if(SOLVER_SIDE_DB STREQUAL "SQLITE")
 	target_link_libraries(GLUECode PUBLIC SQLite::SQLite3)
 	target_compile_definitions(GLUECode PUBLIC "SOLVER_SIDE_SQLITE")
 endif()
+
+# And now build the testers
+add_executable(sniffTest_MPI sniffTest_mpi.c)
+target_link_libraries(sniffTest_MPI PRIVATE GLUECode)
