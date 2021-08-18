@@ -8,8 +8,10 @@ add_library(GLUECode
 	alGlueTypes_f.f90
 	alInterface_f.f90
 )
-
+#Headers
 target_include_directories(GLUECode PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+#Fortran modules
+target_include_directories(GLUECode PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 # Add TPLs to library
 target_link_libraries(GLUECode PUBLIC MPI::MPI_CXX MPI::MPI_C MPI::MPI_Fortran)

@@ -3,3 +3,6 @@ target_link_libraries(sniffTest_mpi PRIVATE GLUECode)
 
 add_executable(sniffTest_serial sniffTest_serial.c)
 target_link_libraries(sniffTest_serial PRIVATE GLUECode)
+
+add_executable(sniffTest_fortranBGK sniffTest_fortranBGK_c.cpp sniffTest_fortranBGK_f.f90)
+target_link_libraries(sniffTest_fortranBGK PRIVATE GLUECode)
