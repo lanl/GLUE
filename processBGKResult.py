@@ -129,6 +129,8 @@ if __name__ == "__main__":
     defaultProcessing = ALInterfaceMode.FGS
     defaultSolver = SolverCode.BGK
     defaultDBBackend= DatabaseMode.SQLITE
+    defaultUName="THISISBAD"
+    defaultPassword="THISISrealBAD"
 
     # No need to preserve global arg parsing logic as we have all we need here
 
@@ -142,6 +144,8 @@ if __name__ == "__main__":
     argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (FGS=0)")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
     argParser.add_argument('-b', '--dbbackend', action='store', type=int, required=False, default=defaultDBBackend, help='Database Backend for Request (SQLUTE=0)')
+    argParser.add_argument('-u', '--username', action='store', type=str, required=False, default=defaultUName, help="Default Username for Database")
+    argParser.add_argument('-p', '--password', action='store', type=str, required=False, default=defaultPassword, help="Default Ridiculously Insecure Password for Database")
 
     args = vars(argParser.parse_args())
 
@@ -156,6 +160,8 @@ if __name__ == "__main__":
     dbConfigDict = {}
     dbConfigDict["DatabaseMode"] = dbBackend
     dbConfigDict["DatabaseURL"] = globalDBName
+    dbConfigDict["DatabaseUser"] = args['username']
+    dbConfigDict['DatabasePassword'] = args['password']
 
     dbHandle = getDBHandle(dbConfigDict)
 

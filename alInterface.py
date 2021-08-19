@@ -420,7 +420,22 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
                 # And delete unnecessary files to save disk space
                 slurmFile.write("rm ./profile.*.dat\n")
                 # Process the result and write to DB
-                slurmFile.write("`which python3` " + bgkResultScript + " -t " + tag + " -r " + str(rank) + " -i " + str(reqid) + " -d " + os.path.realpath(dbPath) + " -m " + str(glueMode.value) + " -c " + str(solverCode.value) + "\n")
+                # First, make the arguments
+                argList = ""
+                argList += " -t " + tag
+                argList += " -r " + str(rank)
+                argList += " -i " + str(reqid)
+                argList += " -d " + os.path.realpath(dbPath)
+                argList += " -m " + str(glueMode.value)
+                argList += " -c " + str(solverCode.value)
+                fgDBStruct = configStruct['DatabaseSettings']['FineGrainDB']
+                if "DatabaseUser" in fgDBStruct:
+                    argList += "- u " + fgDBStruct["DatabaseUser"]
+                if "DatabasePassword" in fgDBStruct:
+                    argList += "- p " + fgDBStruct["DatabasePassword"]
+                slurmFile.write("`which python3` " + bgkResultScript
+                    + argList 
+                    + "\n")
                 slurmFile.write("\n")
             #Chmod+x that script
             st = os.stat(scriptFPath)
