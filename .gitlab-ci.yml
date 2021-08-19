@@ -64,19 +64,19 @@ cmake:gnu:
     - bld
     expire_in: 1 day
 
-cmake:intel:
-  stage: build
-  tags:
-    - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-intel.sh
-    - mkdir bld && cd bld
-    - cmake ..
-    - make
-  artifacts:
-    paths:
-    - bld
-    expire_in: 1 day
+# cmake:intel:
+#   stage: build
+#   tags:
+#     - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-intel.sh
+#     - mkdir bld && cd bld
+#     - cmake ..
+#     - make
+#   artifacts:
+#     paths:
+#     - bld
+#     expire_in: 1 day
 
 cmake:clang:
   stage: build
@@ -116,17 +116,17 @@ test:gnu_mpi:
   dependencies:
     - cmake:gnu
 
-test:intel:
-  stage: test
-  tags:
-   - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-intel.sh
-    - mkdir serial && cd serial
-    - bash ../sniffTest_serial.sh
-  needs: ["cmake:intel"]
-  dependencies:
-    - cmake:intel
+# test:intel:
+#   stage: test
+#   tags:
+#    - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-intel.sh
+#     - mkdir serial && cd serial
+#     - bash ../sniffTest_serial.sh
+#   needs: ["cmake:intel"]
+#   dependencies:
+#     - cmake:intel
 
 test:clang:
   stage: test
