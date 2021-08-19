@@ -429,10 +429,12 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
                 argList += " -m " + str(glueMode.value)
                 argList += " -c " + str(solverCode.value)
                 fgDBStruct = configStruct['DatabaseSettings']['FineGrainDB']
+                argList += " -b " + str(int(fgDBStruct['DatabaseMode']))
                 if "DatabaseUser" in fgDBStruct:
                     argList += "- u " + fgDBStruct["DatabaseUser"]
                 if "DatabasePassword" in fgDBStruct:
                     argList += "- p " + fgDBStruct["DatabasePassword"]
+                # Pass args to script
                 slurmFile.write("`which python3` " + bgkResultScript
                     + argList 
                     + "\n")
