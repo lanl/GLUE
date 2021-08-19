@@ -134,6 +134,7 @@ if __name__ == "__main__":
 
     argParser = argparse.ArgumentParser(description='Python Driver to Convert FGS BGK Result into DB Entry')
 
+    #TODO: Add args for db uname and password
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
     argParser.add_argument('-r', '--rank', action='store', type=int, required=False, default=defaultRank, help="MPI Rank of Requester")
     argParser.add_argument('-i', '--id', action='store', type=int, required=False, default=defaultID, help="Request ID")
@@ -152,7 +153,11 @@ if __name__ == "__main__":
     code = SolverCode(args['code'])
     dbBackend = DatabaseMode(args['dbbackend'])
 
-    dbHandle = getDBHandle(globalDBName, dbBackend)
+    dbConfigDict = {}
+    dbConfigDict["DatabaseMode"] = dbBackend
+    dbConfigDict["DatabaseURL"] = globalDBName
+
+    dbHandle = getDBHandle(dbConfigDict)
 
     resultArr = procOutputsAndProcess(tag, dbHandle, rank, reqid, mode, code)
     if(mode == ResultProvenance.FGS):

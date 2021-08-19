@@ -724,9 +724,9 @@ def pollAndProcessFGSRequests(configStruct, uname):
 
     #Set up database handles
     cgDBSettings = configStruct['DatabaseSettings']['CoarseGrainDB']
-    cgDB = getDBHandle(cgDBSettings['DatabaseURL'], cgDBSettings['DatabaseMode'], True)
+    cgDB = getDBHandle(cgDBSettings, True)
     fgDBSettings = configStruct['DatabaseSettings']['FineGrainDB']
-    fgDB = getDBHandle(fgDBSettings['DatabaseURL'], fgDBSettings['DatabaseMode'])
+    fgDB = getDBHandle(fgDBSettings)
 
     #Get starting GNDCount of 0
     GNDcnt = 0

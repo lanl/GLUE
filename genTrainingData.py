@@ -54,7 +54,7 @@ if __name__ == "__main__":
     # We will not pass in uname via the json file
     uname =  getpass.getuser()
     cgDBSettings = configStruct['DatabaseSettings']['CoarseGrainDB']
-    cgDB = getDBHandle(cgDBSettings['DatabaseURL'], cgDBSettings['DatabaseMode'], True)
+    cgDB = getDBHandle(cgDBSettings, True)
     if configStruct['GenerateTrainingData']:
         genTrainingData(configStruct, uname, cgDB)
     if configStruct['ReadTrainingData']:

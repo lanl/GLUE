@@ -7,10 +7,10 @@ from alDBHandlers import getDBHandle
 def initSQLTables(configStruct):
     dbHandles = []
     cgDBSettings = configStruct['DatabaseSettings']['CoarseGrainDB']
-    cgDB = getDBHandle(cgDBSettings['DatabaseURL'], cgDBSettings['DatabaseMode'], True)
+    cgDB = getDBHandle(cgDBSettings, True)
     dbHandles.append(cgDB)
     fgDBSettings = configStruct['DatabaseSettings']['FineGrainDB']
-    fgDB = getDBHandle(fgDBSettings['DatabaseURL'], fgDBSettings['DatabaseMode'])
+    fgDB = getDBHandle(fgDBSettings)
     dbHandles.append(fgDB)
     packetType = configStruct['solverCode']
     reqString = ""

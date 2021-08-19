@@ -5,8 +5,8 @@ class ALDBHandle:
 
     Interface to databases used by glue code to allow for using
     different database providers depending on need of application"""
-    def __init__(self, dbURL: str, persistence: bool):
-        self.dbURL = dbURL
+    def __init__(self, dbConfig: dict, persistence: bool):
+        self.dbURL = dbConfig["DatabaseURL"]
         self.persistence = persistence
         self.cursor = None
         self.handle = None
@@ -29,9 +29,9 @@ class ALDBHandle:
         raise Exception("Use of Abstract Base Class for ALDBHandle")
 
 class SQLiteHandle(ALDBHandle):
-    def __init__(self, dbURL, persistence):
+    def __init__(self, dbConfig, persistence):
         # Call parent constructor
-        ALDBHandle.__init__(self, dbURL, persistence)
+        ALDBHandle.__init__(self, dbConfig, persistence)
         # And import headers for later
         import sqlite3
     def openCursor(self):
@@ -60,11 +60,11 @@ class SQLiteHandle(ALDBHandle):
     def closeDB(self):
         self.handle.close()
 
-def getDBHandle(dbURL, dbType, persistence=False):
+def getDBHandle(dbConfigDict, persistence=False):
     dbHandle = None
-    if dbType == DatabaseMode.SQLITE:
-        dbHandle = SQLiteHandle(dbURL, persistence)
-    elif dbType == DatabaseMode.MYSQL:
+    if dbConfigDict["DatabaseMode"] == DatabaseMode.SQLITE:
+        dbHandle = SQLiteHandle(dbConfigDict, persistence)
+    elif dbConfigDict["DatabaseMode"] == DatabaseMode.MYSQL:
         #TODO: Implement MySQL logic
         raise Exception('Using Unsupported Database Type')
     else:

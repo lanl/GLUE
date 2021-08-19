@@ -168,6 +168,14 @@
 						"DatabaseURL":{
 							"description": "URL/Path to Database",
 							"type": "string"
+						},
+						"DatabaseUser":{
+							"description": "Optional insecure username for DB",
+							"type": "string"
+						},
+						"DatabasePassword":{
+							"description": "Optional really insecure password for DB",
+							"type": "string"
 						}
 					}
 				},
@@ -181,6 +189,14 @@
 						},
 						"DatabaseURL":{
 							"description": "URL/Path to Database",
+							"type": "string"
+						},
+						"DatabaseUser":{
+							"description": "Optional insecure username for DB",
+							"type": "string"
+						},
+						"DatabasePassword":{
+							"description": "Optional really insecure password for DB",
 							"type": "string"
 						}
 					}
