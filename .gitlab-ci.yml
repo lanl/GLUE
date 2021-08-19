@@ -24,8 +24,8 @@ build:intel:
     - darwin-slurm-shared
   script:
     - source envScripts/darwin-intel.sh
-    - make all CC=icpc CXX=icpc FC=ifort
-    - make test CC=icpc CXX=icpc FC=ifort
+    - make all CC=icpc CXX=icpc FC=ifort MPICXX=mpicxx
+    - make test CC=icpc CXX=icpc FC=ifort MPICXX=mpicxx
   artifacts:
     paths:
     - alinterface_f.mod
