@@ -120,14 +120,14 @@ template <> std::string getResultSQLString<lbmToOneDMD_result_t>(int mpiRank, ch
 	exit(1);
 }
 
-template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
+template <typename T> void writeRequest(T input, int mpiRank, char * tag, dbHandle_t  dbHandle, int reqNum, unsigned int reqType)
 {
 	std::string sqlString = getReqSQLString<T>(input, mpiRank, tag, reqNum, reqType);
 	sendSQLCommand<T>(sqlString, dbHandle);
 	return;
 }
 
-template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
+template <typename T> T readResult_blocking(int mpiRank, char * tag, dbHandle_t  dbHandle, int reqNum, unsigned int reqType)
 {
 	T retVal;
 	char sqlBuf[2048];
@@ -165,7 +165,7 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * d
 	return retVal;
 }
 
-template <typename S, typename T> T req_single_with_reqtype(S input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+template <typename S, typename T> T req_single_with_reqtype(S input, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType)
 {
 	int reqNumber = getReqNumber();
 
@@ -180,7 +180,7 @@ template <typename S, typename T> T req_single_with_reqtype(S input, int mpiRank
 	return retVal;
 }
 
-template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInputs, int mpiRank, char * tag, sqlite3 * dbHandle, unsigned int reqType)
+template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInputs, int mpiRank, char * tag, dbHandle_t  dbHandle, unsigned int reqType)
 {
 	std::set<int> reqQueue;
 	T * retVal = (T *)malloc(sizeof(T) * numInputs);
@@ -204,7 +204,7 @@ template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInp
 	return retVal;
 }
 
-template<typename T> std::unique_ptr<std::vector<int>> col_insertReqs(T *input, int numInputs, int reqRank, sqlite3 * dbHandle)
+template<typename T> std::unique_ptr<std::vector<int>> col_insertReqs(T *input, int numInputs, int reqRank, dbHandle_t  dbHandle)
 {
 	//Return  a full vector as we have no guarantee of contiguous reqIDs
 	auto retVec = std::make_unique<std::vector<int>>(numInputs, -1);
@@ -221,7 +221,7 @@ template<typename T> std::unique_ptr<std::vector<int>> col_insertReqs(T *input, 
 	return retVec;
 }
 
-template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeOfResults(int nextID, int maxID, int mpiRank, sqlite3 *dbHandle, unsigned int reqType)
+template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeOfResults(int nextID, int maxID, int mpiRank, dbHandle_t dbHandle, unsigned int reqType)
 {
 	auto retVec = std::make_unique<std::vector<std::tuple<int,T>>>();
 	//Put request IDs in a tuple
@@ -272,7 +272,7 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 	return retVec;
 }
 
-template <typename T> std::vector<T> * col_extractResults(std::unique_ptr<std::vector<int>> &reqList, int reqRank, sqlite3 *dbHandle)
+template <typename T> std::vector<T> * col_extractResults(std::unique_ptr<std::vector<int>> &reqList, int reqRank, dbHandle_t dbHandle)
 {
 	///TODO: Consider thought to reducing memory footprint because we can potentially use 2N for this
 	std::vector<T> * retVec = new std::vector<T>(reqList->size());

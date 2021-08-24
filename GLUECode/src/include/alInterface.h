@@ -1,9 +1,11 @@
 #ifndef __alInterface_h
 #define __alInterface_h
 
-#include <sqlite3.h>
 #include <math.h>
 #include <mpi.h>
+#ifdef SOLVER_SIDE_SQLITE
+#include <sqlite3.h>
+#endif
 
 enum ALInterfaceMode_e
 {
@@ -116,32 +118,36 @@ typedef struct bgkmasses_request_s bgkmasses_request_t;
 typedef struct lbmToOneDMD_result_s lbmToOneDMD_result_t;
 typedef struct lbmToOneDMD_request_s lbmToOneDMD_request_t;
 
+#ifdef SOLVER_SIDE_SQLITE
+typedef sqlite3 * dbHandle_t;
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 	//All of these will likely be deprecated in order months
-	bgk_result_t bgk_req_single(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle);
-	bgk_result_t bgk_req_single_with_reqtype(bgk_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
-	bgk_result_t* bgk_req_batch(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
-	bgk_result_t* bgk_req_batch_with_reqtype(bgk_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
-	void bgk_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
+	bgk_result_t bgk_req_single(bgk_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle);
+	bgk_result_t bgk_req_single_with_reqtype(bgk_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
+	bgk_result_t* bgk_req_batch(bgk_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle);
+	bgk_result_t* bgk_req_batch_with_reqtype(bgk_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
+	void bgk_stop_service(int mpiRank, char * tag, dbHandle_t dbHandle);
 
-	bgkmasses_result_t bgkmasses_req_single(bgkmasses_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle);
-	bgkmasses_result_t bgkmasses_req_single_with_reqtype(bgkmasses_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
-	bgkmasses_result_t* bgkmasses_req_batch(bgkmasses_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
-	bgkmasses_result_t* bgkmasses_req_batch_with_reqtype(bgkmasses_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
-	void bgkmasses_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
+	bgkmasses_result_t bgkmasses_req_single(bgkmasses_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle);
+	bgkmasses_result_t bgkmasses_req_single_with_reqtype(bgkmasses_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
+	bgkmasses_result_t* bgkmasses_req_batch(bgkmasses_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle);
+	bgkmasses_result_t* bgkmasses_req_batch_with_reqtype(bgkmasses_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
+	void bgkmasses_stop_service(int mpiRank, char * tag, dbHandle_t dbHandle);
 
-	lbmToOneDMD_result_t lbmToOneDMD_req_single(lbmToOneDMD_request_t input, int mpiRank, char * tag, sqlite3 * dbHandle);
-	lbmToOneDMD_result_t lbmToOneDMD_req_single_with_reqtype(lbmToOneDMD_request_t input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
-	lbmToOneDMD_result_t* lbmToOneDMD_req_batch(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle);
-	lbmToOneDMD_result_t* lbmToOneDMD_req_batch_with_reqtype(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType);
-	void lbmToOneDMD_stop_service(int mpiRank, char * tag, sqlite3 *dbHandle);
+	lbmToOneDMD_result_t lbmToOneDMD_req_single(lbmToOneDMD_request_t input, int mpiRank, char * tag, dbHandle_t  dbHandle);
+	lbmToOneDMD_result_t lbmToOneDMD_req_single_with_reqtype(lbmToOneDMD_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
+	lbmToOneDMD_result_t* lbmToOneDMD_req_batch(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle);
+	lbmToOneDMD_result_t* lbmToOneDMD_req_batch_with_reqtype(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
+	void lbmToOneDMD_stop_service(int mpiRank, char * tag, dbHandle_t dbHandle);
 
 	void resFreeWrapper(void * buffer);
 	
-	sqlite3 * initDB(int mpiRank, char * fName);
+	dbHandle_t  initDB(int mpiRank, char * fName);
 	void closeDB(sqlite3* dbHandle);
 
 	//These are the new interfaces
