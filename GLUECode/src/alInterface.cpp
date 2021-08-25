@@ -7,13 +7,16 @@
 #include <tuple>
 #include <iterator>
 #include <memory>
-#include <sqlite3.h>
 #include <mpi.h>
 
 #ifdef DB_EXISTENCE_SPIN
 #include <experimental/filesystem>
 #include <thread>
 #include <chrono>
+#endif
+
+#ifdef SOLVER_SIDE_SQLITE
+#include <sqlite3.h>
 #endif
 
 ///TODO: Verify this is the correct way to do a global variable
@@ -285,11 +288,11 @@ int readCallback_colbgk(void *NotUsed, int argc, char **argv, char **azColName)
 }
 
 #else
-dbHandle_t* initDB(int mpiRank, char * fName)
+dbHandle_t initDB(int mpiRank, char * fName)
 {
 	exit(1);
 }
-void closeDB(dbHandle_t* dbHandle)
+void closeDB(dbHandle_t dbHandle)
 {
 	exit(1);
 }

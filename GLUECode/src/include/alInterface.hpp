@@ -12,7 +12,6 @@
 #include <queue>
 #include <memory>
 #include <algorithm>
-#include <sqlite3.h>
 
 int getReqNumber();
 int getReqNumberForRank(int rank);

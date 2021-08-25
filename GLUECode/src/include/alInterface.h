@@ -120,6 +120,8 @@ typedef struct lbmToOneDMD_request_s lbmToOneDMD_request_t;
 
 #ifdef SOLVER_SIDE_SQLITE
 typedef sqlite3 * dbHandle_t;
+#else
+typedef void * dbHandle_t;
 #endif
 
 #ifdef __cplusplus
