@@ -147,8 +147,8 @@ extern "C"
 
 	void resFreeWrapper(void * buffer);
 	
-	dbHandle_t  initDB(int mpiRank, char * fName);
-	void closeDB(sqlite3* dbHandle);
+	dbHandle_t initDB(int mpiRank, char * fName);
+	void closeDB(dbHandle_t dbHandle);
 
 	//These are the new interfaces
 	void connectGlue(char * fName, MPI_Comm glueComm);

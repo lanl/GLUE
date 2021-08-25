@@ -36,7 +36,7 @@ template <typename T> struct AsyncSelectTable_t
 extern AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
 extern std::vector<AsyncSelectTable_t<bgk_result_t>> globalColBGKResultTable;
 extern AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
-extern sqlite3* globalGlueDBHandle;
+extern dbHandle_t globalGlueDBHandle;
 extern const unsigned int globalGlueBufferSize;
 
 template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
@@ -141,7 +141,7 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, dbHandle_t 
 
 	while(!haveResult)
 	{
-		//Send SELECT with sqlite3_exec. 
+		//Send SELECT
 		std::string sqlString = getResultSQLString<T>(mpiRank, tag, reqNum);
 		sendSQLCommand<T>(sqlString, dbHandle);
 
@@ -239,7 +239,7 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 	///NOTE: This seems to be the start chunk?
 	while(!haveResult)
 	{
-		//Send SELECT with sqlite3_exec. 
+		//Send SELECT
 		std::string sqlString = getResultSQLStringReqRange<T>(mpiRank, const_cast<char *>(tag.c_str()), reqRange);
 		sendSQLCommand<T>(sqlString, dbHandle);
 

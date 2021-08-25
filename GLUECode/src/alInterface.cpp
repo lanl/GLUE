@@ -20,7 +20,7 @@
 AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
 AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
 std::vector<AsyncSelectTable_t<bgk_result_t>> globalColBGKResultTable;
-sqlite3* globalGlueDBHandle;
+dbHandle_t globalGlueDBHandle;
 const unsigned int globalGlueBufferSize = 1024;
 
 int getReqNumber()
@@ -145,7 +145,30 @@ void lbmToOneDMD_stop_service(int mpiRank, char * tag, dbHandle_t dbHandle)
 	return;
 }
 
-sqlite3* initDB(int mpiRank, char * fName)
+void resFreeWrapper(void * buffer)
+{
+	free(buffer);
+}
+
+void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **processedInput, int * numProcessedInputs)
+{
+	//Look for and remove duplicates
+	///TODO
+	*processedInput = input;
+	*numProcessedInputs = numInputs;
+	return;
+}
+
+bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
+{
+	return req_collective<bgk_request_t, bgk_result_t>(input, numInputs, glueComm);
+}
+
+
+///TODO: Figure out a good way to refactor this
+#ifdef SOLVER_SIDE_SQLITE
+
+dbHandle_t initDB(int mpiRank, char * fName)
 {
 #ifdef DB_EXISTENCE_SPIN
 	while(!std::experimental::filesystem::exists(fName))
@@ -158,14 +181,9 @@ sqlite3* initDB(int mpiRank, char * fName)
 	return dbHandle;
 }
 
-void closeDB(sqlite3* dbHandle)
+void closeDB(dbHandle_t dbHandle)
 {
 	sqlite3_close(dbHandle);
-}
-
-void resFreeWrapper(void * buffer)
-{
-	free(buffer);
 }
 
 void connectGlue(char * fName, MPI_Comm glueComm)
@@ -182,20 +200,6 @@ void connectGlue(char * fName, MPI_Comm glueComm)
 		//And resize result table
 		globalColBGKResultTable.resize(commSize);
 	}
-}
-
-void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **processedInput, int * numProcessedInputs)
-{
-	//Look for and remove duplicates
-	///TODO
-	*processedInput = input;
-	*numProcessedInputs = numInputs;
-	return;
-}
-
-bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
-{
-	return req_collective<bgk_request_t, bgk_result_t>(input, numInputs, glueComm);
 }
 
 void closeGlue(MPI_Comm glueComm)
@@ -280,4 +284,35 @@ int readCallback_colbgk(void *NotUsed, int argc, char **argv, char **azColName)
 	return 0;
 }
 
+#else
+dbHandle_t* initDB(int mpiRank, char * fName)
+{
+	exit(1);
+}
+void closeDB(dbHandle_t* dbHandle)
+{
+	exit(1);
+}
+void connectGlue(char * fName, MPI_Comm glueComm)
+{
+	exit(1);
+}
+void closeGlue(MPI_Comm glueComm)
+{
+	exit(1);
+}
+
+int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName)
+{
+	exit(1);
+}
+int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColName)
+{
+	exit(1);
+}
+int readCallback_colbgk(void *NotUsed, int argc, char **argv, char **azColName)
+{
+	exit(1);
+}
+#endif
 
