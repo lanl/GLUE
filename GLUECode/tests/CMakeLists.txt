@@ -6,3 +6,12 @@ target_link_libraries(sniffTest_serial PRIVATE GLUECode)
 
 add_executable(sniffTest_fortranBGK sniffTest_fortranBGK_c.cpp sniffTest_fortranBGK_f.f90)
 target_link_libraries(sniffTest_fortranBGK PRIVATE GLUECode)
+
+add_executable(fullTest_collectiveICF fullTest_collectiveICF.c)
+target_link_libraries(fullTest_collectiveICF PRIVATE GLUECode)
+
+add_executable(stressTest_analyticICF_collective stressTest_analyticICF_collective.c)
+target_link_libraries(stressTest_analyticICF_collective PRIVATE GLUECode)
+
+add_executable(stressTest_analyticICF stressTest_analyticICF.c)
+target_link_libraries(stressTest_analyticICF PRIVATE GLUECode)
