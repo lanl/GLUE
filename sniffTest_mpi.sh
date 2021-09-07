@@ -1,7 +1,7 @@
 #!/bin/bash
 python $(dirname $BASH_SOURCE)/initTables.py -i $(dirname $BASH_SOURCE)/jsonFiles/sniffTest_mpi.json
 python $(dirname $BASH_SOURCE)/alInterface.py -i $(dirname $BASH_SOURCE)/jsonFiles/sniffTest_mpi.json &
-mpirun -n 4 $(dirname $BASH_SOURCE)/sniffTest_mpi
+mpirun -n 4 $(dirname $BASH_SOURCE)/bld/GLUECode/tests/sniffTest_mpi
 if [ $? -eq 0 ]
 then
   sleep 2

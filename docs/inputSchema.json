@@ -40,10 +40,6 @@
 			"description": "Provisioning Method to use corresponding to ProvisioningInterface Enum",
 			"type": "integer"
 		},
-		"DatabaseMode":{
-			"description": "Database mode to use corresponding to DatabaseMode Enum",
-			"type": "integer"
-		},
 		"JobEnvFile": {
 			"description": "File to execute as part of job to set environments (modules, vars, etc). If not absolute will assume path exists in ${REPO}/envFiles",
 			"type": "string"
@@ -66,8 +62,7 @@
 				}
 			}
 		},
-		"ManualProvisioning":
-		{
+		"ManualProvisioning":{
 			"type": "object",
 			"description": "Parameters for Manual Provisioning",
 			"properties": {
@@ -145,24 +140,6 @@
 				}
 			}
 		},
-		"SQLiteSettings":{
-			"type": "object",
-			"description": "General Settings for SQLite DB",
-			"properties":{
-				"SQLitePath":{
-					"description": "Optional Path to SQLite binary",
-					"type": "string"
-				},
-				"CGDBFilename": {
-					"description": "Filename to use for coarse grain solver and glue code SQL database",
-					"type": "string"
-				},
-				"FGDBFilename": {
-					"description": "Filename to use for fine grain solver tasks SQL database",
-					"type": "string"
-				}
-			}
-		},
 		"ActiveLearningVariables":{
 			"type": "object",
 			"description": "General Parameters for Active Learning",
@@ -173,6 +150,70 @@
 				},
 				"NumberOfRequestingActiveLearners":{
 					"description": "Number of active learning agents expected to make fine grain sim requests"
+				}
+			}
+		},
+		"DatabaseSettings":{
+			"type": "object",
+			"description": "Settings and Settings for Databases",
+			"properties":{
+				"CoarseGrainDB":{
+					"type": "object",
+					"description": "Settings for Coarse Grain DB",
+					"properties":{
+						"DatabaseMode":{
+							"description": "Database mode to use corresponding to DatabaseMode Enum",
+							"type": "integer"
+						},
+						"DatabaseURL":{
+							"description": "URL/Path to Database",
+							"type": "string"
+						},
+						"DatabaseUser":{
+							"description": "Optional insecure username for DB",
+							"type": "string"
+						},
+						"DatabasePassword":{
+							"description": "Optional really insecure password for DB",
+							"type": "string"
+						}
+					}
+				},
+				"FineGrainDB":{
+					"type": "object",
+					"description": "Settings for Fine Grain DB",
+					"properties":{
+						"DatabaseMode":{
+							"description": "Database mode to use corresponding to DatabaseMode Enum",
+							"type": "integer"
+						},
+						"DatabaseURL":{
+							"description": "URL/Path to Database",
+							"type": "string"
+						},
+						"DatabaseUser":{
+							"description": "Optional insecure username for DB",
+							"type": "string"
+						},
+						"DatabasePassword":{
+							"description": "Optional really insecure password for DB",
+							"type": "string"
+						}
+					}
+				},
+				"SupplementalDB":{
+					"type": "object",
+					"description": "Settings for Supplemental DB",
+					"properties":{
+						"DatabaseMode":{
+							"description": "Database mode to use corresponding to DatabaseMode Enum",
+							"type": "integer"
+						},
+						"DatabaseURL":{
+							"description": "URL/Path to Database",
+							"type": "string"
+						}
+					}
 				}
 			}
 		}

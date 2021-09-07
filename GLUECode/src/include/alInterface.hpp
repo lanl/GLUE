@@ -2,6 +2,7 @@
 #define __alInterface_hpp
 
 #include "alInterface.h"
+#include "alDBInterfaces.hpp"
 #include <map>
 #include <mutex>
 #include <set>
@@ -11,7 +12,6 @@
 #include <queue>
 #include <memory>
 #include <algorithm>
-#include <sqlite3.h>
 
 int getReqNumber();
 int getReqNumberForRank(int rank);
@@ -35,30 +35,8 @@ template <typename T> struct AsyncSelectTable_t
 extern AsyncSelectTable_t<bgk_result_t> globalBGKResultTable;
 extern std::vector<AsyncSelectTable_t<bgk_result_t>> globalColBGKResultTable;
 extern AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
-extern sqlite3* globalGlueDBHandle;
+extern dbHandle_t globalGlueDBHandle;
 extern const unsigned int globalGlueBufferSize;
-
-static int dummyCallback(void *NotUsed, int argc, char **argv, char **azColName);
-static int readCallback_bgk(void *NotUsed, int argc, char **argv, char **azColName);
-static int readCallback_colbgk(void *NotUsed, int argc, char **argv, char **azColName);
-
-template <typename T> int makeSQLRequest(sqlite3 * dbHandle, char * message, char ** errOut)
-{
-	return sqlite3_exec(dbHandle, message, dummyCallback, 0, errOut);
-}
-template <> int makeSQLRequest<bgk_result_t>(sqlite3 * dbHandle, char * message, char ** errOut)
-{
-	return sqlite3_exec(dbHandle, message, readCallback_bgk, 0, errOut);
-}
-
-template <typename T> int makeColSQLRequest(sqlite3 * dbHandle, char * message, char ** errOut)
-{
-	return sqlite3_exec(dbHandle, message, dummyCallback, 0, errOut);
-}
-template <> int makeColSQLRequest<bgk_result_t>(sqlite3 * dbHandle, char * message, char ** errOut)
-{
-	return sqlite3_exec(dbHandle, message, readCallback_colbgk, 0, errOut);
-}
 
 template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
 {
@@ -141,28 +119,14 @@ template <> std::string getResultSQLString<lbmToOneDMD_result_t>(int mpiRank, ch
 	exit(1);
 }
 
-template <typename T> void writeRequest(T input, int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
+template <typename T> void writeRequest(T input, int mpiRank, char * tag, dbHandle_t  dbHandle, int reqNum, unsigned int reqType)
 {
 	std::string sqlString = getReqSQLString<T>(input, mpiRank, tag, reqNum, reqType);
-	char *zErrMsg = nullptr;
-	int sqlRet = makeSQLRequest<void>(dbHandle, (char *)sqlString.c_str(), &zErrMsg);
-	while( sqlRet != SQLITE_OK )
-	{
-		sqlRet = makeSQLRequest<void>(dbHandle, (char *)sqlString.c_str(), &zErrMsg);
-		if(!(sqlRet == SQLITE_OK || sqlRet == SQLITE_BUSY || sqlRet == SQLITE_LOCKED))
-		{
-			fprintf(stderr, "Error in writeRequest<T>\n");
-			fprintf(stderr, "SQL error %d: %s\n", sqlRet, zErrMsg);
-			fprintf(stderr, "SQL Message: %s\n", sqlString.c_str());
-			sqlite3_free(zErrMsg);
-			sqlite3_close(dbHandle);
-			exit(1);
-		}
-	}
+	sendSQLCommand<T>(sqlString, dbHandle);
 	return;
 }
 
-template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * dbHandle, int reqNum, unsigned int reqType)
+template <typename T> T readResult_blocking(int mpiRank, char * tag, dbHandle_t  dbHandle, int reqNum, unsigned int reqType)
 {
 	T retVal;
 	char sqlBuf[2048];
@@ -173,25 +137,13 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * d
 	{
 		haveResult = true;
 	}
+
 	while(!haveResult)
 	{
-		//Send SELECT with sqlite3_exec. 
+		//Send SELECT
 		std::string sqlString = getResultSQLString<T>(mpiRank, tag, reqNum);
-		sprintf(sqlBuf, sqlString.c_str(), reqNum, tag, mpiRank);
-		int rc = makeSQLRequest<T>(dbHandle, sqlBuf, &err);
-		while (rc != SQLITE_OK)
-		{
-			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
-			rc = makeSQLRequest<T>(dbHandle, sqlBuf, &err);
-			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
-			{
-				fprintf(stderr, "Error in readResult_blocking<T>\n");
-				fprintf(stderr, "SQL error %d: %s\n", rc, err);
-				sqlite3_free(err);
-				sqlite3_close(dbHandle);
-				exit(1);
-			}
-		}
+		sendSQLCommand<T>(sqlString, dbHandle);
+
 		//SQL did something, so Get table
 		auto globalTable = getGlobalTable<T>();
 
@@ -212,7 +164,7 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, sqlite3 * d
 	return retVal;
 }
 
-template <typename S, typename T> T req_single_with_reqtype(S input, int mpiRank, char * tag, sqlite3 *dbHandle, unsigned int reqType)
+template <typename S, typename T> T req_single_with_reqtype(S input, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType)
 {
 	int reqNumber = getReqNumber();
 
@@ -227,7 +179,7 @@ template <typename S, typename T> T req_single_with_reqtype(S input, int mpiRank
 	return retVal;
 }
 
-template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInputs, int mpiRank, char * tag, sqlite3 * dbHandle, unsigned int reqType)
+template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInputs, int mpiRank, char * tag, dbHandle_t  dbHandle, unsigned int reqType)
 {
 	std::set<int> reqQueue;
 	T * retVal = (T *)malloc(sizeof(T) * numInputs);
@@ -251,7 +203,7 @@ template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInp
 	return retVal;
 }
 
-template<typename T> std::unique_ptr<std::vector<int>> col_insertReqs(T *input, int numInputs, int reqRank, sqlite3 * dbHandle)
+template<typename T> std::unique_ptr<std::vector<int>> col_insertReqs(T *input, int numInputs, int reqRank, dbHandle_t  dbHandle)
 {
 	//Return  a full vector as we have no guarantee of contiguous reqIDs
 	auto retVec = std::make_unique<std::vector<int>>(numInputs, -1);
@@ -268,7 +220,7 @@ template<typename T> std::unique_ptr<std::vector<int>> col_insertReqs(T *input, 
 	return retVec;
 }
 
-template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeOfResults(int nextID, int maxID, int mpiRank, sqlite3 *dbHandle, unsigned int reqType)
+template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeOfResults(int nextID, int maxID, int mpiRank, dbHandle_t dbHandle, unsigned int reqType)
 {
 	auto retVec = std::make_unique<std::vector<std::tuple<int,T>>>();
 	//Put request IDs in a tuple
@@ -282,26 +234,14 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 	{
 		haveResult = true;
 	}
+
+	///NOTE: This seems to be the start chunk?
 	while(!haveResult)
 	{
-		//Send SELECT with sqlite3_exec. 
+		//Send SELECT
 		std::string sqlString = getResultSQLStringReqRange<T>(mpiRank, const_cast<char *>(tag.c_str()), reqRange);
-		sprintf(sqlBuf, sqlString.c_str());
-		//sprintf(sqlBuf, sqlString.c_str(), reqNum, const_cast<char *>(tag.c_str()), mpiRank);
-		int rc = makeColSQLRequest<T>(dbHandle, sqlBuf, &err);
-		while (rc != SQLITE_OK)
-		{
-			//THIS IS REALLY REALLY BAD: We can easily lock up if an expression is malformed
-			rc = makeColSQLRequest<T>(dbHandle, sqlBuf, &err);
-			if(!(rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED))
-			{
-				fprintf(stderr, "Error in getRangeOfResults<T>\n");
-				fprintf(stderr, "SQL error %d: %s\n", rc, err);
-				sqlite3_free(err);
-				sqlite3_close(dbHandle);
-				exit(1);
-			}
-		}
+		sendSQLCommand<T>(sqlString, dbHandle);
+
 		//SQL did something, so Get table
 		auto globalTable = getGlobalColTable<T>(mpiRank);
 		//And get lock (less needed in this mode)
@@ -331,7 +271,7 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 	return retVec;
 }
 
-template <typename T> std::vector<T> * col_extractResults(std::unique_ptr<std::vector<int>> &reqList, int reqRank, sqlite3 *dbHandle)
+template <typename T> std::vector<T> * col_extractResults(std::unique_ptr<std::vector<int>> &reqList, int reqRank, dbHandle_t dbHandle)
 {
 	///TODO: Consider thought to reducing memory footprint because we can potentially use 2N for this
 	std::vector<T> * retVec = new std::vector<T>(reqList->size());

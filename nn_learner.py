@@ -226,10 +226,10 @@ def assemble_dataset(raw_dataset,solver_code):
     return torch.utils.data.TensorDataset(features,targets)
 
 #prototype, only covers ensemble uncertainties
-def retrain(db_path,learning_config=DEFAULT_LEARNING_CONFIG):
+def retrain(db_handle,learning_config=DEFAULT_LEARNING_CONFIG):
 
     solver = learning_config["solver_type"]
-    raw_dataset = getAllGNDData(db_path,solver)
+    raw_dataset = getAllGNDData(db_handle,solver)
     full_dataset = assemble_dataset(raw_dataset,solver)
 
 

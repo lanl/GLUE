@@ -52,7 +52,7 @@ int main(int argc, char ** argv)
 		}
 
 		//Initialize DB
-		sqlite3 *dbHandle = initDB(0, fName);
+		dbHandle_t dbHandle = initDB(0, fName);
 
 		//Timesteps
 		for(int t = 0; t < nSteps; t++)

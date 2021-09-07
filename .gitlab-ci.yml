@@ -2,30 +2,14 @@ stages:
   - build
   - test
 
-build:gnu:
-  stage: build
-  tags:
-    - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-gnu.sh
-    - make all
-    - make test
-  artifacts:
-    paths:
-    - alinterface_f.mod
-    - libalGlue.a
-    - sniffTest_serial
-    - sniffTest_mpi
-    expire_in: 1 day
-
-# build:intel:
+# make:gnu:
 #   stage: build
 #   tags:
 #     - darwin-slurm-shared
 #   script:
-#     - source envScripts/darwin-intel.sh
-#     - make all CC=icpc CXX=icpc FC=ifort MPICXX=mpicxx
-#     - make test CC=icpc CXX=icpc FC=ifort MPICXX=mpicxx
+#     - source envScripts/darwin-gnu.sh
+#     - make all
+#     - make test
 #   artifacts:
 #     paths:
 #     - alinterface_f.mod
@@ -34,20 +18,78 @@ build:gnu:
 #     - sniffTest_mpi
 #     expire_in: 1 day
 
-build:clang:
+# make:intel:
+#   stage: build
+#   tags:
+#     - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-intel.sh
+#     - make all CC=icpc CXX=icpc FC=ifort
+#     - make test CC=icpc CXX=icpc FC=ifort
+#   artifacts:
+#     paths:
+#     - alinterface_f.mod
+#     - libalGlue.a
+#     - sniffTest_serial
+#     - sniffTest_mpi
+#     expire_in: 1 day
+
+# make:clang:
+#   stage: build
+#   tags:
+#     - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-clang.sh
+#     - make all CC=clang CXX=clang++ FC=gfortran
+#     - make test CC=clang CXX=clang++ FC=gfortran
+#   artifacts:
+#     paths:
+#     - alinterface_f.mod
+#     - libalGlue.a
+#     - sniffTest_serial
+#     - sniffTest_mpi
+#     expire_in: 1 day
+
+cmake:gnu:
+  stage: build
+  tags:
+    - darwin-slurm-shared
+  script:
+    - source envScripts/darwin-gnu.sh
+    - mkdir bld && cd bld
+    - cmake ..
+    - make
+  artifacts:
+    paths:
+    - bld
+    expire_in: 1 day
+
+# cmake:intel:
+#   stage: build
+#   tags:
+#     - darwin-slurm-shared
+#   script:
+#     - source envScripts/darwin-intel.sh
+#     - mkdir bld && cd bld
+#     - cmake ..
+#     - make
+#   artifacts:
+#     paths:
+#     - bld
+#     expire_in: 1 day
+
+cmake:clang:
   stage: build
   tags:
     - darwin-slurm-shared
   script:
     - source envScripts/darwin-clang.sh
-    - make all CC=clang CXX=clang++ FC=gfortran
-    - make test CC=clang CXX=clang++ FC=gfortran
+    - mkdir bld && cd bld
+    - cmake ..
+    - make
   artifacts:
     paths:
-    - alinterface_f.mod
-    - libalGlue.a
-    - sniffTest_serial
-    - sniffTest_mpi
+    - bld
     expire_in: 1 day
 
 test:gnu:
@@ -58,9 +100,9 @@ test:gnu:
     - source envScripts/darwin-gnu.sh
     - mkdir serial && cd serial
     - bash ../sniffTest_serial.sh
-  needs: ["build:gnu"]
+  needs: ["cmake:gnu"]
   dependencies:
-    - build:gnu
+    - cmake:gnu
 
 test:gnu_mpi:
   stage: test
@@ -70,9 +112,9 @@ test:gnu_mpi:
     - source envScripts/darwin-gnu.sh
     - mkdir mpi && cd mpi
     - bash ../sniffTest_mpi.sh
-  needs: ["build:gnu"]
+  needs: ["cmake:gnu"]
   dependencies:
-    - build:gnu
+    - cmake:gnu
 
 # test:intel:
 #   stage: test
@@ -82,9 +124,9 @@ test:gnu_mpi:
 #     - source envScripts/darwin-intel.sh
 #     - mkdir serial && cd serial
 #     - bash ../sniffTest_serial.sh
-#   needs: ["build:intel"]
+#   needs: ["cmake:intel"]
 #   dependencies:
-#     - build:intel
+#     - cmake:intel
 
 test:clang:
   stage: test
@@ -94,6 +136,6 @@ test:clang:
     - source envScripts/darwin-clang.sh
     - mkdir serial && cd serial
     - bash ../sniffTest_serial.sh
-  needs: ["build:clang"]
+  needs: ["cmake:clang"]
   dependencies:
-    - build:clang
+    - cmake:clang

@@ -1,11 +1,11 @@
 import argparse
 from alInterface import  insertResult,  getGroundishTruthVersion, insertResultSlow
-from glueCodeTypes import BGKOutputs, ALInterfaceMode, ResultProvenance, SolverCode
+from glueCodeTypes import BGKOutputs, ALInterfaceMode, DatabaseMode, ResultProvenance, SolverCode. DatabaseMode
 from writeBGKLammpsScript import write_output_coeff
-import numpy as np
-import sqlite3
+from alDBHandlers import getDBHandle
 import os
 import re
+import numpy as np
 
 def speciesNotationToArrayIndex(in0, in1):
     (spec0, spec1) = sorted( (in0, in1) )
@@ -68,7 +68,7 @@ def matchLammpsOutputsToArgs(outputDirectory):
             thermoCond = procBGKCSVFile('k', os.path.join(outputDirectory, dirFile))
     return (diffCoeffs, visco, thermoCond)
 
-def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
+def procOutputsAndProcess(tag, dbHandle, rank, reqid, lammpsMode, solverCode):
     if solverCode == SolverCode.BGK:
         # Pull densities
         densities = np.loadtxt("densities.txt")
@@ -82,13 +82,9 @@ def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
         bgkOutput = BGKOutputs(Viscosity=viscosity, ThermalConductivity=thermalConductivity, DiffCoeff=diffCoeffs)
         # Write the tuple
         if(lammpsMode == ALInterfaceMode.FGS):
-            sqlDB = sqlite3.connect(dbPath, timeout=45.0)
-            insertResultSlow(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FGS, sqlDB)
-            sqlDB.close()
+            insertResultSlow(rank, tag, reqid, bgkOutput, ResultProvenance.FGS, dbHandle)
         elif(lammpsMode == ALInterfaceMode.FASTFGS):
-            sqlDB = sqlite3.connect(dbPath, timeout=45.0)
-            insertResultSlow(rank, tag, dbPath, reqid, bgkOutput, ResultProvenance.FASTFGS, sqlDB)
-            sqlDB.close()
+            insertResultSlow(rank, tag, reqid, bgkOutput, ResultProvenance.FASTFGS, dbHandle)
         else:
             raise Exception('Using Unsupported FGS Mode')
         outputList = []
@@ -101,33 +97,29 @@ def procOutputsAndProcess(tag, dbPath, rank, reqid, lammpsMode, solverCode):
         # Unknown solver code
         raise Exception('Not Implemented')
 
-def insertGroundishTruth(dbPath, outFGS, solverCode):
+def insertGroundishTruth(dbHandle, outFGS, solverCode):
     if solverCode == SolverCode.BGK:
         #Pull data to write
         inFGS = np.loadtxt("inputs.txt")
         #np.savetxt("outputs.txt", outFGS)
         #Connect to DB
-        sqlDB = sqlite3.connect(dbPath)
-        sqlCursor = sqlDB.cursor()
+        dbHandle.openCursor()
         insString = "INSERT INTO BGKGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         insArgs = tuple(inFGS.tolist()) + tuple(outFGS.tolist())
-        sqlCursor.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlCursor.close()
-        sqlDB.close()
+        dbHandle.execute(insString, insArgs)
+        dbHandle.openCursor().commit()
+        dbHandle.closeCursor()
     elif solverCode == SolverCode.BGKMASSES:
         #Pull data to write
         inFGS = np.loadtxt("inputs.txt")
         #np.savetxt("outputs.txt", outFGS)
         #Connect to DB
-        sqlDB = sqlite3.connect(dbPath)
-        sqlCursor = sqlDB.cursor()
+        dbHandle.openCursor()
         insString = "INSERT INTO BGKMASSESGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         insArgs = tuple(inFGS.tolist()) + tuple(outFGS.tolist())
-        sqlCursor.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlCursor.close()
-        sqlDB.close()
+        dbHandle.execute(insString, insArgs)
+        dbHandle.openCursor().commit()
+        dbHandle.closeCursor()
 
 if __name__ == "__main__":
     defaultFName = "testDB.db"
@@ -136,17 +128,24 @@ if __name__ == "__main__":
     defaultID = 0
     defaultProcessing = ALInterfaceMode.FGS
     defaultSolver = SolverCode.BGK
+    defaultDBBackend= DatabaseMode.SQLITE
+    defaultUName="THISISBAD"
+    defaultPassword="THISISrealBAD"
 
     # No need to preserve global arg parsing logic as we have all we need here
 
     argParser = argparse.ArgumentParser(description='Python Driver to Convert FGS BGK Result into DB Entry')
 
+    #TODO: Add args for db uname and password
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
     argParser.add_argument('-r', '--rank', action='store', type=int, required=False, default=defaultRank, help="MPI Rank of Requester")
     argParser.add_argument('-i', '--id', action='store', type=int, required=False, default=defaultID, help="Request ID")
     argParser.add_argument('-d', '--db', action='store', type=str, required=False, default=defaultFName, help="Filename for sqlite DB")
     argParser.add_argument('-m', '--mode', action='store', type=int, required=False, default=defaultProcessing, help="Default Request Type (FGS=0)")
     argParser.add_argument('-c', '--code', action='store', type=int, required=False, default=defaultSolver, help="Code to expect Packets from (BGK=0)")
+    argParser.add_argument('-b', '--dbbackend', action='store', type=int, required=False, default=defaultDBBackend, help='Database Backend for Request (SQLUTE=0)')
+    argParser.add_argument('-u', '--username', action='store', type=str, required=False, default=defaultUName, help="Default Username for Database")
+    argParser.add_argument('-p', '--password', action='store', type=str, required=False, default=defaultPassword, help="Default Ridiculously Insecure Password for Database")
 
     args = vars(argParser.parse_args())
 
@@ -156,7 +155,17 @@ if __name__ == "__main__":
     reqid = args['id']
     mode = ALInterfaceMode(args['mode'])
     code = SolverCode(args['code'])
+    dbBackend = DatabaseMode(args['dbbackend'])
 
-    resultArr = procOutputsAndProcess(tag, globalDBName, rank, reqid, mode, code)
+    dbConfigDict = {}
+    dbConfigDict["DatabaseMode"] = dbBackend
+    dbConfigDict["DatabaseURL"] = globalDBName
+    dbConfigDict["DatabaseUser"] = args['username']
+    dbConfigDict['DatabasePassword'] = args['password']
+
+    dbHandle = getDBHandle(dbConfigDict)
+
+    resultArr = procOutputsAndProcess(tag, dbHandle, rank, reqid, mode, code)
     if(mode == ResultProvenance.FGS):
-        insertGroundishTruth(globalDBName, resultArr, code)
+        insertGroundishTruth(dbHandle, resultArr, code)
+    dbHandle.closeDB()

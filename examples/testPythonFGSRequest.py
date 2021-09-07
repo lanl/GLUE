@@ -6,6 +6,7 @@ import numpy as np
 import time
 
 if __name__ == "__main__":
+    raise Exception("testPythonFGSRequest.py harness currently unsupported")
     # Really convoluted way to get some example inputs
     pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
     repoDir = os.path.dirname(pythonScriptDir)

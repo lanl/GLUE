@@ -8,7 +8,7 @@ int main(int argc, char ** argv)
 	const char * tag = "makeMeOptionalAlready";
 
 	//Initialize DB
-	sqlite3 *dbHandle = initDB(0, (char *)fName);
+	dbHandle_tdbHandle = initDB(0, (char *)fName);
 
 	//Set up test cases
 	///TODO: This is probably hard coded

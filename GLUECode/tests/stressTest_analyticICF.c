@@ -22,7 +22,7 @@ int main(int argc, char ** argv)
 	}
 
 	//Initialize DB
-	sqlite3 *dbHandle = initDB(0, fName);
+	dbHandle_t dbHandle = initDB(0, fName);
 
 	//Set up buffer
 	bgk_request_t * reqBuffer = malloc(sizeof(bgk_request_t) * numReqs);

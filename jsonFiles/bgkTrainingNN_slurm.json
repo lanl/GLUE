@@ -17,9 +17,14 @@
 	"GenerateTrainingData": true,
 	"ReadTrainingData": false,
 	"SpackCompilerAndMPI": "%gcc@7.3.0 ^openmpi@3.1.3%gcc@7.3.0",
-	"DatabaseMode": 0,
-	"SQLiteSettings":{
-		"CGDBFilename": "testDB.db",
-		"FGDBFilename": "otherTestDB.db"
+	"DatabaseSettings":{
+		"CoarseGrainDB":{
+			"DatabaseMode": 0,
+			"DatabaseURL": "testDB.db"
+		},
+		"FineGrainDB":{
+			"DatabaseMode": 0,
+			"DatabaseURL": "otherTestDB.db"
+		}
 	}
 }
