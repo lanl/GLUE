@@ -264,7 +264,7 @@ def getFluxQueue():
     else:
         return (0, [])
 
-
+# TODO: Make sure this is all from the fine grain table, not coarse grain, because wow
 def getAllGNDData(dbHandle, solverCode):
     selString = ""
     if solverCode == SolverCode.BGK:
@@ -436,7 +436,7 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
                     argList += "- p " + fgDBStruct["DatabasePassword"]
                 # Pass args to script
                 slurmFile.write("`which python3` " + bgkResultScript
-                    + argList 
+                    + argList
                     + "\n")
                 slurmFile.write("\n")
             #Chmod+x that script
@@ -582,7 +582,8 @@ def mergeBufferTable(solverCode, cgDB):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def pullGlobalGNDToFastDBPython(solverCode, cgDB, fgDB):
+#TODO: We do not actually pull GND. Just Results. Check if that is okay. It probably isn't
+def pullGlobalResultsToFastDBPython(solverCode, cgDB, fgDB):
     # Manually copy data in by opening the DB, reading it, and then writing results
     if solverCode == SolverCode.BGK:
         # Open Fine Grain DB
@@ -607,10 +608,10 @@ def pullGlobalGNDToFastDBPython(solverCode, cgDB, fgDB):
             cgDB.commit()
             cgDB.closeCursor()
     else:
-        raise Exception('pullGlobalGNDToFastDBPython: Using Unsupported Solver Code')
+        raise Exception('pullGlobalResultsToFastDBPython: Using Unsupported Solver Code')
 
-def pullGlobalGNDToFastDBAttach(solverCode, cgDB, fgDB):
-    raise Exception('pullGlobalGNDToFastDBAttach: Currently Unsupported')
+def pullGlobalResultsToFastDBAttach(solverCode, cgDB, fgDB):
+    raise Exception('pullGlobalResultsToFastDBAttach: Currently Unsupported')
     # Might need to add to fine grain db path  because of different dirs?
     #TODO: Probably do two approaches
     #  1. If both DB types are the same, attach?
@@ -651,9 +652,9 @@ def pullGlobalGNDToFastDBAttach(solverCode, cgDB, fgDB):
         fastDB.commit()
         sqlCursor.close()
     else:
-        raise Exception('pullGlobalGNDToFastDBAttach: Using Unsupported Solver Code')
+        raise Exception('pullGlobalResultsToFastDBAttach: Using Unsupported Solver Code')
 
-def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbCache):
+def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, cgDB, fgDB, dbCache):
     tag = configStruct['tag']
     # This is a brute force call. We only want an exact LAMMPS result
     outFGS = None
@@ -662,15 +663,15 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbC
     # If no hit, we check the DB
     if outFGS == None:
         selQuery = getGNDStringAndTuple(inArgs, configStruct)
-        sqlDB.openCursor()
-        for row in sqlDB.execute(selQuery[0], selQuery[1]):
+        fgDB.openCursor()
+        for row in fgDB.execute(selQuery[0], selQuery[1]):
             if isinstance(inArgs, BGKInputs):
                 if row[22] == getGroundishTruthVersion(SolverCode.BGK):
                     outFGS = BGKOutputs(Viscosity=row[10], ThermalConductivity=row[11], DiffCoeff=row[12:22])
             elif isinstance(inArgs, BGKMassesInputs):
                 if row[26] == getGroundishTruthVersion(SolverCode.BGKMASSES):
                     outFGS = BGKMassesOutputs(Viscosity=row[14], ThermalConductivity=row[15], DiffCoeff=row[16:26])
-        sqlDB.closeCursor()
+        fgDB.closeCursor()
         # Did we get a hit?
         if outFGS != None:
             # Put it in the DBCache for later
@@ -679,13 +680,15 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, sqlDB, dbC
     #Did we get a hit from either?
     if outFGS != None:
         # We had a hit, so send that
-        insertResult(rank, tag, reqID, outFGS, ResultProvenance.DB, sqlDB)
+        insertResult(rank, tag, reqID, outFGS, ResultProvenance.DB, cgDB)
     else:
         # Nope, so now we see if we need an FGS job
         if useAnalyticSolution(inArgs):
             # It was, so let's get that solution
             results = getAnalyticSolution(inArgs)
-            insertResult(rank, tag, reqID, results, ResultProvenance.FGS, sqlDB)
+            insertResult(rank, tag, reqID, results, ResultProvenance.FGS, cgDB)
+            # TODO: Apparently we never wrote valid analytic solutions to ground truth table
+            #  Do we want to? Probably?
         else:
             # Call fgs with args as scheduled job
             # job will write result back
@@ -749,13 +752,16 @@ def pollAndProcessFGSRequests(configStruct, uname):
     GNDcnt = 0
     #And start the glue loop
     keepSpinning = True
+    print("Starting Loop")
     while keepSpinning:
+        #print("Loop Iter")
         #Logic to not hammer DB/learner with unnecessary retraining requests
-        nuGNDcnt = getGNDCount(cgDB, packetType)
+        # TODO: Ground truths from fine grain, not coarse grain
+        nuGNDcnt = getGNDCount(fgDB, packetType)
         if defaultMode == ALInterfaceMode.ACTIVELEARNER and ((nuGNDcnt - GNDcnt) > GNDthreshold or GNDcnt == 0):
             with open('alLog.out', 'w') as alOut, open('alLog.err', 'w') as alErr:
                 with redirect_stdout(alOut), redirect_stdout(alErr):
-                    interpModel = getInterpModel(packetType, alBackend, cgDB)
+                    interpModel = getInterpModel(packetType, alBackend, fgDB)
             GNDcnt = nuGNDcnt
         #Now populate the task queue
         for i in range(0, numRanks + numALRequesters):
@@ -805,7 +811,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 modeSwitch = requestedMode
             if modeSwitch == ALInterfaceMode.FGS or modeSwitch == ALInterfaceMode.FASTFGS:
                 # Submit as LAMMPS job
-                queueFGSJob(configStruct, uname, reqID, taskArgs, rank, modeSwitch, cgDB, dbCache)
+                queueFGSJob(configStruct, uname, reqID, taskArgs, rank, modeSwitch, cgDB, fgDB, dbCache)
             elif modeSwitch == ALInterfaceMode.ACTIVELEARNER:
                 # General (Active) Learner
                 #  model = getLatestModelFromLearners()
@@ -821,7 +827,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
                 if isLegit:
                     insertResult(rank, tag, reqID, output, ResultProvenance.ACTIVELEARNER, cgDB)
                 else:
-                    queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS, cgDB, dbCache)
+                    queueFGSJob(configStruct, uname, reqID, taskArgs, rank, ALInterfaceMode.FGS, cgDB, fgDB, dbCache)
             elif modeSwitch == ALInterfaceMode.FAKE:
                 if packetType == SolverCode.BGK:
                     # Simplest stencil imaginable
@@ -851,7 +857,8 @@ def pollAndProcessFGSRequests(configStruct, uname):
         #First we want to copy the fast local results to the right table of the shared db
         mergeBufferTable(SolverCode.BGK, cgDB)
         #And then copy in the coarse grain results
-        pullGlobalGNDToFastDBPython(SolverCode.BGK, cgDB, fgDB)
+        pullGlobalResultsToFastDBPython(SolverCode.BGK, cgDB, fgDB)
+    print("Loop Done")
     #Close SQL Connection
     cgDB.closeDB()
     fgDB.closeDB()

@@ -150,6 +150,7 @@ if __name__ == "__main__":
     args = vars(argParser.parse_args())
 
     tag = args['tag']
+    # This is the fine grain DB so we are already good
     globalDBName = args['db']
     rank = args['rank']
     reqid = args['id']
