@@ -1,6 +1,6 @@
 import argparse
 from alInterface import  insertResult,  getGroundishTruthVersion, insertResultSlow
-from glueCodeTypes import BGKOutputs, ALInterfaceMode, DatabaseMode, ResultProvenance, SolverCode. DatabaseMode
+from glueCodeTypes import BGKOutputs, ALInterfaceMode, DatabaseMode, ResultProvenance, SolverCode, DatabaseMode
 from writeBGKLammpsScript import write_output_coeff
 from alDBHandlers import getDBHandle
 import os
@@ -107,7 +107,7 @@ def insertGroundishTruth(dbHandle, outFGS, solverCode):
         insString = "INSERT INTO BGKGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         insArgs = tuple(inFGS.tolist()) + tuple(outFGS.tolist())
         dbHandle.execute(insString, insArgs)
-        dbHandle.openCursor().commit()
+        dbHandle.commit()
         dbHandle.closeCursor()
     elif solverCode == SolverCode.BGKMASSES:
         #Pull data to write
@@ -118,7 +118,7 @@ def insertGroundishTruth(dbHandle, outFGS, solverCode):
         insString = "INSERT INTO BGKMASSESGND VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         insArgs = tuple(inFGS.tolist()) + tuple(outFGS.tolist())
         dbHandle.execute(insString, insArgs)
-        dbHandle.openCursor().commit()
+        dbHandle.commit()
         dbHandle.closeCursor()
 
 if __name__ == "__main__":
