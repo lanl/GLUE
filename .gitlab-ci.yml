@@ -2,88 +2,14 @@ stages:
   - build
   - test
 
-# make:gnu:
-#   stage: build
-#   tags:
-#     - darwin-slurm-shared
-#   script:
-#     - source envScripts/darwin-gnu.sh
-#     - make all
-#     - make test
-#   artifacts:
-#     paths:
-#     - alinterface_f.mod
-#     - libalGlue.a
-#     - sniffTest_serial
-#     - sniffTest_mpi
-#     expire_in: 1 day
-
-# make:intel:
-#   stage: build
-#   tags:
-#     - darwin-slurm-shared
-#   script:
-#     - source envScripts/darwin-intel.sh
-#     - make all CC=icpc CXX=icpc FC=ifort
-#     - make test CC=icpc CXX=icpc FC=ifort
-#   artifacts:
-#     paths:
-#     - alinterface_f.mod
-#     - libalGlue.a
-#     - sniffTest_serial
-#     - sniffTest_mpi
-#     expire_in: 1 day
-
-# make:clang:
-#   stage: build
-#   tags:
-#     - darwin-slurm-shared
-#   script:
-#     - source envScripts/darwin-clang.sh
-#     - make all CC=clang CXX=clang++ FC=gfortran
-#     - make test CC=clang CXX=clang++ FC=gfortran
-#   artifacts:
-#     paths:
-#     - alinterface_f.mod
-#     - libalGlue.a
-#     - sniffTest_serial
-#     - sniffTest_mpi
-#     expire_in: 1 day
-
 cmake:gnu:
   stage: build
-  tags:
-    - darwin-slurm-shared
+  image: debian:stable
   script:
-    - source envScripts/darwin-gnu.sh
-    - mkdir bld && cd bld
-    - cmake ..
-    - make
-  artifacts:
-    paths:
-    - bld
-    expire_in: 1 day
-
-# cmake:intel:
-#   stage: build
-#   tags:
-#     - darwin-slurm-shared
-#   script:
-#     - source envScripts/darwin-intel.sh
-#     - mkdir bld && cd bld
-#     - cmake ..
-#     - make
-#   artifacts:
-#     paths:
-#     - bld
-#     expire_in: 1 day
-
-cmake:clang:
-  stage: build
-  tags:
-    - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-clang.sh
+    # All of this should be in a separate image
+    - apt update
+    - apt install build-essential mpich python3-dev cmake python3-numpy libsqlite3-dev python3-torch python3-sklearn -y
+    # And now we actually build
     - mkdir bld && cd bld
     - cmake ..
     - make
@@ -94,10 +20,12 @@ cmake:clang:
 
 test:gnu:
   stage: test
-  tags:
-   - darwin-slurm-shared
+  image: debian:stable
   script:
-    - source envScripts/darwin-gnu.sh
+    # All of this should be in a separate image
+    - apt update
+    - apt install build-essential mpich python3-dev cmake python3-numpy libsqlite3-dev python3-torch python3-sklearn -y
+    # And now we actually test
     - mkdir serial && cd serial
     - bash ../sniffTest_serial.sh
   needs: ["cmake:gnu"]
@@ -106,36 +34,15 @@ test:gnu:
 
 test:gnu_mpi:
   stage: test
-  tags:
-    - darwin-slurm-shared
+  image: debian:stable
   script:
-    - source envScripts/darwin-gnu.sh
+    # All of this should be in a separate image
+    - apt update
+    - apt install build-essential mpich python3-dev cmake python3-numpy libsqlite3-dev python3-torch python3-sklearn -y
+    # And now we actually test
     - mkdir mpi && cd mpi
     - bash ../sniffTest_mpi.sh
   needs: ["cmake:gnu"]
   dependencies:
     - cmake:gnu
 
-# test:intel:
-#   stage: test
-#   tags:
-#    - darwin-slurm-shared
-#   script:
-#     - source envScripts/darwin-intel.sh
-#     - mkdir serial && cd serial
-#     - bash ../sniffTest_serial.sh
-#   needs: ["cmake:intel"]
-#   dependencies:
-#     - cmake:intel
-
-test:clang:
-  stage: test
-  tags:
-   - darwin-slurm-shared
-  script:
-    - source envScripts/darwin-clang.sh
-    - mkdir serial && cd serial
-    - bash ../sniffTest_serial.sh
-  needs: ["cmake:clang"]
-  dependencies:
-    - cmake:clang
