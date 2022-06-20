@@ -1,7 +1,7 @@
 #!/bin/bash
-python $(dirname $BASH_SOURCE)/initTables.py -i $(dirname $BASH_SOURCE)/jsonFiles/sniffTest_serial.json
-python $(dirname $BASH_SOURCE)/alInterface.py -i $(dirname $BASH_SOURCE)/jsonFiles/sniffTest_serial.json &
-$(dirname $BASH_SOURCE)/bld/GLUECode/tests/sniffTest_serial
+python3 "$(dirname "$BASH_SOURCE")/initTables.py" -i "$(dirname "$BASH_SOURCE")/jsonFiles/sniffTest_serial.json"
+python3 "$(dirname "$BASH_SOURCE")/alInterface.py" -i "$(dirname "$BASH_SOURCE")/jsonFiles/sniffTest_serial.json" &
+"$(dirname "$BASH_SOURCE")/bld/GLUECode/tests/sniffTest_serial"
 if [ $? -eq 0 ]
 then
   sleep 2
