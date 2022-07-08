@@ -10,7 +10,7 @@ import sys
 from writeBGKLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface, ProvisioningInterface, DatabaseMode
 from contextlib import redirect_stdout
-from Screened_Boltzman_solution import ICFAnalytical_solution
+from ICF_Utils import ICFAnalytical_solution
 from glueArgParser import processGlueCodeArguments
 from alDBHandlers import getDBHandle
 
