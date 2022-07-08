@@ -2,7 +2,6 @@ import os
 import numpy as np
 import random
 import csv
-import zbar as z
 
 def write_LammpsScript(Temperature,densities,charges,masses,system_index_species,box,cutoff,Teq,Trun,index_species,s_int,p_int,d_int, dirPrefix):
     
