@@ -7,10 +7,9 @@ import time
 import subprocess
 import getpass
 import sys
-from writeBGKLammpsScript import check_zeros_trace_elements
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface, ProvisioningInterface, DatabaseMode
 from contextlib import redirect_stdout
-from ICF_Utils import ICFAnalytical_solution
+from ICF_Utils import ICFAnalytical_solution, check_zeros_trace_elements
 from glueArgParser import processGlueCodeArguments
 from alDBHandlers import getDBHandle
 

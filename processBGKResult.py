@@ -1,7 +1,7 @@
 import argparse
 from alInterface import  insertResult,  getGroundishTruthVersion, insertResultSlow
 from glueCodeTypes import BGKOutputs, ALInterfaceMode, DatabaseMode, ResultProvenance, SolverCode, DatabaseMode
-from writeBGKLammpsScript import write_output_coeff
+from ICF_Utils import write_output_coeff
 from alDBHandlers import getDBHandle
 import os
 import re
