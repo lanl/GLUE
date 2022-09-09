@@ -9,7 +9,7 @@ import getpass
 import sys
 from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface, ProvisioningInterface, DatabaseMode
 from contextlib import redirect_stdout
-from ICF_Utils import ICFAnalytical_solution, check_zeros_trace_elements
+from ICF_Utils import ICFAnalytical_solution, check_zeros_trace_elements, icfComparator
 from glueArgParser import processGlueCodeArguments
 from alDBHandlers import getDBHandle
 
@@ -365,6 +365,18 @@ def getAllGNDData(dbHandle, solverCode):
     return np.array(gndResults)
 
 def getGNDCount(dbHandle, solverCode):
+    """Get number of GND entries in table for simulation
+
+    Args:
+        dbHandle (ALDBHandle): Object to access database
+        solverCode (SolverCode): SolverCode enum corresponding to simulation
+
+    Raises:
+        Exception: Using Unsupported Solver Code
+
+    Returns:
+        int: Numer of GND truth entries in table for simulation
+    """
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT COUNT(*)  FROM BGKGND;"
@@ -379,6 +391,16 @@ def getGNDCount(dbHandle, solverCode):
     return numGND
 
 def jobScriptBoilerplate(jobFile, outDir, configStruct):
+    """Generates boilerplate/headers of job scripts
+
+    Args:
+        jobFile: File handle to write job script to
+        outDir (str): Path to output directory
+        configStruct: Dictionary containing configuration data for simulation
+
+    Raises:
+        Exception: Unsupported SchedulerInterface
+    """
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
         jobFile.write("#!/bin/bash\n")
         jobFile.write("#SBATCH -N " + str(configStruct['SlurmScheduler']['NodesPerSlurmJob']) + "\n")
@@ -393,8 +415,6 @@ def jobScriptBoilerplate(jobFile, outDir, configStruct):
         jobFile.write("export JOB_DISTR_ARGS=\"-n "+ str(configStruct['BlockingScheduler']['MPIRanksForBlockingRuns']) + "\"\n")
     elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
         jobFile.write("#!/bin/bash\n")
-        # jobFile.write("export LAUNCHER_BIN=`which mpirun`\n")
-        # jobFile.write("export JOB_DISTR_ARGS=\"-np " + str(configStruct['FluxScheduler']['SlotsPerJobForFlux']) + "\"\n")
         jobFile.write("export LAUNCHER_BIN=\"flux mini run\"\n")
         jobFile.write("export JOB_DISTR_ARGS=\"" + \
             "-N " + str(configStruct['FluxScheduler']['NodesPerJobForFlux']) + \
@@ -405,6 +425,13 @@ def jobScriptBoilerplate(jobFile, outDir, configStruct):
         raise Exception('Using Unsupported Scheduler Mode')
 
 def prepJobEnv(outPath, jobEnvPath, configStruct):
+    """Copy in job environment script for job script
+
+    Args:
+        outPath (str): Path to run directory for job script
+        jobEnvPath (str): Path to job environment script directory
+        configStruct: Dictionary containing configuration data for simulation
+    """
     outFile = os.path.join(outPath, "jobEnv.sh")
     jobEnvFilePath = ""
     if "JobEnvFile" in configStruct:
@@ -424,6 +451,15 @@ def prepJobEnv(outPath, jobEnvPath, configStruct):
     shutil.copy2(jobEnvFilePath, outFile)
 
 def lammpsProvisioningBoilerplate(jobFile, configStruct):
+    """Generate boilerplate bash script to privision LAMMPS
+
+    Args:
+        jobFile: File handle to write job script to
+        configStruct: Dictionary containing configuration data for simulation
+
+    Raises:
+        Exception: Unsupported ProvisioningInterface specified
+    """
     if configStruct['ProvisioningInterface'] == ProvisioningInterface.SPACK:
         if "SpackRoot" in configStruct['SpackVariables']:
             jobFile.write("if [ -z \"${SPACK_ROOT}\" ]; then\n")
@@ -452,6 +488,15 @@ def lammpsProvisioningBoilerplate(jobFile, configStruct):
         raise Exception('Using Unsupported Provisioning Mode')
 
 def launchFGSJob(jobFile, configStruct):
+    """Launch/queue fine grain simulation
+
+    Args:
+        jobFile: File handle to write job script to
+        configStruct: Dictionary containing configuration data for simulation
+
+    Raises:
+        Exception: Unsupported SchedulerInterface specified
+    """
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
         launchJobScript("sbatch", jobFile, True)
     elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
@@ -468,18 +513,30 @@ def launchFGSJob(jobFile, configStruct):
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
-def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
+def buildAndLaunchFGSJob(configStruct, rank, reqid, fgsArgs, glueMode):
+    """Build and launch fine grain simulation for specified arguments
+
+    Args:
+        configStruct: Dictionary containing configuration data for simulation
+        rank: Identifier of job originator. Commonly MPI rank
+        reqid: Monotonically increasing ID to use as job ID to look up result later
+        fgsArgs: Arguments for fine grain simulation
+        glueMode (ALInterfaceMode): Type of fine grain simulation to run
+
+    Raises:
+        Exception: Using unsupported SolverCode
+    """
     solverCode = configStruct['solverCode']
     tag = configStruct['tag']
     # Fine grain so want to use the slower shared DB
     dbPath = configStruct['DatabaseSettings']['FineGrainDB']['DatabaseURL']
     if solverCode == SolverCode.BGK or solverCode == SolverCode.BGKMASSES:
-        # Mkdir ./${TAG}_${RANK}_${REQ}
+        # mkdir ./${TAG}_${RANK}_${REQ}
         outDir = tag + "_" + str(rank) + "_" + str(reqid)
         outPath = os.path.join(os.getcwd(), outDir)
         if(not os.path.exists(outPath)):
             os.mkdir(outPath)
-            # cp ${SCRIPT_DIR}/lammpsScripts/${lammpsScript}
+            # cp ${SCRIPT_DIR}/lammpsScripts/${lammpsScript} .
             # Copy scripts and configuration files
             pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
             jobEnvPath = os.path.join(pythonScriptDir, "envScripts")
@@ -534,6 +591,19 @@ def buildAndLaunchFGSJob(configStruct, rank, uname, reqid, fgsArgs, glueMode):
         raise Exception('Using Unsupported Solver Code')
 
 def alModelStub(inArgs):
+    """Reference implementation for active learning model
+
+    Reference implementation/stub for active learning model. Primarily used for debugging purposes.
+
+    Args:
+        inArgs: Fine grain simulation arguments
+
+    Raises:
+        Exception: Using Unsupported Solver Code With Interpolation Model
+
+    Returns:
+        tuple: Float corresponding to confidence in solution and output of fine grain simulation
+    """
     if isinstance(inArgs, BGKInputs):
         bgkOutput = None
         return (sys.float_info.max, bgkOutput)
@@ -541,36 +611,81 @@ def alModelStub(inArgs):
         raise Exception('Using Unsupported Solver Code With Interpolation Model')
 
 def uqCheckerStub(err):
+    """Reference implementation for uncertainty quantification checking
+
+    Reference implementation/stub for uncertainty quantification evaluation. Primarily used for debugging purposes.
+
+    Args:
+        err (float): Reported uncertainty from active learning model
+
+    Returns:
+        bool: Bool corresponding to if this is considered a valid result
+    """
     if err < sys.float_info.max:
         return True
     else:
         return False
 
 def getInterpModel(packetType, alBackend, dbHandle):
-    #TODO Use packetType
+    """Get interpolation model to use for active learning
+
+    Args:
+        packetType (SolverCode): Enum corresponding to simulation
+        alBackend (LearnerBackend): Machine learning backend to use with active learning
+        dbHandle (ALDBHandle): Object to access database
+
+    Raises:
+        Exception: Using Unsupported LearnerBackend
+
+    Returns:
+        InterpModelWrapper: Function object for active learner
+    """
+    #TODO Also switch on packetType
     if alBackend == LearnerBackend.FAKE:
         return InterpModelWrapper(alModelStub, uqCheckerStub)
     if alBackend == LearnerBackend.PYTORCH:
         import nn_learner
-        return BGKPytorchInterpModel(nn_learner.retrain(dbHandle))
+        return MLModelWrapper(nn_learner.retrain(dbHandle))
     if alBackend == LearnerBackend.RANDFOREST:
         import rf_learner
-        return BGKRandForestInterpModel(rf_learner.retrain(dbHandle)) 
+        return MLModelWrapper(rf_learner.retrain(dbHandle)) 
     else:
-        raise Exception('Using Unsupported Active Learning Backewnd')
+        raise Exception('Using Unsupported Active Learning Backend')
 
-def insertALPrediction(inFGS, outFGS, solverCode, sqlDB):
+def insertALPrediction(inFGS, outFGS, solverCode, dbHandle):
+    """Insert Active Learning Prediction into appropriate database
+
+    Args:
+        inFGS : Fine grain simulation inputs
+        outFGS : Outputs generated through active learning
+        solverCode (SolverCode): Enum corresponding to simulation
+        dbHandle (ALDBHandle): Object to access database
+
+    Raises:
+        Exception: Using Unsupported SolverCode
+    """
     if solverCode == SolverCode.BGK:
-        sqlDB.openCursor()
+        dbHandle.openCursor()
         insString = "INSERT INTO BGKALLOGS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         insArgs = (inFGS.Temperature,) + tuple(inFGS.Density) + tuple(inFGS.Charges) + (getGroundishTruthVersion(solverCode),) + (outFGS.Viscosity, outFGS.ThermalConductivity) + tuple(outFGS.DiffCoeff) + (getGroundishTruthVersion(solverCode),)
-        sqlDB.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlDB.closeCursor()
+        dbHandle.execute(insString, insArgs)
+        dbHandle.commit()
+        dbHandle.closeCursor()
     else:
         raise Exception("Using Unsupported Solver Code")
 
 def simpleALErrorChecker(inputStruct):
+    """Check if all active learning error checks passed
+
+    Utility function provided to support AL models which 
+    return a container of bools corresponding to each output.
+
+    Args:
+        inputStruct: Single bool or container of bools corresponding to uncertainty/error checks
+
+    Returns:
+        bool: Boolean indicating if this result is valid
+    """
     retVal = True
     for i in inputStruct:
         if isinstance(i, Iterable):
@@ -582,69 +697,119 @@ def simpleALErrorChecker(inputStruct):
     return retVal
 
 class InterpModelWrapper:
+    """Function object to interface with interpolation models
+    """
     def __init__(self, newModel, uqChecker):
+        """Constructor for InterpModelWrapper
+
+        Args:
+            newModel: Function pointer for active learning model
+            uqChecker: Function pointer for uncertainty quantification evaluation
+        """
         self.model = newModel
         self.uq = uqChecker
     def __call__(self, inputStruct):
+        """Operator() overload for InterpModelWrapper
+
+        Generate result from specified input and indicate validity
+
+        Args:
+            inputStruct: Fine grain simulation input arguments
+
+        Returns:
+            tuple: Bool indicating if generated result is valid as well as generated result itself
+        """
         (err, output) = self.model(inputStruct)
         isLegit = self.uq(err)
         return (isLegit, output)
 
-class BGKPytorchInterpModel(InterpModelWrapper):
+class MLModelWrapper(InterpModelWrapper):
+    """Implementation of InterpModelWrapper for more advanced machine learning models
+    """
     def __init__(self, newModel):
+        """Constructor for MLModelWrapper
+
+        Args:
+            newModel: Function pointer for active learning model with internal uncertainty quantification
+        """
         # TODO: Asynchrony!
         self.model = newModel
     def __call__(self, inputStruct):
+        """Operator() overload for MLModelWrapper
+
+        Uses underlying model to generate a result and then evaluates uncertainty quantification of all fields to determine validity
+
+        Args:
+            inputStruct: Fine grain simulation input arguments
+
+        Returns:
+            tuple: Bool indicating if generated result is valid as well as generated result itself
+        """
         (output,err) = self.model(inputStruct)
         modErr = self.model.iserrok(err)
         isLegit = simpleALErrorChecker(modErr)
         return (isLegit, output)
 
-class BGKRandForestInterpModel(InterpModelWrapper):
-        def __init__(self, newModel):
-            # TODO: Asynchrony!
-            self.model = newModel
-        def __call__(self, inputStruct):
-            (output,err) = self.model(inputStruct)
-            modErr = self.model.iserrok(err)
-            isLegit = simpleALErrorChecker(modErr)
-            return (isLegit, output)
+def insertResultSlow(rank, tag, reqid, fgsResult, resultProvenance, dbHandle):
+    """Insert result into slower/primary results table
 
-def insertResultSlow(rank, tag, reqid, fgsResult, resultProvenance, sqlDB):
+    Args:
+        rank: Identifier of job originator. Commonly MPI rank
+        tag (str): Identifier for this set of data
+        reqid: Monotonically increasing ID to use as job ID to look up result later_
+        fgsResult: Result of fine grain simulation
+        resultProvenance (ResultProvenance): Type of result being inserted
+        dbHandle (ALDBHandle): Object to access database
+
+    Raises:
+        Exception: _description_
+    """
+    #TODO: Merge this with `insertResult`
     if isinstance(fgsResult, BGKOutputs):
-        sqlDB.openCursor()
+        dbHandle.openCursor()
         insString = "INSERT INTO BGKRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
-        sqlDB.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlDB.closeCursor()
+        dbHandle.execute(insString, insArgs)
+        dbHandle.commit()
+        dbHandle.closeCursor()
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def insertResult(rank, tag, reqid, fgsResult, resultProvenance, sqlDB):
+def insertResult(rank, tag, reqid, fgsResult, resultProvenance, dbHandle):
+    """Insert result into faster/intermediate results table
+
+    Args:
+        rank: Identifier of job originator. Commonly MPI rank
+        tag (str): Identifier for this set of data
+        reqid: Monotonically increasing ID to use as job ID to look up result later_
+        fgsResult: Result of fine grain simulation
+        resultProvenance (ResultProvenance): Type of result being inserted
+        dbHandle (ALDBHandle): Object to access database
+
+    Raises:
+        Exception: _description_
+    """
     if isinstance(fgsResult, BGKOutputs):
-        sqlDB.openCursor()
+        dbHandle.openCursor()
         insString = "INSERT INTO BGKFASTRESULTS VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         insArgs = (tag, rank, reqid, fgsResult.Viscosity, fgsResult.ThermalConductivity) + tuple(fgsResult.DiffCoeff) + (resultProvenance,)
-        sqlDB.execute(insString, insArgs)
-        sqlDB.commit()
-        sqlDB.closeCursor()
+        dbHandle.execute(insString, insArgs)
+        dbHandle.commit()
+        dbHandle.closeCursor()
     else:
         raise Exception('Using Unsupported Solver Code')
 
-#TODO: Figure out correct location for this
-def icfComparator(lhs, rhs, epsilon):
-    retVal = True
-    if rhs.Temperature != 0.0 and (lhs.Temperature - rhs.Temperature) / rhs.Temperature > epsilon:
-        retVal = False
-    for i in range(4):
-        if rhs.Density[i] != 0.0 and (lhs.Density[i] - rhs.Density[i]) / rhs.Density[i] > epsilon:
-            return False
-        if rhs.Charges[i] != 0.0 and (lhs.Charges[i] - rhs.Charges[i]) / rhs.Charges[i] > epsilon:
-            return False
-    return retVal
-
 def cacheCheck(inArgs, configStruct, dbCache):
+    """Check local in-memory cache for similar requests
+
+    Args:
+        inArgs: Fine grain simulation arguments
+        configStruct: Dictionary containing configuration data for simulation
+        dbCache: Container used for local cache of requests and results
+
+    Returns:
+        Result if found. None otherwise
+    """
     if isinstance(inArgs, BGKInputs):
         #TODO: Make this cleaner
         epsilon = configStruct['ICFParameters']['RelativeError']
@@ -656,6 +821,15 @@ def cacheCheck(inArgs, configStruct, dbCache):
         return None
 
 def mergeBufferTable(solverCode, cgDB):
+    """Merge FAST and normal result tables in database
+
+    Args:
+        solverCode (SolverCode): Enum corresponding to simulation
+        cgDB (ALDBHandle): Object to access (coarse grain) database
+
+    Raises:
+        Exception: Using Unsupported SolverCode
+    """
     if solverCode == SolverCode.BGK:
         cgDB.openCursor()
         mergeStr = "INSERT INTO BGKRESULTS SELECT * FROM BGKFASTRESULTS;"
@@ -667,8 +841,22 @@ def mergeBufferTable(solverCode, cgDB):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-#TODO: We do not actually pull GND. Just Results. Check if that is okay. It probably isn't
 def pullGlobalResultsToFastDBPython(solverCode, cgDB, fgDB):
+    """Synchronize global results table to more local results table
+
+    To account for contention with file-system databases, a multi-tier approach
+    is suggested. This synchronizes results from the higher level database to
+    the lower one for the purpose of successful look ups.
+
+    Args:
+        solverCode (SolverCode): Enum corresponding to simulation
+        cgDB (ALDBHandle): Object to access higher level (coarse grain) database
+        fgDB (ALDBHandle): Object to access lower level (fine grain) database
+
+    Raises:
+        Exception: Using Unsupported SolverCode
+    """
+    #TODO: Evaluate if it makes sense to also synchronize GND tables
     # Manually copy data in by opening the DB, reading it, and then writing results
     if solverCode == SolverCode.BGK:
         # Open Fine Grain DB
@@ -703,6 +891,19 @@ def pullGlobalResultsToFastDBAttach(solverCode, cgDB, fgDB):
     #  2. if DB types differ... we take a memory hit?
 
 def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, cgDB, fgDB, dbCache):
+    """Perform fine grain simulation
+
+    Args:
+        configStruct: Dictionary containing configuration data for simulation
+        uname (str): UID of user running GLUE Code
+        reqID: Monotonically increasing ID to use as job ID to look up result later
+        inArgs: Arguments for fine grain simulation
+        rank: Identifier of job originator. Commonly MPI rank
+        modeSwitch (ALInterfaceMode): Type of fine grain simulation to run
+        cgDB (ALDBHandle): Object to access higher level (coarse grain) database
+        fgDB (ALDBHandle): Object to access lower level (fine grain) database
+        dbCache: Container used for local cache of requests and results
+    """
     tag = configStruct['tag']
     # This is a brute force call. We only want an exact LAMMPS result
     outFGS = None
@@ -735,8 +936,7 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, cgDB, fgDB
             # It was, so let's get that solution
             results = getAnalyticSolution(inArgs)
             insertResult(rank, tag, reqID, results, ResultProvenance.FGS, cgDB)
-            # TODO: Apparently we never wrote valid analytic solutions to ground truth table
-            #  Do we want to? Probably?
+            # TODO: Evaluate if we want to insert valid analytic results to GND table
         else:
             # Call fgs with args as scheduled job
             # job will write result back
@@ -745,12 +945,19 @@ def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, cgDB, fgDB
                 queueJob = getQueueUsability(uname, configStruct)
                 if queueJob == True:
                     print("Processing REQ=" + str(reqID))
-                    buildAndLaunchFGSJob(configStruct, rank, uname, reqID, inArgs, modeSwitch)
+                    buildAndLaunchFGSJob(configStruct, rank, reqID, inArgs, modeSwitch)
                     launchedJob = True
 
 def useAnalyticSolution(inputStruct):
+    """Determine if analytic solution is sufficient
+
+    Args:
+        inputStruct: Arguments for fine grain simulation
+
+    Returns:
+        bool: Indication if analytic solution is sufficient
+    """
     if isinstance(inputStruct, BGKInputs):
-        # Diaw, put the checks here
         lammpsDens = np.array(inputStruct.Density)
         lammpsTemperature = inputStruct.Temperature
         lammpsIonization = np.array(inputStruct.Charges)
@@ -767,6 +974,17 @@ def useAnalyticSolution(inputStruct):
         return False
 
 def getAnalyticSolution(inArgs):
+    """Compute and return analytic solution
+
+    Args:
+        inArgs: Arguments for fine grain simulation
+
+    Raises:
+        Exception: Analytic solvers not supported for this simulation type
+
+    Returns:
+        Results of analytic solution
+    """
     if isinstance(inArgs, BGKInputs):
         (cond, visc, diffCoeff) = ICFAnalytical_solution(inArgs.Density, inArgs.Charges, inArgs.Temperature)
         bgkOutput = BGKOutputs(Viscosity=visc, ThermalConductivity=cond, DiffCoeff=diffCoeff)
@@ -775,6 +993,18 @@ def getAnalyticSolution(inArgs):
         raise Exception('Using Unsupported Analytic Solver')
 
 def pollAndProcessFGSRequests(configStruct, uname):
+    """General service loop of GLUE Code
+
+    Primary function that creates a loop to run as a service to repeatedly poll databases for requests,
+    process requests, and return results.
+
+    Args:
+        configStruct: Dictionary containing configuration data for simulation
+        uname (str): UID of user running GLUE Code
+
+    Raises:
+        Exception: Use of unsupported SolverCode and ALInterfaceMode combination
+    """
     numRanks = configStruct['ExpectedMPIRanks']
     defaultMode = configStruct['glueCodeMode']
     tag = configStruct['tag']
@@ -802,9 +1032,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
     keepSpinning = True
     print("Starting Loop")
     while keepSpinning:
-        #print("Loop Iter")
         #Logic to not hammer DB/learner with unnecessary retraining requests
-        # TODO: Ground truths from fine grain, not coarse grain
         nuGNDcnt = getGNDCount(fgDB, packetType)
         if defaultMode == ALInterfaceMode.ACTIVELEARNER and ((nuGNDcnt - GNDcnt) > GNDthreshold or GNDcnt == 0):
             with open('alLog.out', 'w') as alOut, open('alLog.err', 'w') as alErr:
@@ -888,7 +1116,6 @@ def pollAndProcessFGSRequests(configStruct, uname):
                     raise Exception('Using Unsupported Solver Code')
             elif modeSwitch == ALInterfaceMode.ANALYTIC:
                 if packetType == SolverCode.BGK:
-                    # TODO: Probably verify there are only two species
                     if taskArgs.Density[2] != 0.0 or taskArgs.Density[3] != 0.0:
                         raise Exception('Using Analytic ICF with more than two species')
                     (cond, visc, diffCoeff) = ICFAnalytical_solution(taskArgs.Density, taskArgs.Charges, taskArgs.Temperature)
@@ -907,7 +1134,7 @@ def pollAndProcessFGSRequests(configStruct, uname):
         #And then copy in the coarse grain results
         pullGlobalResultsToFastDBPython(SolverCode.BGK, cgDB, fgDB)
     print("Loop Done")
-    #Close SQL Connection
+    #Close Database Connection
     cgDB.closeDB()
     fgDB.closeDB()
 

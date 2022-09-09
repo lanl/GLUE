@@ -1381,3 +1381,14 @@ def write_output_coeff(densities0,species_with_zeros_densities_index):
                 with open('diffusion_coefficient_'+str(i)+str(j)+'.csv', 'w') as f:
                     csv_writer = csv.writer(f,delimiter=' ')
                     csv_writer.writerow(['D='+str(concentrations[i]*d_ii[j]+concentrations[j]* d_ii[i])])
+
+def icfComparator(lhs, rhs, epsilon):
+    retVal = True
+    if rhs.Temperature != 0.0 and (lhs.Temperature - rhs.Temperature) / rhs.Temperature > epsilon:
+        retVal = False
+    for i in range(4):
+        if rhs.Density[i] != 0.0 and (lhs.Density[i] - rhs.Density[i]) / rhs.Density[i] > epsilon:
+            return False
+        if rhs.Charges[i] != 0.0 and (lhs.Charges[i] - rhs.Charges[i]) / rhs.Charges[i] > epsilon:
+            return False
+    return retVal
