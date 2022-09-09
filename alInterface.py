@@ -63,6 +63,18 @@ def getSelString(packetType, latestID, missingIDs):
         raise Exception('Using Unsupported Solver Code')
 
 def getGNDStringAndTuple(fgsArgs, configStruct):
+    """Generate 'SELECT' request for GND truth within specified tolerances
+
+    Args:
+        fgsArgs: Arguments for fine grain simulation
+        configStruct: Dictionary containing configuration data for simulation
+
+    Raises:
+        Exception: If using unsupported fine grain simulation arguments types
+
+    Returns:
+        'SELECT' request (string and arguments tuple) for GND truth within specified tolerances
+    """
     selString = ""
     selTup = ()
     if isinstance(fgsArgs, BGKInputs):
@@ -71,10 +83,10 @@ def getGNDStringAndTuple(fgsArgs, configStruct):
         # TODO: DRY this for later use
         selString += "SELECT * FROM BGKGND WHERE "
         #Temperature
-        #TODO: Probably verify temperature is not 0 but temperature probably won't be
-        selString += "ABS(? - TEMPERATURE) / TEMPERATURE < ?"
-        selTup += (fgsArgs.Temperature, relError)
-        selString += " AND "
+        if(fgsArgs.Temperature != 0.0):
+            selString += "ABS(? - TEMPERATURE) / TEMPERATURE < ?"
+            selTup += (fgsArgs.Temperature, relError)
+            selString += " AND "
         #Density
         for i in range(0, 4):
             if(fgsArgs.Density[i] != 0.0):
@@ -95,6 +107,18 @@ def getGNDStringAndTuple(fgsArgs, configStruct):
     return (selString, selTup)
 
 def processReqRow(sqlRow, packetType):
+    """Process SQL request row into fine grain simulation tuple
+
+    Args:
+        sqlRow (list): SQL Row returned by `SELECT` command
+        packetType (SolverCode): SolverCode enum corresponding to application
+
+    Raises:
+        Exception: If using unsupported SolverCode enum
+
+    Returns:
+        tuple: Fine grain simulation arguments and how the GLUE Code should handle it
+    """
     if packetType == SolverCode.BGK:
         #Process row to arguments
         bgkInput = BGKInputs(Temperature=float(sqlRow[3]), Density=[], Charges=[])
@@ -105,48 +129,21 @@ def processReqRow(sqlRow, packetType):
     else:
         raise Exception('Using Unsupported Solver Code')
 
-def getEquivalenceSQLStringsResults(packetType, dbKey):
-    if packetType == SolverCode.BGK:
-        globalTable = dbKey + ".BGKRESULTS"
-        localTable = "BGKRESULTS"
-        # We just need reqid, rank, and tag to match
-        selString = ""
-        selString += globalTable + ".TAG="
-        selString += localTable + ".TAG"
-        selString += " AND "
-        selString += globalTable + ".RANK="
-        selString += localTable + ".RANK"
-        selString += " AND "
-        selString += globalTable + ".REQ="
-        selString += localTable + ".REQ"
-        return selString
-    else:
-        raise Exception('Using Unsupported Solver Code')
-
-def getEquivalenceSQLStringsGND(packetType, dbKey):
-    if packetType == SolverCode.BGK:
-        globalTable = dbKey + ".BGKGND"
-        localTable = "BGKGND"
-        selString = ""
-        # We will match on Request Info
-        selString += globalTable + ".TEMPERATURE="
-        selString += localTable + ".TEMPERATURE"
-        selString += " AND "
-        for i in range(4):
-            selString += globalTable + ".DENSITY_" + str(i) + "="
-            selString += localTable + ".DENSITY_" + str(i)
-            selString += " AND "
-            selString += globalTable + ".CHARGES_" + str(i) + "="
-            selString += localTable + ".CHARGES_" + str(i)
-            selString += " AND "
-        # And inversion just for safety reasons
-        selString += globalTable + ".INVERSION="
-        selString += localTable + ".INVERSION"
-        return selString
-    else:
-        raise Exception('Using Unsupported Solver Code')
-
 def writeBGKLammpsInputs(fgsArgs, dirPath, glueMode):
+    """Write files for LAMMPS runs for ICF Simulations
+
+    Args:
+        fgsArgs: Argumentrs for fine grain simulation
+        dirPath: Directory to write configuration files in
+        glueMode (ALInterfaceMode): Type of LAMMPS simulation to run
+
+    Raises:
+        Exception: Unsupported ALInterfaceMode
+        Exception: Unsupported fine grain simulation arguments type
+
+    Returns:
+        List of LAMMPS scripts to execute as part of fine grain simulation
+    """
     # TODO: Refactor constants and general cleanup
     if isinstance(fgsArgs, BGKInputs):
         m=np.array([3.3210778e-24,6.633365399999999e-23])
@@ -202,6 +199,14 @@ def writeBGKLammpsInputs(fgsArgs, dirPath, glueMode):
         raise Exception('Using Unsupported Solver Code')
 
 def checkSlurmQueue(uname):
+    """Check Slurm Queue for number of running jobs
+
+    Args:
+        uname (str): UID of user running GLUE Code
+
+    Returns:
+        String output of active slurm jobs for that UID
+    """
     try:
         runproc = subprocess.run(
             ["squeue", "-u", uname],
@@ -218,6 +223,11 @@ def checkSlurmQueue(uname):
         return ""
 
 def checkFluxQueue():
+    """Check Flux Queue for number of running jobs
+
+    Returns:
+        String output of active flux jobs
+    """
     try:
         runproc = subprocess.run(
             ["flux", "jobs"],
@@ -234,6 +244,17 @@ def checkFluxQueue():
         return ""
 
 def launchJobScript(binary, script, wantReturn, extraArgs=[]):
+    """Launch fine grain simulation's job script
+
+    Args:
+        binary (str): Job scheduler binary to call
+        script (str): The path to the job script to run
+        wantReturn (bool): Indicate if the output of the job submission should be returned
+        extraArgs (list, optional): Additional arguments to pass to the job scheduler. Defaults to [].
+
+    Returns:
+        str: Empty strng or the output of the command
+    """
     try:
         runproc = subprocess.run(
             [binary] + extraArgs + [script],
@@ -253,8 +274,20 @@ def launchJobScript(binary, script, wantReturn, extraArgs=[]):
         return ""
 
 def getQueueUsability(uname, configStruct):
+    """Check if queue is (over)saturated with jobs
+
+    Args:
+        uname (str): UID of user running GLUE Code
+        configStruct: Dictionary containing configuration data for simulation
+
+    Raises:
+        Exception: Using Unsupported Scheduler Mode
+
+    Returns:
+        bool: Bool indicating if the scheduler is not saturated
+    """
     if configStruct['SchedulerInterface'] == SchedulerInterface.SLURM:
-        queueState = getSlurmQueue(uname)
+        queueState = getNumberOfJobsInSlurmQueue(uname)
         maxJobs = configStruct['SlurmScheduler']['MaxSlurmJobs']
         if queueState[0] < maxJobs:
             return True
@@ -263,7 +296,7 @@ def getQueueUsability(uname, configStruct):
     elif configStruct['SchedulerInterface'] == SchedulerInterface.BLOCKING:
         return True
     elif configStruct['SchedulerInterface'] == SchedulerInterface.FLUX:
-        queueState = getFluxQueue()
+        queueState = getNumberOfJobsInFluxQueue()
         maxJobs = configStruct['FluxScheduler']['ConcurrentJobs']
         if queueState[0] < maxJobs:
             return True
@@ -272,7 +305,15 @@ def getQueueUsability(uname, configStruct):
     else:
         raise Exception('Using Unsupported Scheduler Mode')
 
-def getSlurmQueue(uname):
+def getNumberOfJobsInSlurmQueue(uname):
+    """Get the number of active jobs for this UID in the slurm queue
+
+    Args:
+        uname (str): UID of user running GLUE Code
+
+    Returns:
+        int: Number of slurm jobs in queue
+    """
     slurmOut = checkSlurmQueue(uname)
     if slurmOut == "":
         return (sys.maxsize, [])
@@ -282,7 +323,12 @@ def getSlurmQueue(uname):
     else:
         return (0, [])
 
-def getFluxQueue():
+def getNumberOfJobsInFluxQueue():
+    """Get the number of active jobs in the flux queue
+
+    Returns:
+        int: Number of flux jobs in queue
+    """
     fluxOut = checkFluxQueue()
     if fluxOut == "":
         return (sys.maxsize, [])
@@ -292,8 +338,19 @@ def getFluxQueue():
     else:
         return (0, [])
 
-# TODO: Make sure this is all from the fine grain table, not coarse grain, because wow
 def getAllGNDData(dbHandle, solverCode):
+    """Generate list of all data in GND table
+
+    Args:
+        dbHandle (ALDBHandle): Object to access database
+        solverCode (SolverCode): SolverCode enum corresponding to simulation
+
+    Raises:
+        Exception: Using Unsupported Solver Code
+
+    Returns:
+        numpy.array: Numpy array of all ground truth data
+    """
     selString = ""
     if solverCode == SolverCode.BGK:
         selString = "SELECT * FROM BGKGND;"
@@ -644,43 +701,6 @@ def pullGlobalResultsToFastDBAttach(solverCode, cgDB, fgDB):
     #TODO: Probably do two approaches
     #  1. If both DB types are the same, attach?
     #  2. if DB types differ... we take a memory hit?
-    dbAlias = "DBFG"
-    if solverCode == SolverCode.BGK:
-        #TODO: Probably go through all of this because we mixed up fast and fine grain a few times
-        #TODO: Also may need to still handle this special as we are re-opening a DB
-        #TODO: Maybe add another command to the class?
-        #WARNING WARNING WARNING: THis is gonna be an issue with different DB types...
-
-        # Probably still have fastDB open?
-        sqlCursor = fastDB.cursor()
-        # Want to ATTACH globalDB to existing connection
-        sqlAttachStr = "ATTACH DATABASE \'" + fgDBPath
-        sqlAttachStr += "\' AS " + dbAlias + ";"
-        sqlCursor.execute(sqlAttachStr)
-        # Now copy out the results
-        sqlResultsStr = "INSERT INTO BGKRESULTS SELECT * FROM "
-        sqlResultsStr += dbAlias + ".BGKRESULTS WHERE NOT EXISTS("
-        sqlResultsStr += "SELECT * FROM BGKRESULTS WHERE("
-        sqlResultsStr += getEquivalenceSQLStringsResults(solverCode, dbAlias)
-        sqlResultsStr += "));"
-        sqlCursor.execute(sqlResultsStr)
-        # And the GNDish truth
-        sqlGNDStr = "INSERT INTO BGKGND SELECT * FROM "
-        sqlGNDStr += dbAlias + ".BGKGND WHERE NOT EXISTS("
-        sqlGNDStr += "SELECT * FROM BGKGND WHERE("
-        sqlGNDStr += getEquivalenceSQLStringsGND(solverCode, dbAlias)
-        sqlGNDStr += "));"
-        sqlCursor.execute(sqlGNDStr)
-        fastDB.commit()
-        # And detach the DB
-        sqlDetachStr = "DETACH DATABASE ?;"
-        sqlDetachTup = (dbAlias,)
-        sqlCursor.execute(sqlDetachStr, sqlDetachTup)
-        # Commit commands and close cursor
-        fastDB.commit()
-        sqlCursor.close()
-    else:
-        raise Exception('pullGlobalResultsToFastDBAttach: Using Unsupported Solver Code')
 
 def queueFGSJob(configStruct, uname, reqID, inArgs, rank, modeSwitch, cgDB, fgDB, dbCache):
     tag = configStruct['tag']
