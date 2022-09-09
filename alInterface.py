@@ -14,6 +14,19 @@ from glueArgParser import processGlueCodeArguments
 from alDBHandlers import getDBHandle
 
 def getGroundishTruthVersion(packetType):
+    """Get version number associated with packet type
+
+    Function to reconcile significant changes with data generation or storage types to avoid interpolation errors
+
+    Args:
+        packetType (SolverCode): SolverCode enum corresponding to application
+
+    Raises:
+        Exception: If using unsupported SolverCode enum
+
+    Returns:
+        float: Version number of generated fine grain results
+    """
     if packetType == SolverCode.BGK:
         return 2.2
     elif packetType == SolverCode.BGKMASSES:
@@ -22,6 +35,22 @@ def getGroundishTruthVersion(packetType):
         raise Exception('Using Unsupported Solver Code')
 
 def getSelString(packetType, latestID, missingIDs):
+    """Generate 'SELECT' string for SQL query on missing results
+
+    Generates a 'SELECT' string to pass to SQL in the event that not all data points
+    were available when the previous 'SELECT' command returned.
+
+    Args:
+        packetType (SolverCode): SolverCode enum corresponding to application
+        latestID (int): Highest ID value of currently received results
+        missingIDs (list): List of currently missing ID values
+
+    Raises:
+        Exception: If using unsupported SolverCode enum
+
+    Returns:
+        str: 'SELECT' string to request missing IDs
+    """
     # TODO: Make this smarter
     minID = 0
     if len(missingIDs) == 0:
