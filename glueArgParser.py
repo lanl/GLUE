@@ -4,18 +4,14 @@ import getpass
 from glueCodeTypes import ALInterfaceMode, SolverCode, LearnerBackend, SchedulerInterface, ProvisioningInterface, DatabaseMode
 
 def processGlueCodeArguments():
-    defaultFName = "testDB.db"
-    defaultTag = "DUMMY_TAG_42"
-    defaultLammps = ""
-    defaultUname = getpass.getuser()
-    defaultSqlite = "sqlite3"
-    defaultSbatch = "/usr/bin/sbatch"
-    defaultMaxJobs = 4
-    defaultProcessing = ALInterfaceMode.FGS
-    defaultRanks = 1
-    defaultSolver = SolverCode.BGK
-    defaultALBackend = LearnerBackend.FAKE
-    defaultGNDThresh = 5
+    """Process command line arguments to GLUE code
+
+    Raises:
+        Exception: Failure to pass a JSON configuration file
+
+    Returns:
+        dict: nsted dictionary of control variables following json schema
+    """
     defaultJsonFile = ""
 
     argParser = argparse.ArgumentParser(description='Command Line Arguments to Glue Code')
@@ -50,5 +46,4 @@ def processGlueCodeArguments():
         DatabaseMode(
             configStruct['DatabaseSettings']['FineGrainDB']['DatabaseMode']
         )
-
     return configStruct

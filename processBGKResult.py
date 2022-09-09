@@ -8,6 +8,18 @@ import re
 import numpy as np
 
 def speciesNotationToArrayIndex(in0, in1):
+    """Map ICF species notations to BGK array ordering
+
+    Args:
+        in0 (int): Species ID
+        in1 (int): Species ID
+
+    Raises:
+        Exception: Improper species ID
+
+    Returns:
+        int: Expected index in array for coarse grain solver
+    """
     (spec0, spec1) = sorted( (in0, in1) )
     if (spec0, spec1) == (0, 0):
         return 0
@@ -33,6 +45,15 @@ def speciesNotationToArrayIndex(in0, in1):
         raise Exception('Improper Species Indices:' + str(spec0) + ',' + str(spec1))
 
 def procBGKCSVFile(char, fname):
+    """Utility function to process LAMMPS result for ICF
+
+    Args:
+        char (str): key of desired value
+        fname (str): Path to output filename
+
+    Returns:
+        float: Computed value
+    """
     retVal = -0.0
     stripString = char + '='
     with open(fname) as f:
@@ -41,8 +62,18 @@ def procBGKCSVFile(char, fname):
             retVal = float(stripString)
     return retVal
 
-def matchLammpsOutputsToArgs(outputDirectory):
-    # Special thanks to Scot Halverson for figuring out clean solution
+def pullInputsFromLAMMPSOutputs(outputDirectory):
+    """Pull inputs from LAMMPS outputs during postprocessing
+
+    Args:
+        outputDirectory (str): Path to run directory
+
+    Raises:
+        Exception: Unable to map output files to species indices
+
+    Returns:
+        tuple: Input arguments of simulation
+    """
     diffCoeffs = 10*[0.0]
     visco = -0.0
     thermoCond = 0.0
@@ -69,6 +100,23 @@ def matchLammpsOutputsToArgs(outputDirectory):
     return (diffCoeffs, visco, thermoCond)
 
 def procOutputsAndProcess(tag, dbHandle, rank, reqid, lammpsMode, solverCode):
+    """Process outputs of LAMMPS Simulation for ICF
+
+    Args:
+        tag (str): Identifier for this set of data
+        dbHandle (ALDBHandle): Object to access database
+        rank: Identifier of job originator. Commonly MPI rank
+        reqid: Monotonically increasing ID to use as job ID to look up result later
+        lammpsMode : Type of fine grain simulation
+        solverCode (SolverCode): Enum corresponding to simulation
+
+    Raises:
+        Exception: Unsupported SolverCode mode
+        Exception: Unsupported ALInterfaceMode mode
+
+    Returns:
+        numpy.array: Sorted array of results to pass to SQL insertion
+    """
     if solverCode == SolverCode.BGK:
         # Pull densities
         densities = np.loadtxt("densities.txt")
@@ -77,7 +125,7 @@ def procOutputsAndProcess(tag, dbHandle, rank, reqid, lammpsMode, solverCode):
         # Generate coefficient files
         write_output_coeff(densities, zeroDensitiesIndex)
         # Get outputs array(s)
-        (diffCoeffs, viscosity, thermalConductivity) = matchLammpsOutputsToArgs(os.getcwd())
+        (diffCoeffs, viscosity, thermalConductivity) = pullInputsFromLAMMPSOutputs(os.getcwd())
         # Write results to an output namedtuple
         bgkOutput = BGKOutputs(Viscosity=viscosity, ThermalConductivity=thermalConductivity, DiffCoeff=diffCoeffs)
         # Write the tuple
@@ -98,6 +146,13 @@ def procOutputsAndProcess(tag, dbHandle, rank, reqid, lammpsMode, solverCode):
         raise Exception('Not Implemented')
 
 def insertGroundishTruth(dbHandle, outFGS, solverCode):
+    """Insert result into GND Table
+
+    Args:
+        dbHandle (ALDBHandle): Object to access database
+        outFGS : Output of fine grain simulation
+        solverCode (SolverCode): Enum corresponding to simulation
+    """
     if solverCode == SolverCode.BGK:
         #Pull data to write
         inFGS = np.loadtxt("inputs.txt")
@@ -136,7 +191,6 @@ if __name__ == "__main__":
 
     argParser = argparse.ArgumentParser(description='Python Driver to Convert FGS BGK Result into DB Entry')
 
-    #TODO: Add args for db uname and password
     argParser.add_argument('-t', '--tag', action='store', type=str, required=False, default=defaultTag, help="Tag for DB Entries")
     argParser.add_argument('-r', '--rank', action='store', type=int, required=False, default=defaultRank, help="MPI Rank of Requester")
     argParser.add_argument('-i', '--id', action='store', type=int, required=False, default=defaultID, help="Request ID")

@@ -5,6 +5,14 @@ from alDBHandlers import getDBHandle
 
 
 def initSQLTables(configStruct):
+    """Initialize required SQL Tables
+
+    Args:
+        configStruct: Dictionary containing configuration data for simulation
+
+    Raises:
+        Exception: Use of unsupported SolverCode
+    """
     dbHandles = []
     cgDBSettings = configStruct['DatabaseSettings']['CoarseGrainDB']
     cgDB = getDBHandle(cgDBSettings, True)

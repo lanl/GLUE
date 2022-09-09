@@ -7,6 +7,16 @@ from alDBHandlers import getDBHandle
 from glueArgParser import processGlueCodeArguments
 
 def genTrainingData(configStruct, uname, dbHandle):
+    """Iterate through provided csv file to generate training data
+
+    Args:
+        configStruct: Dictionary containing configuration data for simulation
+        uname (str): UID of user running GLUE Code
+        dbHandle (ALDBHandle): Object to access higher level (coarse grain) database
+
+    Raises:
+        Exception: Unsupported SolverCode
+    """
     code = configStruct['solverCode']
     reqid = 0
     pythonScriptDir = os.path.dirname(os.path.realpath(__file__))
@@ -33,6 +43,15 @@ def genTrainingData(configStruct, uname, dbHandle):
 
 
 def printResults(gndTable, code):
+    """Print GND data
+
+    Args:
+        gndTable (list): List of GND data. Optimally obtained from getAllGNDData()
+        code (SolverCode): Enum corresponding to simulation
+
+    Raises:
+        Exception: Unsupported SolverCode
+    """
     if code == SolverCode.BGK:
         header = "#"
         header += "InTemperature "

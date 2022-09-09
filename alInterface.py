@@ -756,7 +756,7 @@ def insertResultSlow(rank, tag, reqid, fgsResult, resultProvenance, dbHandle):
     Args:
         rank: Identifier of job originator. Commonly MPI rank
         tag (str): Identifier for this set of data
-        reqid: Monotonically increasing ID to use as job ID to look up result later_
+        reqid: Monotonically increasing ID to use as job ID to look up result later
         fgsResult: Result of fine grain simulation
         resultProvenance (ResultProvenance): Type of result being inserted
         dbHandle (ALDBHandle): Object to access database
