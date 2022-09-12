@@ -85,6 +85,13 @@ module alinterface_f
 
 	contains
 
+	!> Fortran interface to bgk_req_batch()
+	!! @param input Array of request of length numInputs
+	!! @param numInputs Length of input array
+	!! @param mpiRank MPI Rank of requesting process
+	!! @param tag Tag corresponding to set of requests
+	!! @param dbHandle Database to write to
+	!! @return Array of results of length numInputs
 	function bgk_req_batch_f(input, numInputs, mpiRank, tag, dbHandle) result(res)
 		use iso_c_binding
 		type(bgk_request_f) :: input(numInputs)
@@ -100,6 +107,13 @@ module alinterface_f
 		call c_f_pointer(intermediate, res, [numInputs])
 	end function bgk_req_batch_f
 
+	!> Fortran subroutine interface to bgk_req_batch()
+	!! @param input Array of request of length numInputs
+	!! @param output Array of results of length numInputs
+	!! @param numInputs Length of input array
+	!! @param mpiRank MPI Rank of requesting process
+	!! @param tag Tag corresponding to set of requests
+	!! @param dbHandle Database to write to
 	subroutine bgk_req_batch_subr_f(input, output, numInputs, mpiRank, tag, dbHandle)
 		use iso_c_binding
 		type(bgk_request_f) :: input(numInputs)
@@ -117,6 +131,8 @@ module alinterface_f
 		output => intermediateF
 	end subroutine bgk_req_batch_subr_f
 
+	!> Fortran wrapper to free memory allocated on C side
+	!! @param ptr to memory originally allocated on C side
 	subroutine bgk_resFreeWrapper_f(ptr)
 		use iso_c_binding
 		type(bgk_result_f), pointer :: ptr(:)
