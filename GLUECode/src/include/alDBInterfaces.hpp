@@ -80,6 +80,5 @@ template <typename T> void sendSQLCommand( std::string &sqlString, dbHandle_t  d
 }
 
 #endif
-///TODO: Make that an #elsif and add a fall back case for no DB backend
 
 #endif /* __alDBInterfaces_hpp */

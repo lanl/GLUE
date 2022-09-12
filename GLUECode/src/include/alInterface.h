@@ -26,6 +26,9 @@ enum DatabaseMode_e
 	HDF5 = 2
 };
 
+/**
+ * @brief Struct to represent ICF fine grain simulation request for the BGK application
+ */
 struct bgk_request_s
 {
 	double temperature;
@@ -34,6 +37,15 @@ struct bgk_request_s
 	double charges[4];
 
 	#ifdef __cplusplus
+	
+	/**
+	 * @brief This is a C++ function that is used to compare two bgk_request_s structs. It is used to determine if a request has already been made.
+	 * 
+	 * @param lhs First request
+	 * @param rhs Second request
+	 * @return true Requests are equal within given tolerance
+	 * @return false Requests are not equal within given tolerance
+	 */
 	friend bool operator==(const bgk_request_s& lhs, const bgk_request_s& rhs)
 	{
 		bool areEqual = true;
@@ -51,6 +63,9 @@ struct bgk_request_s
 	#endif
 };
 
+/**
+ * @brief Struct to represent ICF fine grain simulation result for the BGK application
+ */
 struct bgk_result_s
 {
 	double viscosity;
@@ -60,6 +75,14 @@ struct bgk_result_s
 	int provenance;
 
 	#ifdef __cplusplus
+		/**
+	 * @brief This is a C++ function that is used to compare two bgk_result_s structs. It is used to determine if a result is already available.
+	 * 
+	 * @param lhs First result
+	 * @param rhs Second result
+	 * @return true Results are equal within given tolerance
+	 * @return false Results are not equal within given tolerance
+	 */
 	friend bool operator==(const bgk_result_s& lhs, const bgk_result_s& rhs)
 	{
 		bool areEqual = true;
@@ -77,6 +100,9 @@ struct bgk_result_s
 	#endif
 };
 
+/**
+ * @brief Struct to represent ICF fine grain simulation request for the BGK application where species are identified by mass
+ */
 struct bgkmasses_request_s
 {
 	double temperature;
@@ -86,6 +112,9 @@ struct bgkmasses_request_s
 	double masses[4];
 };
 
+/**
+ * @brief Struct to represent ICF fine grain simulation result for the BGK application where species are identified by mass
+ */
 struct bgkmasses_result_s
 {
 	double viscosity;
@@ -94,19 +123,21 @@ struct bgkmasses_result_s
 	double diffusionCoefficient[10];
 };
 
+/**
+ * @brief Struct to represent Shale simulation requests for the LBM application in a 1-Dimensional Problem
+ */
 struct lbmToOneDMD_request_s
 {
-	//compute distance, L, from the wall
 	double distance;
-	//density
 	double density;
-	//temperature L:
 	double temperature;
 };
 
+/**
+ * @brief Struct to represent Shale simulation results for the LBM application in a 1-Dimensional Problem
+ */
 struct lbmToOneDMD_result_s
 {
-	//adsorption
 	double adsorption;
 	int provenance;
 };
@@ -128,7 +159,6 @@ typedef void * dbHandle_t;
 extern "C"
 {
 #endif
-	//All of these will likely be deprecated in order months
 	bgk_result_t bgk_req_single(bgk_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle);
 	bgk_result_t bgk_req_single_with_reqtype(bgk_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
 	bgk_result_t* bgk_req_batch(bgk_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle);

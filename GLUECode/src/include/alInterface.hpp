@@ -13,7 +13,18 @@
 #include <memory>
 #include <algorithm>
 
+/**
+ * @brief Getter for monotonically increasing ID for GLUE requests for serial applications
+ * 
+ * @return int ID to use for GLUE request
+ */
 int getReqNumber();
+/**
+ * @brief Getter for monotonically increasing ID for GLUE requests for distributed memory applications
+ * 
+ * @param rank Unique identifier for requester. Based on concept of MPI Rank
+ * @return int ID to use for GLUE request
+ */
 int getReqNumberForRank(int rank);
 
 template <typename T> struct AsyncSelectTable_t
