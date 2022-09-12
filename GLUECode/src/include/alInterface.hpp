@@ -15,13 +15,13 @@
 
 /**
  * @brief Getter for monotonically increasing ID for GLUE requests for serial applications
- * 
+ *
  * @return int ID to use for GLUE request
  */
 int getReqNumber();
 /**
  * @brief Getter for monotonically increasing ID for GLUE requests for distributed memory applications
- * 
+ *
  * @param rank Unique identifier for requester. Based on concept of MPI Rank
  * @return int ID to use for GLUE request
  */
@@ -29,7 +29,7 @@ int getReqNumberForRank(int rank);
 
 /**
  * @brief Struct/wrapper for thread-safe global map of request IDs to results to process `SELECT` statements
- * 
+ *
  * @tparam T The type of result to store
  */
 template <typename T> struct AsyncSelectTable_t
@@ -56,7 +56,7 @@ extern const unsigned int globalGlueBufferSize;
 
 /**
  * @brief Get the Global Table object for specified type
- * 
+ *
  * @tparam T The result type of the table to get
  * @return Reference to global table or exit if unsupported type
  */
@@ -84,7 +84,7 @@ template <> AsyncSelectTable_t<bgk_result_t>& getGlobalColTable<bgk_result_t>(in
 
 /**
  * @brief Get insertion string for SQL insertion command
- * 
+ *
  * @tparam T Type of the request to generate a string for
  * @param input Request to insert into table
  * @param mpiRank MPI Rank of requesting process
@@ -118,7 +118,7 @@ template <> std::string getReqSQLString<lbmToOneDMD_request_t>(lbmToOneDMD_reque
 
 /**
  * @brief Get SELECT string for range of results by request IDs
- * 
+ *
  * @tparam T Type of result
  * @param mpiRank MPI Rank of requesting process
  * @param tag Tag corresponding to set of requests
@@ -139,7 +139,7 @@ template <> std::string getResultSQLStringReqRange<bgk_result_t>(int mpiRank, ch
 
 /**
  * @brief Get SELECT string for single result by request IDs
- * 
+ *
  * @tparam T Type of result
  * @param mpiRank MPI Rank of requesting process
  * @param tag Tag corresponding to set of requests
@@ -171,7 +171,7 @@ template <> std::string getResultSQLString<lbmToOneDMD_result_t>(int mpiRank, ch
 
 /**
  * @brief Insert fine grain simulation request into GLUE Code
- * 
+ *
  * @tparam T The type of the request
  * @param input The request itself
  * @param mpiRank MPI Rank of requesting process
@@ -189,7 +189,7 @@ template <typename T> void writeRequest(T input, int mpiRank, char * tag, dbHand
 
 /**
  * @brief Read specific request ID and block until data is available
- * 
+ *
  * @tparam T Type of result
  * @param mpiRank MPI Rank of requesting process
  * @param tag Tag corresponding to set of requests
@@ -238,7 +238,7 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, dbHandle_t 
 
 /**
  * @brief Request a single fine grain simulation with specified request type
- * 
+ *
  * @tparam S Type of request
  * @tparam T Type of expected result
  * @param input 
@@ -265,7 +265,7 @@ template <typename S, typename T> T req_single_with_reqtype(S input, int mpiRank
 
 /**
  * @brief Batch request of fine grain simulations with specified request type
- * 
+ *
  * @tparam S Type of request
  * @tparam T Type of expected result
  * @param input Array of requests of type S
@@ -302,7 +302,7 @@ template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInp
 
 /**
  * @brief Insert batch requests as an MPI collective operation
- * 
+ *
  * @tparam T Type of request
  * @param input Array of requests of type S
  * @param numInputs Length of input array
@@ -329,7 +329,7 @@ template<typename T> std::unique_ptr<std::vector<int>> col_insertReqs(T *input, 
 
 /**
  * @brief Helper function to request a range of results to support batch requests
- * 
+ *
  * @tparam T Type of result
  * @param nextID The lowest ID of the block of requests. Inclusive
  * @param maxID The maximum ID of the block of requests. Inclusive
@@ -389,6 +389,15 @@ template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeO
 	return retVec;
 }
 
+/**
+ * @brief Helper function to process and order batch results
+ *
+ * @tparam T Type of result
+ * @param reqList Reference to vector of request IDs
+ * @param reqRank MPI Rank of requesting process
+ * @param dbHandle Database to write to
+ * @return std::vector<T>* Pointer to vector of results
+ */
 template <typename T> std::vector<T> * col_extractResults(std::unique_ptr<std::vector<int>> &reqList, int reqRank, dbHandle_t dbHandle)
 {
 	///TODO: Consider thought to reducing memory footprint because we can potentially use 2N for this
@@ -446,6 +455,16 @@ template <typename T> std::vector<T> * col_extractResults(std::unique_ptr<std::v
 	return retVec;
 }
 
+/**
+ * @brief (MPI) Collective Batch Request of fine grain simulations
+ *
+ * @tparam S Type of request
+ * @tparam T Type of expected result
+ * @param input Array of requests of type S
+ * @param numInputs Length of input array
+ * @param glueComm MPI Communicator to use with GLUE Library
+ * @return T* local array of length numInputs containing results
+ */
 template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI_Comm glueComm)
 {
 	//Thanks to Andrew Reisner for helping with a lot of the thought process behind the MPI aspects of the algorithm
@@ -504,7 +523,6 @@ template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI
 		//Now, we process results
 		for(int rank = 1; rank < commSize; rank++)
 		{
-			///TODO: This needs a while loop because we only done one iter per rank
 			//Do we still have results for that rank?
 			while(resultBatches[rank] != 0)
 			{
@@ -584,9 +602,17 @@ template <typename S, typename T> T* req_collective(S *input, int numInputs, MPI
 	}
 	//Return results
 	return resultsBuffer;
-
 }
 
+/**
+ * @brief Comparator for request IDs for sorting purposes
+ *
+ * @tparam T Type of data associated with ID
+ * @param lhs First Tuple 
+ * @param rhs Second tuple
+ * @return true if lhs < rhs
+ * @return false if rhs < lhs
+ */
 template <typename T> bool reqIDMin(std::tuple<int, T> lhs, std::tuple<int, T> rhs)
 {
 	int lhsID = std::get<0>(lhs);
