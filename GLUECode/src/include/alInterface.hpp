@@ -27,6 +27,11 @@ int getReqNumber();
  */
 int getReqNumberForRank(int rank);
 
+/**
+ * @brief Struct/wrapper for thread-safe global map of request IDs to results to process `SELECT` statements
+ * 
+ * @tparam T The type of result to store
+ */
 template <typename T> struct AsyncSelectTable_t
 {
 	std::map<int, T> resultTable;
@@ -39,7 +44,7 @@ template <typename T> struct AsyncSelectTable_t
 	AsyncSelectTable_t<T>(const AsyncSelectTable_t<T> &p2)
 	{
 		resultTable = p2.resultTable;
-		///TODO: Address the mutex so we don't leave it locked
+		///TODO: This should probably use a smart pointer to share the mutex
 	}
 };
 
@@ -49,6 +54,12 @@ extern AsyncSelectTable_t<lbmToOneDMD_result_t> globallbmToOneDMDResultTable;
 extern dbHandle_t globalGlueDBHandle;
 extern const unsigned int globalGlueBufferSize;
 
+/**
+ * @brief Get the Global Table object for specified type
+ * 
+ * @tparam T The result type of the table to get
+ * @return Reference to global table or exit if unsupported type
+ */
 template <typename T> AsyncSelectTable_t<T>& getGlobalTable()
 {
 	exit(1);
@@ -71,6 +82,17 @@ template <> AsyncSelectTable_t<bgk_result_t>& getGlobalColTable<bgk_result_t>(in
 	return globalColBGKResultTable[rank];
 }
 
+/**
+ * @brief Get insertion string for SQL insertion command
+ * 
+ * @tparam T Type of the request to generate a string for
+ * @param input Request to insert into table
+ * @param mpiRank MPI Rank of requesting process
+ * @param tag Tag corresponding to set of requests
+ * @param reqNum ID of request
+ * @param reqType ALInterfaceMode_e of request type
+ * @return std::string SQL insertion command to submit or error if unsupported type
+ */
 template <typename T> std::string getReqSQLString(T input, int mpiRank, char * tag, int reqNum, unsigned int reqType)
 {
 	exit(1);
@@ -94,6 +116,15 @@ template <> std::string getReqSQLString<lbmToOneDMD_request_t>(lbmToOneDMD_reque
 	exit(1);
 }
 
+/**
+ * @brief Get SELECT string for range of results by request IDs
+ * 
+ * @tparam T Type of result
+ * @param mpiRank MPI Rank of requesting process
+ * @param tag Tag corresponding to set of requests
+ * @param reqRange Tuple of ints corresponding to inclusive range of request IDs
+ * @return std::string SQL select command for range of results or error for unsupported type
+ */
 template <typename T> std::string getResultSQLStringReqRange(int mpiRank, char * tag, std::tuple<int,int> reqRange)
 {
 	exit(1);
@@ -106,7 +137,15 @@ template <> std::string getResultSQLStringReqRange<bgk_result_t>(int mpiRank, ch
 	return retString;
 }
 
-
+/**
+ * @brief Get SELECT string for single result by request IDs
+ * 
+ * @tparam T Type of result
+ * @param mpiRank MPI Rank of requesting process
+ * @param tag Tag corresponding to set of requests
+ * @param reqNum ID of request
+ * @return std::string SQL select command for single result or error for unsupported type
+ */
 template <typename T> std::string getResultSQLString(int mpiRank, char * tag, int reqNum)
 {
 	exit(1);
@@ -130,6 +169,17 @@ template <> std::string getResultSQLString<lbmToOneDMD_result_t>(int mpiRank, ch
 	exit(1);
 }
 
+/**
+ * @brief Insert fine grain simulation request into GLUE Code
+ * 
+ * @tparam T The type of the request
+ * @param input The request itself
+ * @param mpiRank MPI Rank of requesting process
+ * @param tag Tag corresponding to set of requests
+ * @param dbHandle Database to write to
+ * @param reqNum ID of request
+ * @param reqType ALInterfaceMode_e of request type
+ */
 template <typename T> void writeRequest(T input, int mpiRank, char * tag, dbHandle_t  dbHandle, int reqNum, unsigned int reqType)
 {
 	std::string sqlString = getReqSQLString<T>(input, mpiRank, tag, reqNum, reqType);
@@ -137,6 +187,17 @@ template <typename T> void writeRequest(T input, int mpiRank, char * tag, dbHand
 	return;
 }
 
+/**
+ * @brief Read specific request ID and block until data is available
+ * 
+ * @tparam T Type of result
+ * @param mpiRank MPI Rank of requesting process
+ * @param tag Tag corresponding to set of requests
+ * @param dbHandle Database to write to
+ * @param reqNum ID of request
+ * @param reqType ALInterfaceMode_e of request type
+ * @return T Result from database
+ */
 template <typename T> T readResult_blocking(int mpiRank, char * tag, dbHandle_t  dbHandle, int reqNum, unsigned int reqType)
 {
 	T retVal;
@@ -175,6 +236,18 @@ template <typename T> T readResult_blocking(int mpiRank, char * tag, dbHandle_t 
 	return retVal;
 }
 
+/**
+ * @brief Request a single fine grain simulation with specified request type
+ * 
+ * @tparam S Type of request
+ * @tparam T Type of expected result
+ * @param input 
+ * @param mpiRank MPI Rank of requesting process
+ * @param tag Tag corresponding to set of requests
+ * @param dbHandle Database to write to
+ * @param reqType ALInterfaceMode_e of request type
+ * @return T Result of simulation
+ */
 template <typename S, typename T> T req_single_with_reqtype(S input, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType)
 {
 	int reqNumber = getReqNumber();
@@ -190,6 +263,19 @@ template <typename S, typename T> T req_single_with_reqtype(S input, int mpiRank
 	return retVal;
 }
 
+/**
+ * @brief Batch request of fine grain simulations with specified request type
+ * 
+ * @tparam S Type of request
+ * @tparam T Type of expected result
+ * @param input Array of requests of type S
+ * @param numInputs Length of input array
+ * @param mpiRank MPI Rank of requesting process
+ * @param tag Tag corresponding to set of requests
+ * @param dbHandle Database to write to
+ * @param reqType ALInterfaceMode_e of request type
+ * @return T* Array of results of length numInputs
+ */
 template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInputs, int mpiRank, char * tag, dbHandle_t  dbHandle, unsigned int reqType)
 {
 	std::set<int> reqQueue;
@@ -214,9 +300,19 @@ template <typename S, typename T> T* req_batch_with_reqtype(S *input, int numInp
 	return retVal;
 }
 
+/**
+ * @brief Insert batch requests as an MPI collective operation
+ * 
+ * @tparam T Type of request
+ * @param input Array of requests of type S
+ * @param numInputs Length of input array
+ * @param reqRank MPI Rank of requesting process
+ * @param dbHandle Database to write to
+ * @return std::unique_ptr<std::vector<int>> 
+ */
 template<typename T> std::unique_ptr<std::vector<int>> col_insertReqs(T *input, int numInputs, int reqRank, dbHandle_t  dbHandle)
 {
-	//Return  a full vector as we have no guarantee of contiguous reqIDs
+	//Return a full vector as we have no guarantee of contiguous reqIDs
 	auto retVec = std::make_unique<std::vector<int>>(numInputs, -1);
 	std::string tag("TAG");
 	int start,end;
@@ -231,6 +327,17 @@ template<typename T> std::unique_ptr<std::vector<int>> col_insertReqs(T *input, 
 	return retVec;
 }
 
+/**
+ * @brief Helper function to request a range of results to support batch requests
+ * 
+ * @tparam T Type of result
+ * @param nextID The lowest ID of the block of requests. Inclusive
+ * @param maxID The maximum ID of the block of requests. Inclusive
+ * @param mpiRank MPI Rank of requesting process
+ * @param dbHandle Database to write to
+ * @param reqType ALInterfaceMode_e of request type
+ * @return std::unique_ptr<std::vector<std::tuple<int, T>>> Vector of tuples of request IDs and results
+ */
 template <typename T> std::unique_ptr<std::vector<std::tuple<int, T>>> getRangeOfResults(int nextID, int maxID, int mpiRank, dbHandle_t dbHandle, unsigned int reqType)
 {
 	auto retVec = std::make_unique<std::vector<std::tuple<int,T>>>();
@@ -289,7 +396,6 @@ template <typename T> std::vector<T> * col_extractResults(std::unique_ptr<std::v
 
 	//We have guarantee that reqRange[0] is lowest ID but not that all IDs are contiguous
 	//Need to request lowest to max until all results have been received
-	//
 
 	// Start by requesting the full range
 	int rStart, rEnd;
