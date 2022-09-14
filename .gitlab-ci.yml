@@ -11,7 +11,7 @@ cmake:gnu:
     - apt install build-essential mpich python3-dev cmake python3-numpy libsqlite3-dev python3-torch python3-sklearn -y
     # And now we actually build
     - mkdir bld && cd bld
-    - cmake ..
+    - cmake ../GLUECode_Library
     - make
   artifacts:
     paths:
@@ -27,7 +27,7 @@ test:gnu:
     - apt install build-essential mpich python3-dev cmake python3-numpy libsqlite3-dev python3-torch python3-sklearn -y
     # And now we actually test
     - mkdir serial && cd serial
-    - bash ../sniffTest_serial.sh
+    - bash ../examples/sniffTest_serial.sh ../bld/tests/sniffTest_mpi
   needs: ["cmake:gnu"]
   dependencies:
     - cmake:gnu
@@ -41,7 +41,7 @@ test:gnu_mpi:
     - apt install build-essential mpich python3-dev cmake python3-numpy libsqlite3-dev python3-torch python3-sklearn -y
     # And now we actually test
     - mkdir mpi && cd mpi
-    - bash ../sniffTest_mpi.sh
+    - bash ../examples/sniffTest_mpi.sh ../bld/tests/sniffTest_mpi
   needs: ["cmake:gnu"]
   dependencies:
     - cmake:gnu
