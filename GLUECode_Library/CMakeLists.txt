@@ -10,4 +10,5 @@ set(CMAKE_CXX_STANDARD 14)
 set(SOLVER_SIDE_DB "SQLITE" CACHE STRING "Set Database Backend For C Side Of Code")
 set_property(CACHE SOLVER_SIDE_DB PROPERTY STRINGS "SQLITE" "MYSQL")
 
-add_subdirectory(GLUECode)
+add_subdirectory(src)
+add_subdirectory(tests)
