@@ -10,7 +10,7 @@ pi = np.pi
 """
 This module computes single species and binary transport coefficients based on the paper of 
  L. G. Stanton and M. S. Murillo "Ionic transport in high-energy-density
-matter", PRE ${\bf 93}$ 043203 (2016).  
+matter", PRE 93 043203 (2016).
 """
 
 
@@ -45,26 +45,14 @@ class sm:
         return D, D_star
 
     @staticmethod
-    def Lmf(n, m, Z, T):
-        vth = 1.e2 * np.sqrt(8 * 1.38e-23 * T * 11600 / (np.pi * m * 1.e-3))
-        Lmf = 3 * D(n, m, Z, T) / vth
-        return Lmf
-
-    @staticmethod
-    def mfp(n, m, Z, T):
-        vth = np.sqrt(8 * 1.38e-23 * T * 11600 / (np.pi * m * 1.e-3))
-        mpf = 3 * D(n, m, Z, T) * 1.e-4 / vth
-        return mpf
-
-    @staticmethod
     def eta(n, m, Z, T, kappa=-1):
         """Computes viscosity coefficient of a single species.
-        Input:  n     - 1/cm^3
-                m     - g
-                Z     - unitless
-                T     - eV
+            Input:  n     - 1/cm^3
+                    m     - g
+                    Z     - unitless
+                    T     - eV
 
-        Output: eta   - g / (cm s)
+            Output: eta   - g / (cm s)
         """
         erg_to_ev = 6.2415e11
 
@@ -94,12 +82,12 @@ class sm:
     @staticmethod
     def Ktherm1(n, m, Z, T, kappa=-1):
         """Computes thermal conductivity coefficient of a single species.
-        Input:  n     - 1/cm^3
-                m     - g
-                Z     - unitless
-                T     - eV
+            Input:  n     - 1/cm^3
+                    m     - g
+                    Z     - unitless
+                    T     - eV
 
-        Output: K     - 1 / (cm s)
+            Output: K     - 1 / (cm s)
         """
         erg_to_ev = 6.2415e11
 
@@ -128,20 +116,19 @@ class sm:
 
     @staticmethod
     def D_ij(n1, n2, m1, m2, Z1, Z2, T, kappa=-1):
-        """Calculates diffusion coefficient D_ij for a binary mixture based on the
-        Stanton-Murillo transport coefficient formulas.
+        """Calculates interdiffusion (or mutual diffusion) coefficient D_ij for a binary mixture based on the
+            Stanton-Murillo transport coefficient formulas.
 
-        Input:  n1         - 1/cm^3
-                n2         - 1/cm^3
-                m1         - g
-                m2         - g
-                Z1
-                Z2
-                T          - eV
+            Input:  n1         - 1/cm^3
+                    n2         - 1/cm^3
+                    m1         - g
+                    m2         - g
+                    Z1
+                    Z2
+                    T          - eV
 
-        Output D_ij        - cm^2 / s
+            Output D_ij        - cm^2 / s
         """
-
         # charge squared (eV - cm)
         e2_cgs = 1.44e-7
         erg_to_ev = 6.2415e11
@@ -167,19 +154,18 @@ class sm:
     @staticmethod
     def eta2(n1, n2, m1, m2, Z1, Z2, T):
         """Calculates viscosity coefficient eta_tot for a binary mixture based on the
-        Stanton-Murillo transport coefficient formulas.
+            Stanton-Murillo transport coefficient formulas.
 
-        Input:  n1         - 1/cm^3
-                n2         - 1/cm^3
-                m1         - g
-                m2         - g
-                Z1
-                Z2
-                T          - eV
+            Input:  n1         - 1/cm^3
+                    n2         - 1/cm^3
+                    m1         - g
+                    m2         - g
+                    Z1
+                    Z2
+                    T          - eV
 
-        Output  eta_ij     - g / (cm s)
+            Output  eta_ij     - g / (cm s)
         """
-
         e2_cgs = 1.44e-7  # ev-cm
         erg_to_ev = 6.2415e11
 
@@ -227,19 +213,18 @@ class sm:
     @staticmethod
     def Ktherm2(n1, n2, m1, m2, Z1, Z2, T):
         """Calculates Thermal conductivity coefficient K_tot for a binary mixture based on the
-        Stanton-Murillo transport coefficient formulas.
+            Stanton-Murillo transport coefficient formulas.
 
-        Input:  n1         - 1/cm^3
-                n2         - 1/cm^3
-                m1         - g
-                m2         - g
-                Z1
-                Z2
-                T          - eV
+            Input:  n1         - 1/cm^3
+                    n2         - 1/cm^3
+                    m1         - g
+                    m2         - g
+                    Z1
+                    Z2
+                    T          - eV
 
-        Output: K_ij       - 1 / (cm s)
+            Output: K_ij       - 1 / (cm s)
         """
-
         e2_cgs = 1.44e-7  # ev-cm
         erg_to_ev = 6.2415e11
 
@@ -294,10 +279,10 @@ class sm:
     @staticmethod
     def K11(g):
         """Calculates the reduced collision integral Knm(g) for the (n,m) pairs equal to (1,1),
-         and with g being the plasma parameter.
+            and with g being the plasma parameter.
 
-        Input:  g
-        Output: K11
+            Input:  g
+            Output: K11
         """
         if g < 1.0:
             return -0.25 * np.log(
@@ -308,10 +293,10 @@ class sm:
     @staticmethod
     def K12(g):
         """Calculates the reduced collision integral Knm(g) for the (n,m) pairs equal to (1,2),
-         and with g being the plasma parameter.
+            and with g being the plasma parameter.
 
-        Input:  g
-        Output: K12
+            Input:  g
+            Output: K12
         """
         if g < 1.0:
             return -0.25 * np.log(
@@ -324,9 +309,9 @@ class sm:
         """Calculates the reduced collision integral Knm(g) for the (n,m) pairs equal to (1,3),
             and with g being the plasma parameter.
 
-           Input:  g
-           Output: K13
-           """
+            Input:  g
+            Output: K13
+        """
         if g < 1.0:
             return -0.5 * np.log(
                 0.30346 * g + 0.23739 * g ** 2.0 - 0.62167 * g ** 3.0 + 0.56110 * g ** 4 - 0.18046 * g ** 5)
@@ -338,9 +323,9 @@ class sm:
         """Calculates the reduced collision integral Knm(g) for the (n,m) pairs equal to (2,2),
             and with g being the plasma parameter.
 
-           Input:  g
-           Output: K22
-           """
+            Input:  g
+            Output: K22
+        """
         if g < 1.0:
             return -0.5 * np.log(
                 0.8541 * g - 0.22898 * g ** 2.0 - 0.60059 * g ** 3.0 + 0.80591 * g ** 4 - 0.30555 * g ** 5)
@@ -356,7 +341,7 @@ class sm:
                    Z
                    T          - eV
            Output: lam
-           """
+        """
         # note - this assumes ion and electron temperatures are the same
         m_e = 9.109e-28  # g
         hbar = 6.5821e-16  # eV-s
@@ -381,14 +366,14 @@ class sm:
 
     @staticmethod
     def lam_e(n1, n2, m1, m2, Z1, Z2, T):
-        """Calculates the effective screening length associated with a multicomponent system of N ionic species.
+        """Calculates the Thomas-Fermi screening length for the electrons. It includes degeneracy and recovers the classical Debye-Hueckel length in the right limits.
 
-                   Input:  n          - ionic species
-                           m
-                           Z
-                           T          - eV
-                   Output: lam
-                   """
+            Input:  n          - ionic species
+                   m
+                   Z
+                   T          - eV
+            Output: lam
+        """
         # note - this assumes ion and electron temperatures are the same
         m_e = 9.109e-28  # g
         hbar = 6.5821e-16  # eV-s
@@ -396,7 +381,7 @@ class sm:
         erg_to_ev = 6.2415e11
         e2_cgs = 1.44e-7  # eV-cm
 
-        n = n1 + n2  # 1/cm^3
+        # define electron density - charge neutrality approximation
         n_e = Z1 * n1 + Z2 * n2
 
         # define screening length
@@ -407,7 +392,14 @@ class sm:
 
     @staticmethod
     def lam_eff2(n1, n2, m1, m2, Z1, Z2, T):
+        """Calculates the effective screening length associated with a multicomponent system of N ionic species.
 
+            Input:  n          - ionic species
+                   m
+                   Z
+                   T          - eV
+            Output: lam
+        """
         # note - this assumes ion and electron temperatures are the same
         m_e = 9.109e-28  # g
         hbar = 6.5821e-16  # eV-s
@@ -439,19 +431,18 @@ class sm:
     def gammaSM2(n1, n2, m1, m2, Z1, Z2, T, atot, kappa):
         """Computes the K_ij coefficient gamma for a binary mixture
 
-        Input:  n1         - 1/cm^3
-                n2         - 1/cm^3
-                m1         - g
-                m2         - g
-                Z1
-                Z2
-                T          - eV
-                atot
-                kappa
+            Input:  n1         - 1/cm^3
+                    n2         - 1/cm^3
+                    m1         - g
+                    m2         - g
+                    Z1
+                    Z2
+                    T          - eV
+                    atot
+                    kappa
 
-        Output  gamma     - unitless
+            Output  gamma     - unitless
         """
-
         n = n1 + n2
         rhotot = Z1 * n1 + Z2 * n2
 
@@ -474,7 +465,15 @@ class sm:
 
     @staticmethod
     def mfp(n1, m1, Z1, T, kappa=-1):
+        """Computes electron mean-free path collisional.
 
+            Input:  n     - 1/cm^3
+                    m     - g
+                    Z     - unitless
+                    T     - eV
+
+            Output: mfp   - cm
+        """
         D = D_ij(n1, n1, m1, m1, Z1, Z1, T, kappa=-1)
         mred = m1 * m1 / (m1 + m1)
         vth = np.sqrt(8 * 1.38e-23 * T * 11600 / (np.pi * mred * 1.e-3))
@@ -485,10 +484,12 @@ class sm:
     def Wigner_Seitz_radius(n):
         """Computes the Wigner-Seitz radius that describes the radius of a sphere
             whose volume is equal to the mean volume per atom in a solid.
-            Input:  n         - number of free electrons in a volume V
 
-            Output:  rs       - Wigner-Seitz radius
-            """
+            Input:  n         - number of free electrons in a volume V (1/cm^3)
+
+            Output:  rs       - Wigner-Seitz radius (cm)
+        """
+
         return (3. / (4. * np.pi * n)) ** (1. / 3.)
 
 
@@ -501,8 +502,7 @@ def D(n, m, Z, T):
                 T     - eV
 
         Output: eta   - cm^2/ s
-        """
-
+    """
     erg_to_ev = 6.2415e11
 
     # charge squared (eV - cm)
@@ -522,18 +522,6 @@ def D(n, m, Z, T):
     return D
 
 
-def Lmf(n, m, Z, T):
-    vth = 1.e2 * np.sqrt(8 * 1.38e-23 * T * 11600 / (np.pi * m * 1.e-3))
-    Lmf = 3 * D(n, m, Z, T) / vth
-    return Lmf
-
-
-def mfp(n, m, Z, T):
-    vth = np.sqrt(8 * 1.38e-23 * T * 11600 / (np.pi * m * 1.e-3))
-    mpf = 3 * D(n, m, Z, T) * 1.e-4 / vth
-    return mpf
-
-
 def eta(n, m, Z, T, kappa=-1):
     """Computes viscosity coefficient of a single species.
 
@@ -543,8 +531,7 @@ def eta(n, m, Z, T, kappa=-1):
                 T     - eV
 
         Output: eta   - Pa.s
-        """
-
+    """
     erg_to_ev = 6.2415e11
 
     # charge squared (eV - cm)
@@ -575,8 +562,7 @@ def Ktherm1(n, m, Z, T, kappa=-1):
                 T     - eV
 
         Output: K     - W/m/K
-        """
-
+    """
     erg_to_ev = 6.2415e11
 
     # charge squared (eV - cm)
@@ -614,8 +600,7 @@ def D_ij(n1, n2, m1, m2, Z1, Z2, T, kappa=-1):
                 T          - eV
 
         Output  D_ij       - cm^2 / s
-        """
-
+    """
     # charge squared (eV - cm)
     e2_cgs = 1.44e-7
     erg_to_ev = 6.2415e11
@@ -648,8 +633,7 @@ def eta2(n1, n2, m1, m2, Z1, Z2, T):
                 T          - eV
 
         Output  eta_ij     - Pa.s
-        """
-
+    """
     e2_cgs = 1.44e-7  # ev-cm
     erg_to_ev = 6.2415e11
 
@@ -708,8 +692,7 @@ def Ktherm2(n1, n2, m1, m2, Z1, Z2, T):
                 T          - eV
 
         Output  K_ij       - W/m/K
-        """
-
+    """
     e2_cgs = 1.44e-7  # ev-cm
     erg_to_ev = 6.2415e11
 
@@ -767,7 +750,7 @@ def K22(g):
 
         Input:  g
         Output: K22
-        """
+    """
     k22_WC = -0.5 * np.log(0.85401 * g - 0.22898 * g ** 2 - 0.60059 * g ** 3 + 0.80591 * g ** 4 - 0.30555 * g ** 5)
     k22_SC = (0.43475 - 0.21147 * np.log(g) + 0.11116 * (np.log(g)) ** 2) / (1. + 0.19665 * g + 0.15195 * g ** 2)
 
@@ -793,7 +776,7 @@ def K12(g):
 
         Input:  g
         Output: K12
-        """
+    """
     k12_WC = -0.25 * np.log(0.52094 * g + 0.25153 * g ** 2.0 - 1.1337 * g ** 3.0 + 1.2155 * g ** 4 - 0.43784 * g ** 5)
     k12_SC = (0.20572 - 0.16536 * np.log(g) + 0.061572 * np.log(g) ** 2) / (1.0 - 0.12770 * g + 0.066993 * g * g)
     return np.where(g < 1., k12_WC, k12_SC)
@@ -805,13 +788,21 @@ def K13(g):
 
         Input:  g
         Output: K13
-        """
+    """
     k13_WC = -0.5 * np.log(0.30346 * g + 0.23739 * g ** 2.0 - 0.62167 * g ** 3.0 + 0.56110 * g ** 4 - 0.18046 * g ** 5)
     k13_SC = (0.68375 - 0.384596 * np.log(g) + 0.10711 * np.log(g) ** 2) / (1.0 + 0.10649 * g + 0.028760 * g * g)
     return np.where(g < 1., k13_WC, k13_SC)
 
 
 def lam_eff1(n, m, Z, T):
+    """Calculates the effective screening length associated with a multicomponent system of N ionic species.
+
+        Input:  n          - ionic species
+                m
+                Z
+                T          - eV
+        Output: lam
+        """
     # note - this assumes ion and electron temperatures are the same
     m_e = 9.109e-28  # g
     hbar = 6.5821e-16  # eV-s
@@ -836,6 +827,14 @@ def lam_eff1(n, m, Z, T):
 
 
 def lam_e(n1, n2, m1, m2, Z1, Z2, T):
+    """Calculates the Thomas-Fermi screening length for the electrons. It includes degeneracy and recovers the classical Debye-Hueckel length in the right limits.
+
+        Input:  n          - ionic species
+               m
+               Z
+               T          - eV
+        Output: lam
+    """
     # note - this assumes ion and electron temperatures are the same
     m_e = 9.109e-28  # g
     hbar = 6.5821e-16  # eV-s
@@ -853,6 +852,14 @@ def lam_e(n1, n2, m1, m2, Z1, Z2, T):
 
 
 def lam_eff2(n1, n2, m1, m2, Z1, Z2, T):
+    """Calculates the effective screening length associated with a multicomponent system of N ionic species.
+
+        Input:  n          - ionic species
+               m
+               Z
+               T          - eV
+        Output: lam
+    """
     # note - this assumes ion and electron temperatures are the same
     m_e = 9.109e-28  # g
     hbar = 6.5821e-16  # eV-s
@@ -893,8 +900,7 @@ def gammaSM2(n1, n2, m1, m2, Z1, Z2, T, atot, kappa):
                 kappa
 
         Output  gamma     - unitless
-        """
-
+    """
     n = n1 + n2
     rhotot = Z1 * n1 + Z2 * n2
 
@@ -917,9 +923,17 @@ def gammaSM2(n1, n2, m1, m2, Z1, Z2, T, atot, kappa):
 
 
 def mfp(n1, m1, Z1, T, kappa=-1):
+    """Computes electron mean-free path collisional.
+
+        Input:  n     - 1/cm^3
+                m     - g
+                Z     - unitless
+                T     - eV
+
+        Output: mfp   - cm
+    """
     D = D_ij(n1, n1, m1, m1, Z1, Z1, T, kappa=-1)
     mred = m1 * m1 / (m1 + m1)
-    #    vth=2.02e-06*np.sqrt(T/(np.pi*mred))
     vth = np.sqrt(8 * 1.38e-23 * T * 11600 / (np.pi * mred * 1.e-3))
     return 3 * D * 1.e-4 / vth
 
@@ -927,10 +941,11 @@ def mfp(n1, m1, Z1, T, kappa=-1):
 def Wigner_Seitz_radius(n):
     """Computes the Wigner-Seitz radius that describes the radius of a sphere
        whose volume is equal to the mean volume per atom in a solid.
+
         Input:  n         - number of free electrons in a volume V
 
         Output:  rs       - Wigner-Seitz radius
-        """
+    """
     return (3. / (4. * np.pi * n)) ** (1. / 3.)
 
 
@@ -941,8 +956,7 @@ def ICFAnalytical_solution(LammpsDens, LammpsCharges, LammpsTemperature):
                 LammpsTemperature     - eV
 
         Outputs: kappa, eta, D       - W/m/K; Pa.s; cm^2/ s
-        """
-
+    """
     m = np.array([3.3210778e-24, 6.633365399999999e-23, 6.633365399999999e-23, 6.633365399999999e-23])
     species_with_zeros_densities_index = []
     species_with_non_zeros_densities_index = []
@@ -986,13 +1000,12 @@ def ICFAnalytical_solution(LammpsDens, LammpsCharges, LammpsTemperature):
 
 def write_LammpsScript(Temperature, densities, charges, masses, system_index_species, box, cutoff, Teq, Trun,
                        index_species, s_int, p_int, d_int, dirPrefix):
-    """
-    This script takes thermodynamical conditions of a plasma: temperature, densities, ionisation state (zbars),
-    masses, together with the number of elements in the system, simulation box and cutoff sizes [in units of
-    Wigner-Seitz radius], equilibration and production number steps, to generate a LAMMPS script file.
+    """This script takes thermodynamical conditions of a plasma: temperature, densities, ionisation state (zbars),
+        masses, together with the number of elements in the system, simulation box and cutoff sizes [in units of
+        Wigner-Seitz radius], equilibration and production number steps, to generate a LAMMPS script file.
 
-    Author: Abdou Diaw
-        """
+        Author: Abdou Diaw
+    """
     nspec = system_index_species
 
     lammpsFName = os.path.join(dirPrefix, 'lammpsScript_' + str(nspec))
@@ -1008,23 +1021,29 @@ def write_LammpsScript(Temperature, densities, charges, masses, system_index_spe
         eps0 = 8.8542e-12
         echarge = 1.6022e-19
 
+        # Calculates Debye screening length and its inverse (scnlng) for the Yukawa potential.
         zbars = charges
         edens = 1.e6 * sum(zbars * densities)
         Ef = hbar2 * (3. * np.pi ** 2 * edens) ** (2 / 3) / (2 * emass)
         Debye = np.sqrt(
             eps0 * np.sqrt((kb * Temperature * 11600) ** 2 + (2. * Ef / 3) ** 2) / (edens * echarge * echarge))
         scnlng = 1. / Debye
+
+        # Set cutoff and neighbor list
         aws = (3. / (4 * np.pi * sum(1.e6 * densities))) ** (1. / 3.)
         rc = cutoff * aws
         dbin = 0.1 * rc
+
+        # Set timestep of the simulation as a fraction of the plasma frequency
         Temp1 = Temperature * 11600
         Z_av = sum(zbars * densities / sum(densities))
         m_av = sum(densities * masses / sum(densities))
         omega_p = np.sqrt((echarge * Z_av) ** 2 * sum(1.e6 * densities) / (eps0 * 1.e-3 * m_av))
+
         dtstep = 1. / (300. * omega_p)
         Tdamp = 1.e2 * dtstep
 
-        # Simulations box and particles number
+        # Set simulations box size and particles number
 
         l = box * aws
         volume = l ** 3
@@ -1259,6 +1278,13 @@ def write_LammpsScript(Temperature, densities, charges, masses, system_index_spe
 
 def check_zeros_trace_elements(Temperature, densities, charges, masses, box, cutoff, Teq, Trun, s_int, p_int, d_int,
                                eps_traces, dirPrefix):
+    """ We generally assume to have a four-species mixtures. However, for some cases the density of given species can be
+        so low we need to figure out how to model it. Asymmetric mixtures are very difficult to simulate with
+        MD specially when the ratio between the dominant species and the trace element is large, say higher than 100.
+        This function checks whether the trace species density falls below a threshold. If that is the case, we consider
+        the plasma as an unmixed system. It builds two LAMMPS scripts, and perform simulations for each species to
+        calculate the single diffusion coefficients.
+    """
     species_with_zeros_densities_index = []
     traces_elements_index = []
     non_traces_elements_index = []
@@ -1311,7 +1337,10 @@ def check_zeros_trace_elements(Temperature, densities, charges, masses, box, cut
 
 
 def write_output_coeff(densities0, species_with_zeros_densities_index):
-    # Use the results to build mutual_diffusion for trace and missing species. Darken.
+    """For the case of traces species, we perform single and separated MD simulations to obtain the diffusion of
+        coefficients of single species system. This function uses the single diffusion coefficients for trace
+        and missing species to build mutual diffusion with Darken relation.
+    """
     concentrations = densities0 / sum(densities0)
     nspecies = np.arange(0, len(concentrations), 1)
 
@@ -1342,6 +1371,9 @@ def write_output_coeff(densities0, species_with_zeros_densities_index):
 
 
 def icfComparator(lhs, rhs, epsilon):
+    """For a given request, this function checks whether the solution exists already in the database.
+        Duplicates check.
+    """
     retVal = True
     if rhs.Temperature != 0.0 and (lhs.Temperature - rhs.Temperature) / rhs.Temperature > epsilon:
         retVal = False
