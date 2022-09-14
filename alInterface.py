@@ -3,11 +3,10 @@ import os
 import stat
 import shutil
 import numpy as np
-import time
 import subprocess
 import getpass
 import sys
-from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface, ProvisioningInterface, DatabaseMode
+from glueCodeTypes import ALInterfaceMode, SolverCode, ResultProvenance, LearnerBackend, BGKInputs, BGKMassesInputs, BGKOutputs, BGKMassesOutputs, SchedulerInterface, ProvisioningInterface
 from contextlib import redirect_stdout
 from ICF_Utils import ICFAnalytical_solution, check_zeros_trace_elements, icfComparator
 from glueArgParser import processGlueCodeArguments
@@ -644,10 +643,10 @@ def getInterpModel(packetType, alBackend, dbHandle):
     if alBackend == LearnerBackend.FAKE:
         return InterpModelWrapper(alModelStub, uqCheckerStub)
     if alBackend == LearnerBackend.PYTORCH:
-        import nn_learner
+        from ML_Utils import nn_learner
         return MLModelWrapper(nn_learner.retrain(dbHandle))
     if alBackend == LearnerBackend.RANDFOREST:
-        import rf_learner
+        from ML_Utils import rf_learner
         return MLModelWrapper(rf_learner.retrain(dbHandle)) 
     else:
         raise Exception('Using Unsupported Active Learning Backend')
