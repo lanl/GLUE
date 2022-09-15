@@ -5,6 +5,12 @@ module alinterface_f
 
 	public
 
+	!> Fortran interface to lbmToOneDMD_req_single()
+	!! @param input Array of request of length numInputs
+	!! @param mpiRank MPI Rank of requesting process
+	!! @param tag Tag corresponding to set of requests
+	!! @param dbHandle Database to write to
+	!! @return res TODO
 	interface
 		function lbmToOneDMD_req_single_f(input, mpiRank, tag, dbHandle) bind(c,name="lbmToOneDMD_req_single") result(res)
 			use iso_c_binding
@@ -17,6 +23,12 @@ module alinterface_f
 		end function lbmToOneDMD_req_single_f
 	end interface
 
+	!> Fortran interface to bgk_req_single()
+	!! @param input Array of request of length numInputs
+	!! @param mpiRank MPI Rank of requesting process
+	!! @param tag Tag corresponding to set of requests
+	!! @param dbHandle Database to write to
+	!! @return res TODO
 	interface
 		function bgk_req_single_f(input, mpiRank, tag, dbHandle) bind(c,name="bgk_req_single") result(res)
 			use iso_c_binding
@@ -29,6 +41,13 @@ module alinterface_f
 		end function bgk_req_single_f
 	end interface
 
+	!> Fortran interface to bgk_req_batch()
+	!! @param input Array of request of length numInputs
+	!! @param numInputs Length of input array
+	!! @param mpiRank MPI Rank of requesting process
+	!! @param tag Tag corresponding to set of requests
+	!! @param dbHandle Database to write to
+	!! @return res Array of results of length numInputs
 	interface
 		function bgk_req_batch_internal_f(input, numInputs, mpiRank, tag, dbHandle) bind(c,name="bgk_req_batch") result(res)
 			use iso_c_binding
@@ -42,33 +61,50 @@ module alinterface_f
 		end function bgk_req_batch_internal_f
 	end interface
 
+    !> Fortran interface to initDB()
+    !! This is a Fortran function that is used to initialize the SQLite database
+    !! @param mpiRank MPI Rank of requesting process
+    !! @param fName Field name
+	!! @return dbHandle Database to write to
 	interface
 		function initDB_f(mpiRank,fName) bind(c,name="initDB") result(dbhandle) 
 			use iso_c_binding
-			type(c_ptr) :: dbhandle
+			type(c_ptr) :: dbHandle
 			integer(c_int), value :: mpiRank
 			character(kind=c_char)  :: fName(*)
 		end function initDB_f
 	end interface
 
+    !> Fortran interface to lbmToOneDMD_stop_service()
+    !! This is a Fortran function that is used to terminate service for Shale simulation
+    !! @param mpiRank MPI Rank of requesting process
+    !! @param tag Tag corresponding to set of requests
+	!! @param dbHandle Database to write to
 	interface
 		subroutine lbmToOneDMD_stop_service_f(mpiRank, tag, dbHandle) bind(c, name="lbmToOneDMD_stop_service")
 			use iso_c_binding
 			integer(c_int), value :: mpiRank
 			character(kind=c_char) :: tag(*)
-			type(c_ptr) :: dbhandle
+			type(c_ptr) :: dbHandle
 		end subroutine lbmToOneDMD_stop_service_f
 	end interface
 
+    !> Fortran interface to bgk_stop_service()
+    !! This is a Fortran function that is used to terminate service for BGK simulation
+    !! @param mpiRank MPI Rank of requesting process
+    !! @param tag Tag corresponding to set of requests
+	!! @param dbHandle Database to write to
 	interface
 		subroutine bgk_stop_service_f(mpiRank, tag, dbHandle) bind(c, name="bgk_stop_service")
 			use iso_c_binding
 			integer(c_int), value :: mpiRank
 			character(kind=c_char) :: tag(*)
-			type(c_ptr), value :: dbhandle
+			type(c_ptr), value :: dbHandle
 		end subroutine bgk_stop_service_f
 	end interface
 
+    !> Fortran interface to resFreeWrapper() TODO
+	!! @param buffer
 	interface 
 		subroutine resFreeWrapper_internal_f(buffer) bind(c, name="resFreeWrapper")
 			use iso_c_binding
@@ -76,6 +112,9 @@ module alinterface_f
 		end subroutine resFreeWrapper_internal_f
 	end interface
 
+    !> Fortran interface to closeDB()
+    !! This is a Fortran function that is used to close the connection to the SQLite database
+	!! @param dbHandle Database to write to
 	interface
 		subroutine closeDB_f(dbHandle) bind(c, name="closeDB")
 			use iso_c_binding
@@ -91,7 +130,7 @@ module alinterface_f
 	!! @param mpiRank MPI Rank of requesting process
 	!! @param tag Tag corresponding to set of requests
 	!! @param dbHandle Database to write to
-	!! @return Array of results of length numInputs
+	!! @return res Array of results of length numInputs
 	function bgk_req_batch_f(input, numInputs, mpiRank, tag, dbHandle) result(res)
 		use iso_c_binding
 		type(bgk_request_f) :: input(numInputs)

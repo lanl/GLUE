@@ -68,6 +68,14 @@ bgk_result_t* bgk_req_batch(bgk_request_t *input, int numInputs, int mpiRank, ch
 	return bgk_req_batch_with_reqtype(input, numInputs, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
 }
 
+
+/**
+ * @brief This is a C++ function that is used to terminate service for BGK simulation
+ *
+ * @param mpiRank MPI Rank of requesting process
+ * @param tag Tag corresponding to set of requests
+ * @param dbHandle Database to write to
+ */
 void bgk_stop_service(int mpiRank, char * tag, dbHandle_t dbHandle)
 {
 	bgk_request_t req;
@@ -137,6 +145,13 @@ lbmToOneDMD_result_t* lbmToOneDMD_req_batch(lbmToOneDMD_request_t *input, int nu
 	return lbmToOneDMD_req_batch_with_reqtype(input, numInputs, mpiRank, tag, dbHandle, ALInterfaceMode_e::DEFAULT);
 }
 
+/**
+ * @brief This is a C++ function that is used to terminate service for Shale simulation
+ *
+ * @param mpiRank MPI Rank of requesting process
+ * @param tag Tag corresponding to set of requests
+ * @param dbHandle Database to write to
+ */
 void lbmToOneDMD_stop_service(int mpiRank, char * tag, dbHandle_t dbHandle)
 {
 	lbmToOneDMD_request_t req;
@@ -171,6 +186,13 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 ///TODO: Figure out a good way to refactor this
 #ifdef SOLVER_SIDE_SQLITE
 
+/**
+ * @brief This is a C++ function that is used to initialize the SQLite database
+ *
+ * @param mpiRank MPI Rank of requesting process
+ * @param fName Field name
+ * @return dbHandle Database to write to
+ */
 dbHandle_t initDB(int mpiRank, char * fName)
 {
 #ifdef DB_EXISTENCE_SPIN
@@ -184,6 +206,11 @@ dbHandle_t initDB(int mpiRank, char * fName)
 	return dbHandle;
 }
 
+/**
+ * @brief This is a C++ function that is used to close the connection to the SQLite database
+ *
+ * @param dbHandle Database to write to
+ */
 void closeDB(dbHandle_t dbHandle)
 {
 	sqlite3_close(dbHandle);

@@ -75,7 +75,7 @@ struct bgk_result_s
 	int provenance;
 
 	#ifdef __cplusplus
-		/**
+    /**
 	 * @brief This is a C++ function that is used to compare two bgk_result_s structs. It is used to determine if a result is already available.
 	 * 
 	 * @param lhs First result
