@@ -6,11 +6,14 @@ module alinterface_f
 	public
 
 	!> Fortran interface to lbmToOneDMD_req_single()
+	!! This is a Fortran function that generates Shale simulation requests for LBM application
+	!! in a 1-Dimensional Problem
+	!!
 	!! @param input Array of request of length numInputs
 	!! @param mpiRank MPI Rank of requesting process
 	!! @param tag Tag corresponding to set of requests
 	!! @param dbHandle Database to write to
-	!! @return res TODO
+	!! @return res single fine grain simulation result for LBM application in a 1-Dimensional Problem
 	interface
 		function lbmToOneDMD_req_single_f(input, mpiRank, tag, dbHandle) bind(c,name="lbmToOneDMD_req_single") result(res)
 			use iso_c_binding
@@ -24,11 +27,13 @@ module alinterface_f
 	end interface
 
 	!> Fortran interface to bgk_req_single()
+	!! This is a Fortran function that generates a single fine grain simulation request for ICF using BGK format
+	!!
 	!! @param input Array of request of length numInputs
 	!! @param mpiRank MPI Rank of requesting process
 	!! @param tag Tag corresponding to set of requests
 	!! @param dbHandle Database to write to
-	!! @return res TODO
+	!! @return res single fine grain simulation result for ICF using BGK format
 	interface
 		function bgk_req_single_f(input, mpiRank, tag, dbHandle) bind(c,name="bgk_req_single") result(res)
 			use iso_c_binding
@@ -42,12 +47,14 @@ module alinterface_f
 	end interface
 
 	!> Fortran interface to bgk_req_batch()
+	!! This is a Fortran function that generates a batch of fine grain simulation requests for ICF using BGK format
+	!!
 	!! @param input Array of request of length numInputs
 	!! @param numInputs Length of input array
 	!! @param mpiRank MPI Rank of requesting process
 	!! @param tag Tag corresponding to set of requests
 	!! @param dbHandle Database to write to
-	!! @return res Array of results of length numInputs
+	!! @return res array of length numInputs with fine grain simulation results for ICF using BGK format
 	interface
 		function bgk_req_batch_internal_f(input, numInputs, mpiRank, tag, dbHandle) bind(c,name="bgk_req_batch") result(res)
 			use iso_c_binding
@@ -62,7 +69,8 @@ module alinterface_f
 	end interface
 
     !> Fortran interface to initDB()
-    !! This is a Fortran function that is used to initialize the SQLite database
+    !! This is a Fortran function that is used to initialize the SQLite database to the Glue code
+    !!
     !! @param mpiRank MPI Rank of requesting process
     !! @param fName Field name
 	!! @return dbHandle Database to write to
@@ -77,6 +85,7 @@ module alinterface_f
 
     !> Fortran interface to lbmToOneDMD_stop_service()
     !! This is a Fortran function that is used to terminate service for Shale simulation
+    !!
     !! @param mpiRank MPI Rank of requesting process
     !! @param tag Tag corresponding to set of requests
 	!! @param dbHandle Database to write to
@@ -91,6 +100,7 @@ module alinterface_f
 
     !> Fortran interface to bgk_stop_service()
     !! This is a Fortran function that is used to terminate service for BGK simulation
+    !!
     !! @param mpiRank MPI Rank of requesting process
     !! @param tag Tag corresponding to set of requests
 	!! @param dbHandle Database to write to
@@ -103,8 +113,10 @@ module alinterface_f
 		end subroutine bgk_stop_service_f
 	end interface
 
-    !> Fortran interface to resFreeWrapper() TODO
-	!! @param buffer
+    !> Fortran interface to resFreeWrapper()
+    !! Fortran wrapper to free memory allocated on the C side
+    !!
+	!! @param buffer TODO
 	interface 
 		subroutine resFreeWrapper_internal_f(buffer) bind(c, name="resFreeWrapper")
 			use iso_c_binding
@@ -114,6 +126,7 @@ module alinterface_f
 
     !> Fortran interface to closeDB()
     !! This is a Fortran function that is used to close the connection to the SQLite database
+    !!
 	!! @param dbHandle Database to write to
 	interface
 		subroutine closeDB_f(dbHandle) bind(c, name="closeDB")
@@ -125,6 +138,7 @@ module alinterface_f
 	contains
 
 	!> Fortran interface to bgk_req_batch()
+	!!
 	!! @param input Array of request of length numInputs
 	!! @param numInputs Length of input array
 	!! @param mpiRank MPI Rank of requesting process
@@ -147,6 +161,7 @@ module alinterface_f
 	end function bgk_req_batch_f
 
 	!> Fortran subroutine interface to bgk_req_batch()
+	!!
 	!! @param input Array of request of length numInputs
 	!! @param output Array of results of length numInputs
 	!! @param numInputs Length of input array
@@ -170,8 +185,9 @@ module alinterface_f
 		output => intermediateF
 	end subroutine bgk_req_batch_subr_f
 
-	!> Fortran wrapper to free memory allocated on C side
-	!! @param ptr to memory originally allocated on C side
+	!> Fortran wrapper to free memory allocated on the C side
+	!!
+	!! @param ptr to memory originally allocated on the C side
 	subroutine bgk_resFreeWrapper_f(ptr)
 		use iso_c_binding
 		type(bgk_result_f), pointer :: ptr(:)

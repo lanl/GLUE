@@ -21,7 +21,7 @@ module algluetypes_f
 	end type lbmToOneDMD_result_f
 
     !>
-    !! @brief TODO
+    !! @brief Struct to represent Shale simulation result for the LBM application
     !!
 	type, bind(c) :: lbmDemo_request_f
 		real(c_double) :: density
@@ -29,7 +29,7 @@ module algluetypes_f
 	end type lbmDemo_request_f
 
     !>
-    !! @brief TODO
+    !! @brief Struct to represent Shale simulation result for the LBM application
     !!
 	type, bind(c) :: lbmDemo_result_f
 		real(c_double) :: adsorption
