@@ -182,10 +182,36 @@ extern "C"
 	dbHandle_t initDB(int mpiRank, char * fName);
 	void closeDB(dbHandle_t dbHandle);
 
-	//These are the new interfaces
+	/**
+	 * @brief Interface to connect to GLUE Code service for MPI Collective based approach
+	 * 
+	 * @param fName String used to connect to SQL Database
+	 * @param glueComm MPI Communicator to be used by GLUE Code
+	 */
 	void connectGlue(char * fName, MPI_Comm glueComm);
+	/**
+	 * @brief Preprocess ICF Requests prior to sending to GLUE Code
+	 * 
+	 * @param input Array of inputs to request fine grain simulations for ICF applications using BGK format
+	 * @param numInputs Length of input
+	 * @param processedInput Pointer to preprocessed array
+	 * @param numProcessedInputs Length of processedInput
+	 */
 	void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **processedInput, int * numProcessedInputs);
+	/**
+	 * @brief Batch request of fine grain simulations for ICF applications using BGK format as an MPI collective operation
+	 * 
+	 * @param input Array of inputs to request fine grain simulations for ICF applications using BGK format
+	 * @param numInputs Length of input
+	 * @param glueComm MPI Communicator to be used by GLUE Code
+	 * @return bgk_result_t* Array of results for fine grain simulations of length numInputs
+	 */
 	bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm);
+	/**
+	 * @brief Close connection to GLUE Code service for MPI Collective based approach
+	 * 
+	 * @param glueComm MPI Communicator to be used by GLUE Code
+	 */
 	void closeGlue(MPI_Comm glueComm);
 
 #ifdef __cplusplus
