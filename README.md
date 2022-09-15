@@ -1,33 +1,26 @@
-# Proof of Concept Glue Code
+# Generic Learning User Enablement Code
 
-## Purpose
+The Generic Learning User Enablement Code (GLUE Code) is a modular framework designed to couple different scientific applications to support use cases including multiscale methods and various forms of machine learning. The workflow was initially designed around supporting active learning as an alternative to coupled applications to support multiscale methods but has been written in a sufficiently modular way that different machine learning methods can be utilized. Application programming interfaces (API) are available for C, C++, Fortran, and Python with support for various storage formats. The code also provides direct coupling with high performance computing job schedulers such as Slurm and Flux.
 
-Currently this is a prototype of one approach for the proof of concept mechanism to link between components of the Active Learning LDRD. This approach relies on SQL for the commuinication as it is a guaranteed atomic read and write that simplifies a lot of our efforts at the cost of performance.
+## Repository Structure
 
-## Using
+`GLUECode_Library` contains the C++ library that is meant to be linked to the coarse grain solver. This allows existing applications to couple to the `GLUECode_Service` with minimal code alterations.
 
-The important parts of the code are ```alInterface.[cpp, h, hpp, py]```. To use those the ```bgk_request``` and ```bgk_result``` data structures need to be updated with the appropriate inputs and outputs and so too do the portions that process the SQL operations
-
-## Building
-
-To build the test framework the SQLITE library must be provided. One way to do this is through spack
-
-```spack install sqlite```
-
-Regardless, the path to the SQLITE directory must be passed to the makefile. In the spack case this can be found with ```spack find -p sqlite```
-
-Then, to build
-
-```make SQLITE_DIR=${PATH_TO_SQLITE}```
+`GLUECode_Service` contains the python scripts that the library communicates with and uses a combination of active learning and spawning of fine grain simulation jobs to enable and accelerate multiscale scientific applications.
 
 ## Running
 
-### With BGK
+`examples/sniffTest_serial.sh` demonstrates the basic workflow to run a coupled simulation.
 
-1. Have LAMMPS built and available. Using spack: ```spack install lammps```
-2. Clone and build <https://github.com/lanl/Multi-BGK> on branch ```ALDR``` using ```make ALDR```
-3. Set up a run directory containing the appropriate BGK directories and input deck
-4. Copy ```${GLUECODE_REPO_ROOT}/slurmScripts/bgkTest.sh``` into the run directory
-5. Update the ```export```ed environment variables at the start of the file to match your setup
-6. Update ```${GLUECODE_REPO_ROOT}/slurmScripts/darwin-${COMPILER}.sh``` script with any additional modules or environment variables required to run and potentially update ```bgkTest.sh``` is not using ```gnu``` or ```darwin```
-7. ```sbatch bgkTest.sh```
+1. Prepare a json file with the desired configuration for the `GLUECode_Service`. See `docs/inputSchema.json`
+2. Use `GLUECode_Service/initTables.py` to prepare SQL tables in the specified database.
+3. Start `GLUECode_Service/alInterface.py` to listen for requests from the coarse grain solver.
+4. Finally, start the coarse grain solver itself.
+
+## License
+
+The GLUE Code is provided under a BSD-3 license. See [LICENSE](https://github.com/lanl/GLUE/blob/main/LICENSE) for more details.
+
+© 2021. Triad National Security, LLC. All rights reserved.
+
+This program was produced under U.S. Government contract 89233218CNA000001 for Los Alamos National Laboratory (LANL), which is operated by Triad National Security, LLC for the U.S. Department of Energy/National Nuclear Security Administration. All rights in the program are reserved by Triad National Security, LLC, and the U.S. Department of Energy/National Nuclear Security Administration. The Government is granted for itself and others acting on its behalf a nonexclusive, paid-up, irrevocable worldwide license in this material to reproduce, prepare derivative works, distribute copies to the public, perform publicly and display publicly, and to permit others to do so.
