@@ -156,7 +156,6 @@ void resFreeWrapper(void * buffer)
 void preprocess_icf(bgk_request_t *input, int numInputs, bgk_request_t **processedInput, int * numProcessedInputs)
 {
 	//Look for and remove duplicates
-	///TODO
 	*processedInput = input;
 	*numProcessedInputs = numInputs;
 	return;
@@ -166,7 +165,6 @@ bgk_result_t* icf_req(bgk_request_t *input, int numInputs, MPI_Comm glueComm)
 {
 	return req_collective<bgk_request_t, bgk_result_t>(input, numInputs, glueComm);
 }
-
 
 ///TODO: Figure out a good way to refactor this
 #ifdef SOLVER_SIDE_SQLITE
