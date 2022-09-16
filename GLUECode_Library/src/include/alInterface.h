@@ -346,9 +346,9 @@ extern "C"
 	void lbmToOneDMD_stop_service(int mpiRank, char * tag, dbHandle_t dbHandle);
 
     /**
-     * @brief C++ wrapper to free memory allocated by the Glue code
+     * @brief C++ wrapper to free memory allocated by the GLUE code
      *
-	 * @param buffer TODO
+	 * @param buffer Pointer to memory allocated by the GLUE Code that is no longer needed by the host
 	 */
 	void resFreeWrapper(void * buffer);
 

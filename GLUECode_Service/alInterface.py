@@ -470,7 +470,7 @@ def lammpsProvisioningBoilerplate(jobFile, configStruct):
         jobFile.write("\texport LAMMPS_BIN=`which lmp`\n")
         jobFile.write("else\n")
         # Load lammps
-        # TODO: Genralize this to support more than just MPI
+        # TODO: Generalize this to support more than just MPI
         jobFile.write("\tsource $SPACK_ROOT/share/spack/setup-env.sh\n")
         jobFile.write("\tspack env create -d .\n")
         jobFile.write("\tspack env activate `pwd`\n")
