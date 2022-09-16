@@ -1,0 +1,32 @@
+name: ci-snifftest
+on: [push]
+jobs:
+  
+  gluecode-gnu:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_TYPE: Release
+    steps:
+      - uses: actions/checkout@v3
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: build-essential libmpich-dev python3-dev cmake libsqlite3-dev
+          version: 1.1
+      - name: Build GLUECode Library
+        run: |
+          cmake -B ./bld -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} ./GLUECode_Library
+          cmake --build ./bld --config $${env.BUILD_TYPE}}
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10' 
+          cache: 'pip' # caching pip dependencies
+      - name: Install Python Dependencies
+        run: pip install -r ./GLUECode_Service/requirements.txt
+      - name: Serial Sniff Test
+        run: |
+          mkdir serial && cd serial
+          bash ../examples/sniffTest_serial.sh ../bld/tests/sniffTest_mpi
+      - name: MPI Sniff Test
+        run: |
+          mkdir mpi && cd mpi
+          bash ../examples/sniffTest_mpi.sh ../bld/tests/sniffTest_mpi
