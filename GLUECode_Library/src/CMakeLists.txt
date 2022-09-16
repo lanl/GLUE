@@ -2,16 +2,21 @@
 find_package(MPI REQUIRED)
 
 # Add source files for library
-#TODO: Refactor file structure
 add_library(GLUECode
 	alInterface.cpp
 	alGlueTypes_f.f90
 	alInterface_f.f90
 )
-#Headers
-target_include_directories(GLUECode PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-#Fortran modules
-target_include_directories(GLUECode PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+
+#Headers and Fortran Modules
+target_include_directories( GLUECode PUBLIC 
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+	$<INSTALL_INTERFACE:include>
+)
+set_target_properties(GLUECode PROPERTIES PUBLIC_HEADER
+"${CMAKE_CURRENT_SOURCE_DIR}/include/alInterface.h;${CMAKE_CURRENT_BINARY_DIR}/alinterface_f.mod"
+)
 
 # Add TPLs to library
 target_link_libraries(GLUECode PUBLIC MPI::MPI_CXX MPI::MPI_C MPI::MPI_Fortran)
