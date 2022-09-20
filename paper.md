@@ -83,7 +83,7 @@ one needs an accurate understanding of the connection between
 experimental observables and the underlying microphysics. The properties
 of the larger scales are often affected by the microscale behavior
 incorporated usually into the equations of state and ionic and
-electronic transport coefficients [@liboff1959transport;@rinderknecht2014first;@rosenberg2015assessment;ross2017transition]. 
+electronic transport coefficients [@liboff1959transport;@rinderknecht2014first;@rosenberg2015assessment;@ross2017transition]. 
 Instead of incorporating this information using reliable molecular dynamics 
 (MD) simulations, one often needs to use theoretical models, due to the 
 inability of MD to reach engineering scales [@glosli2007extending;@marinak1998comparison]. 
@@ -110,7 +110,7 @@ effective at solving hard optimization problems.
 In this work, we propose the `G`eneric `L`earning `U`ser `E`nablement
 (`GLUE`) Code to facilitate the coupling between scales. The `GLUE` Code
 builds upon previous work on multiscale coupling [@haack2021enabling;
-@pavel2017using:@pavel2015database]. At its simplest, we
+@pavel2017using;@pavel2015database]. At its simplest, we
 determine what physical properties must be exchanged between the various
 scales and derive application programming interfaces (APIs) from these.
 
@@ -257,5 +257,3 @@ LANL/LDRD Program for this work. AP and JS also acknowledge the Center
 for Non-Linear Studies at LANL. LANL is operated by Triad National Security, 
 LLC, for the National Nuclear Security Administration of U.S. Department 
 of Energy (Contract No. 89233218CNA000001). Assigned LA-UR-22-29746.
-
-
