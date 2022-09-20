@@ -55,6 +55,7 @@ affiliations:
 date: 20 September 2022
 bibliography: paper.bib
 ---
+
 # Summary
 
 Many scientific applications are inherently multiscale in nature. Such
@@ -79,8 +80,8 @@ one needs an accurate understanding of the connection between
 experimental observables and the underlying microphysics. The properties
 of the larger scales are often affected by the microscale behavior
 incorporated usually into the equations of state and ionic and
-electronic transport coefficients [@liboff1959transport;@rinderknecht2014first;
-@rosenberg2015assessment;ross2017transition]. Instead of incorporating this
+electronic transport coefficients [@liboff1959transport;@rinderknecht2014first;@rosenberg2015assessment;ross2017transition]. 
+Instead of incorporating this
 information using reliable molecular dynamics (MD) simulations, one
 often needs to use theoretical models, due to the inability of MD to
 reach engineering scales [@glosli2007extending;@marinak1998comparison]. 
@@ -137,17 +138,15 @@ Fig. <a href="#fig:glue_impl" data-reference-type="ref"
 data-reference="fig:glue_impl">1</a>.
 
 <figure>
-<img src="GLUEcode" id="fig:glue_impl" style="width:90.0%"
-alt="Sample of the GLUE Code implementation of our microscale-macroscale coupling. On the macroscale simulation (left) sending a request, the GLUE Code (center) uses the active learning algorithms (center purple) to determine if the model’s uncertainty quantification is such that a new fine grain simulation (right) needs to be called. Then either the result of the fine grain simulation or the model’s prediction is returned to the macroscale simulation. This figure is adapted from Fig. 2 in Diaw et al.[@diaw2020multiscale]" />
-<figcaption aria-hidden="true">Sample of the GLUE Code implementation of
-our microscale-macroscale coupling. On the macroscale simulation (left)
-sending a request, the <code>GLUE</code> Code (center) uses the active
-learning algorithms (center purple) to determine if the model’s
-uncertainty quantification is such that a new fine grain simulation
-(right) needs to be called. Then either the result of the fine grain
-simulation or the model’s prediction is returned to the macroscale
-simulation. This figure is adapted from Fig. 2 in Diaw et al.[@diaw2020multiscale]</figcaption>
+<img src="GLUEcode.jpeg" id="fig:glue_impl" style="width:80%">
+<figcaption align = "center"><b>Figure 1:  </b>Sample of the GLUE Code implementation of our microscale-macroscale coupling. On the macroscale simulation (left) sending a request, the GLUE Code (center) uses the active learning algorithms (center purple) to determine if the model’s uncertainty quantification is such that a new fine grain simulation (right) needs to be called. Then either the result of the fine grain simulation or the model’s prediction is returned to the macroscale simulation. This figure is adapted from Fig. 2 in Diaw et al. [@diaw2020multiscale].
+  
+</figcaption>
+  
 </figure>
+<br />
+<br />
+<br />
 
 The aim of the `GLUE` Code is to efficiently handle the communication
 and interfaces between the computing platform, surrogate model,
