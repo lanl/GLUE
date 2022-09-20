@@ -10,43 +10,46 @@ tags:
   - ICF
   - MD
 authors:
-  - name: Aleksandra Pachalieva
-    orcid: 0000-0003-1246-0410
-    affiliation: "1, 2"
   - name: Robert S. Pavel
     orcid: 0000-0001-7913-9918
     corresponding: true 
-    affiliation: 3
+    affiliation: 1
+  - name: Aleksandra Pachalieva
+    orcid: 0000-0003-1246-0410
+    affiliation: "2, 3"
   - name: Javier E. Santos
     orcid: 0000-0002-2404-3975
-    affiliation: "1, 2"
+    affiliation: "2, 3"
   - name: Abdourahmane Diaw
     orcid: 0000-0001-6743-3255
     affiliation: 4
   - name: Nicholas Lubbers
     orcid: 0000-0002-9001-9973
+    affiliation: 1
+  - name: Mohamed Mehana
+    orcid: 0000-0003-2472-2879
     affiliation: 3
   - name: Jeffrey R. Haack
     orcid: 0000-0002-2044-0885
-    affiliation: 3
-  - name: Christoph Junghans
-    orcid: 0000-0003-0925-1458
+    affiliation: 1
+  - name: Hari S. Viswanathan
+    orcid: 0000-0002-1178-9647
     affiliation: 3
   - name: Daniel Livescu
     orcid: 0000-0003-2367-1547
-    affiliation: 3
+    affiliation: 1
   - name: Timothy C. Germann
     orcid: 0000-0002-6813-238X
     affiliation: 5
-  - name: Hari S. Viswanathan
-    orcid: 0000-0002-1178-9647
-    affiliation: 2
+  - name: Christoph Junghans
+    orcid: 0000-0003-0925-1458
+    affiliation: 1
 affiliations:
- - name: Center for Non-Linear Studies, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
-   index: 1
- - name: Earth and Environmental Sciences (EES) Division, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
-   index: 2
  - name: Computer, Computational and Statistical Sciences (CCS) Division, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
+   index: 1
+ - name: Center for Non-Linear Studies, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
+   index: 2
+ - name: Earth and Environmental Sciences (EES) Division, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
    index: 3
  - name: Fusion Energy Division, Oak Ridge National Laboratory, 1 Bethel Valley Road, Oak Ridge, TN 37831, USA
    index: 4 
@@ -136,6 +139,8 @@ and Flux [@ahn2018workflows]. An
 overview of the `GLUE` Code implementation is shown in
 Fig. <a href="#fig:glue_impl" data-reference-type="ref"
 data-reference="fig:glue_impl">1</a>.
+
+![Test](GLUEcode.jpeg)
 
 <figure>
 <img src="GLUEcode.jpeg" id="fig:glue_impl" style="width:80%">
