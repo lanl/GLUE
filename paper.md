@@ -17,7 +17,6 @@ authors:
     orcid: 0000-0001-7913-9918
     corresponding: true 
     affiliation: 3
-  
   - name: Javier E. Santos
     orcid: 0000-0002-2404-3975
     affiliation: "1, 2"
@@ -85,12 +84,13 @@ experimental observables and the underlying microphysics. The properties
 of the larger scales are often affected by the microscale behavior
 incorporated usually into the equations of state and ionic and
 electronic transport coefficients [@liboff1959transport;@rinderknecht2014first;@rosenberg2015assessment;ross2017transition]. 
-Instead of incorporating this
-information using reliable molecular dynamics (MD) simulations, one
-often needs to use theoretical models, due to the inability of MD to
-reach engineering scales [@glosli2007extending;@marinak1998comparison]. 
-One way to resolve this issue is by enabling
-scale bridging between MD simulations and meso- and macroscale models.
+Instead of incorporating this information using reliable molecular dynamics 
+(MD) simulations, one often needs to use theoretical models, due to the 
+inability of MD to reach engineering scales [@glosli2007extending;@marinak1998comparison]. 
+One approach to resolve this issue is by coupling two MD simulations of different
+schales via force interpolation, e.g. the AdResS method [@krekeler2018adaptive;@nagarajan2013multiscale].
+Another approach, which we will pursue in the scope of this work, 
+is by enabling scale bridging between MD simulations and meso- and macroscale models.
 
 # State of the art
 
@@ -250,9 +250,11 @@ The `GLUE` code is organized as follows:
 The research presented in this article was supported by the Laboratory
 Directed Research and Development program of Los Alamos National
 Laboratory (LANL) under project number 20190005DR and used resources
-provided by the LANL Institutional Computing Program. AP and JS
+provided by the LANL Institutional Computing Program. We 
 acknowledge the support of the U.S. Department of Energy through the
-LANL/LDRD Program and the Center for Non-Linear Studies for this work.
-LANL is operated by Triad National Security, LLC, for the National
-Nuclear Security Administration of U.S. Department of Energy (Contract
-No. 89233218CNA000001). This document is LA-UR-22-29746.
+LANL/LDRD Program for this work. AP and JS also acknowledge the Center 
+for Non-Linear Studies at LANL. LANL is operated by Triad National Security, 
+LLC, for the National Nuclear Security Administration of U.S. Department 
+of Energy (Contract No. 89233218CNA000001). Assigned LA-UR-22-29746.
+
+
