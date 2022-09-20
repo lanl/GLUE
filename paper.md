@@ -1,5 +1,5 @@
---
-title: '`GLUE` Code: A framework handling communication and interfaces between scales'
+---
+title: 'GLUE Code: A framework handling communication and interfaces between scales'
 tags:
   - C++
   - Fortran
@@ -11,28 +11,35 @@ tags:
   - MD
 authors:
   - name: Aleksandra Pachalieva
-    orcid: 
-    equal-contrib: true
+    orcid: 0000-0003-1246-0410
     affiliation: "1, 2"
-  - name: Robert S. Pavel 
-    equal-contrib: true 
+  - name: Robert S. Pavel
+    orcid: 0000-0001-7913-9918
     corresponding: true 
     affiliation: 3
   - name: Javier E. Santos
+    orcid: 0000-0002-2404-3975
     affiliation: "1, 2"
   - name: Abdourahmane Diaw
+    orcid: 0000-0001-6743-3255
     affiliation: 4
   - name: Nicholas Lubbers
+    orcid: 0000-0002-9001-9973
     affiliation: 3
   - name: Jeffrey R. Haack
+    orcid: 0000-0002-2044-0885
     affiliation: 3
   - name: Christoph Junghans
+    orcid: 0000-0003-0925-1458
     affiliation: 3
   - name: Daniel Livescu
+    orcid: 0000-0003-2367-1547
     affiliation: 3
   - name: Timothy C. Germann
+    orcid: 0000-0002-6813-238X
     affiliation: 5
   - name: Hari S. Viswanathan
+    orcid: 0000-0002-1178-9647
     affiliation: 2
 affiliations:
  - name: Center for Non-Linear Studies, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
@@ -41,16 +48,14 @@ affiliations:
    index: 2
  - name: Computer, Computational and Statistical Sciences (CCS) Division, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
    index: 3
- - name: Oak Ridge National Laboratory,
+ - name: Fusion Energy Division, Oak Ridge National Laboratory, 1 Bethel Valley Road, Oak Ridge, TN 37831, USA
    index: 4 
  - name: Theoretical Division, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
    index: 5
 date: 20 September 2022
-bibliography: references.bib
-
-### Summary
-
-Test cite: <span class="citation" data-cites="diaw2020multiscale"></span>
+bibliography: paper.bib
+---
+# Summary
 
 Many scientific applications are inherently multiscale in nature. Such
 complex physical phenomena often require simultaneous execution and
@@ -74,29 +79,33 @@ one needs an accurate understanding of the connection between
 experimental observables and the underlying microphysics. The properties
 of the larger scales are often affected by the microscale behavior
 incorporated usually into the equations of state and ionic and
-electronic transport coefficients . Instead of incorporating this
+electronic transport coefficients [@liboff1959transport;@rinderknecht2014first;
+@rosenberg2015assessment;ross2017transition]. Instead of incorporating this
 information using reliable molecular dynamics (MD) simulations, one
 often needs to use theoretical models, due to the inability of MD to
-reach engineering scales . One way to resolve this issue is by enabling
+reach engineering scales [@glosli2007extending;@marinak1998comparison]. 
+One way to resolve this issue is by enabling
 scale bridging between MD simulations and meso- and macroscale models.
 
-### State of the art
+# State of the art
 
 Traditionally, multiscale simulations combine multiple simulation
 methods that need to be simultaneously executed and coordinated. To
 achieve this, we use asynchronous task-based runtime systems that
 include load balancers. Such load balancers can schedule and migrate
 tasks to maintain throughput; however, the issue of fault tolerance
-remains . To avoid this, checkpointing is often used , but it could be
+remains [@cappello2009fault]. To avoid this, checkpointing is often 
+used [@koo1987checkpointing], but it could be
 prohibitively expensive when its output frequency is high. Other works
-such as the `mystic` framework  is more geared towards large-scale
-machine learning techniques . Such codes are not designed toward
+such as the `mystic` framework [@mysticGit] is more geared towards large-scale
+machine learning techniques [@mckerns2012building]. Such codes are not designed toward
 coupling multiscale simulations but have been demonstrated to be highly
 effective at solving hard optimization problems.
 
 In this work, we propose the `G`eneric `L`earning `U`ser `E`nablement
 (`GLUE`) Code to facilitate the coupling between scales. The `GLUE` Code
-builds upon previous work on multiscale coupling . At its simplest, we
+builds upon previous work on multiscale coupling [@haack2021enabling;
+@pavel2017using:@pavel2015database]. At its simplest, we
 determine what physical properties must be exchanged between the various
 scales and derive application programming interfaces (APIs) from these.
 
@@ -110,7 +119,7 @@ active learning model. The `GLUE` Code uses active learning to evaluate
 the level of uncertainty and executes fine grain simulations when more
 training data is required.
 
-### Statement of need
+# Statement of need
 
 The `GLUE` Code is a modular framework designed to couple different
 scientific applications to support use cases, including multiscale
@@ -121,14 +130,15 @@ written in a sufficiently modular way that different machine learning
 methods can be utilized. Application programming interfaces (API) are
 available for C, C++, Fortran, and Python with support for various
 storage formats. The code also provides direct coupling with high
-performance computing job schedulers such as SLURM  and Flux . An
+performance computing job schedulers such as SLURM [@yoo2003slurm] 
+and Flux [@ahn2018workflows]. An
 overview of the `GLUE` Code implementation is shown in
 Fig. <a href="#fig:glue_impl" data-reference-type="ref"
 data-reference="fig:glue_impl">1</a>.
 
 <figure>
 <img src="GLUEcode" id="fig:glue_impl" style="width:90.0%"
-alt="Sample of the GLUE Code implementation of our microscale-macroscale coupling. On the macroscale simulation (left) sending a request, the GLUE Code (center) uses the active learning algorithms (center purple) to determine if the model’s uncertainty quantification is such that a new fine grain simulation (right) needs to be called. Then either the result of the fine grain simulation or the model’s prediction is returned to the macroscale simulation. This figure is adapted from Fig. 2 in Diaw et al. " />
+alt="Sample of the GLUE Code implementation of our microscale-macroscale coupling. On the macroscale simulation (left) sending a request, the GLUE Code (center) uses the active learning algorithms (center purple) to determine if the model’s uncertainty quantification is such that a new fine grain simulation (right) needs to be called. Then either the result of the fine grain simulation or the model’s prediction is returned to the macroscale simulation. This figure is adapted from Fig. 2 in Diaw et al.[@diaw2020multiscale]" />
 <figcaption aria-hidden="true">Sample of the GLUE Code implementation of
 our microscale-macroscale coupling. On the macroscale simulation (left)
 sending a request, the <code>GLUE</code> Code (center) uses the active
@@ -136,13 +146,13 @@ learning algorithms (center purple) to determine if the model’s
 uncertainty quantification is such that a new fine grain simulation
 (right) needs to be called. Then either the result of the fine grain
 simulation or the model’s prediction is returned to the macroscale
-simulation. This figure is adapted from Fig. 2 in Diaw et al. <span
-class="citation" data-cites="diaw2020multiscale"></span></figcaption>
+simulation. This figure is adapted from Fig. 2 in Diaw et al.[@diaw2020multiscale]</figcaption>
 </figure>
 
 The aim of the `GLUE` Code is to efficiently handle the communication
 and interfaces between the computing platform, surrogate model,
-coarse-scale code, and fine-scale code . At its core, the `GLUE` Code
+coarse-scale code, and fine-scale code [@diaw2020multiscale]. 
+At its core, the `GLUE` Code
 determines what physical properties need to be exchanged between the
 scales of interest and spawns APIs using this information. The `GLUE`
 Code ensures that these physical properties are communicated between the
@@ -175,21 +185,21 @@ Characteristics of the `GLUE` code:
 -   The `GLUE` Code is written with a collection of commodity software
     as the backend to most of these components. Currently, the
     relational database is supported via SQL(ite), while the job
-    scheduler has support for SLURM , Lawrence Livermore National
-    Laboratory’s Flux scheduler , and a rudimentary serialization model
-    for debugging. Active learning is provided through PyTorch  and
-    Scikit-Learn .
+    scheduler has support for SLURM [@yoo2003slurm], Lawrence Livermore National
+    Laboratory’s Flux scheduler [@ahn2018workflows], and a rudimentary serialization model
+    for debugging. Active learning is provided through PyTorch [@Neurips2019;@paszke2019pytorch] and
+    Scikit-Learn [@pedregosa2011scikit].
 
 -   This approach relies on SQL(ite) for the communication as it is a
     guaranteed atomic read and write that simplifies a lot of our
     efforts at the cost of performance.
 
 -   For coarse grain simulations, we currently couple with the
-    Multi-BGK  as well as additional ICF codes. Preliminary studies have
+    Multi-BGK [@lanl-bgk] as well as additional ICF codes. Preliminary studies have
     been made of coupling with more general Lattice Boltzmann
     simulations for other fields of study.
 
--   For fine scale simulations, we use a mixture of LAMMPS  and proven
+-   For fine scale simulations, we use a mixture of LAMMPS [@plimpton1995fast] and proven
     analytic solutions; however, one could easily switch to another MD
     solution as long as they have similar capabilities.
 
@@ -205,7 +215,7 @@ Characteristics of the `GLUE` code:
     the machine learning solution to retrain and generate a new
     surrogate model for future use.
 
-### Code structure
+# Code structure
 
 The `GLUE` code is organized as follows:
 
@@ -237,7 +247,7 @@ The `GLUE` code is organized as follows:
 
 -   `training` contains training data required for active learning.
 
-### Acknowledgements
+# Acknowledgements
 
 The research presented in this article was supported by the Laboratory
 Directed Research and Development program of Los Alamos National
@@ -247,5 +257,4 @@ acknowledge the support of the U.S. Department of Energy through the
 LANL/LDRD Program and the Center for Non-Linear Studies for this work.
 LANL is operated by Triad National Security, LLC, for the National
 Nuclear Security Administration of U.S. Department of Energy (Contract
-No. 89233218CNA000001).
-
+No. 89233218CNA000001). This document is LA-UR-22-29746.
