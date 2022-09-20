@@ -65,8 +65,8 @@ Many scientific applications are inherently multiscale in nature. Such
 complex physical phenomena often require simultaneous execution and
 coordination of simulations spanning multiple time and length scales.
 This is possible by combining expensive small-scale simulations (such as
-molecular dynamics simulations) with larger scale simulations (such as
-finite volume methods) to allow for considerably larger systems using
+molecular dynamics simulations) with larger scale simulations (such continuum 
+limit/hydro solvers) to allow for considerably larger systems using
 task and data parallelism. However, the granularity of the tasks can be
 very large and often leads to load imbalance. Traditionally, we use
 approximations to streamline the computation of the more costly
@@ -75,7 +75,7 @@ accuracy. In recent years, the available computational power and the
 advances in machine learning have made computing these scale-bridging
 interactions and multiscale simulations more feasible.
 
-One driving application has been plasma modeling and inertial
+One driving application has been plasma modeling in inertial
 confinement fusion (ICF) which is fundamentally multiscale in nature.
 This requires deep understanding of how to extrapolate microscopic
 information into macroscopically relevant scales. For example, in ICF
@@ -88,9 +88,9 @@ Instead of incorporating this information using reliable molecular dynamics
 (MD) simulations, one often needs to use theoretical models, due to the 
 inability of MD to reach engineering scales [@glosli2007extending;@marinak1998comparison]. 
 One approach to resolve this issue is by coupling two MD simulations of different
-schales via force interpolation, e.g. the AdResS method [@krekeler2018adaptive;@nagarajan2013multiscale].
+scales via force interpolation, e.g. the AdResS method [@krekeler2018adaptive;@nagarajan2013multiscale].
 Another approach, which we will pursue in the scope of this work, 
-is by enabling scale bridging between MD simulations and meso- and macroscale models.
+is by enabling scale bridging between MD simulations and meso/macro-scale models.
 
 # State of the art
 
@@ -139,7 +139,8 @@ performance computing job schedulers such as SLURM [@yoo2003slurm]
 and Flux [@ahn2018workflows]. An
 overview of the `GLUE` Code implementation is shown in
 Fig. <a href="#fig:glue_impl" data-reference-type="ref"
-data-reference="fig:glue_impl">1</a>.
+data-reference="fig:glue_impl">1</a>, where the meso/macro-scale solvers 
+BGK, CFDNS, and LBM are also defined.
 
 ![\label{fig:glue_impl}](GLUEcode.jpeg){width=90%}
 
