@@ -15,7 +15,7 @@ jobs:
       - name: Build GLUECode Library
         run: |
           sudo apt install -y build-essential libmpich-dev python3-dev cmake libsqlite3-dev
-          cmake -B ./bld -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} ./GLUECode_Library
+          cmake -B ./bld -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DMPIEXEC_EXECUTABLE=`which mpiexec` ./GLUECode_Library
           cmake --build ./bld --config $${env.BUILD_TYPE}}
       - uses: actions/setup-python@v4
         with:
