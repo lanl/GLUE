@@ -10,46 +10,47 @@ tags:
   - ICF
   - MD
 authors:
+  - name: Aleksandra Pachalieva
+    orcid: 0000-0003-1246-0410
+    affiliation: "1, 2"
   - name: Robert S. Pavel
     orcid: 0000-0001-7913-9918
     corresponding: true 
-    affiliation: 1
-  - name: Aleksandra Pachalieva
-    orcid: 0000-0003-1246-0410
-    affiliation: "2, 3"
+    affiliation: 3
+  
   - name: Javier E. Santos
     orcid: 0000-0002-2404-3975
-    affiliation: "2, 3"
+    affiliation: "1, 2"
   - name: Abdourahmane Diaw
     orcid: 0000-0001-6743-3255
     affiliation: 4
   - name: Nicholas Lubbers
     orcid: 0000-0002-9001-9973
-    affiliation: 1
+    affiliation: 3
   - name: Mohamed Mehana
     orcid: 0000-0003-2472-2879
-    affiliation: 3
+    affiliation: 2
   - name: Jeffrey R. Haack
     orcid: 0000-0002-2044-0885
-    affiliation: 1
+    affiliation: 3
   - name: Hari S. Viswanathan
     orcid: 0000-0002-1178-9647
-    affiliation: 3
+    affiliation: 2
   - name: Daniel Livescu
     orcid: 0000-0003-2367-1547
-    affiliation: 1
+    affiliation: 3
   - name: Timothy C. Germann
     orcid: 0000-0002-6813-238X
     affiliation: 5
   - name: Christoph Junghans
     orcid: 0000-0003-0925-1458
-    affiliation: 1
+    affiliation: 3
 affiliations:
- - name: Computer, Computational and Statistical Sciences (CCS) Division, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
-   index: 1
  - name: Center for Non-Linear Studies, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
-   index: 2
+   index: 1
  - name: Earth and Environmental Sciences (EES) Division, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
+   index: 2
+ - name: Computer, Computational and Statistical Sciences (CCS) Division, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
    index: 3
  - name: Fusion Energy Division, Oak Ridge National Laboratory, 1 Bethel Valley Road, Oak Ridge, TN 37831, USA
    index: 4 
@@ -140,8 +141,9 @@ overview of the `GLUE` Code implementation is shown in
 Fig. <a href="#fig:glue_impl" data-reference-type="ref"
 data-reference="fig:glue_impl">1</a>.
 
-![<b>Figure 1:  </b>Sample of the GLUE Code implementation of our microscale-macroscale coupling. On the macroscale simulation (left) sending a request, the GLUE Code (center) uses the active learning algorithms (center purple) to determine if the model’s uncertainty quantification is such that a new fine grain simulation (right) needs to be called. Then either the result of the fine grain simulation or the model’s prediction is returned to the macroscale simulation. This figure is adapted from Fig. 2 in Diaw et al. [@diaw2020multiscale]. \label{fig:glue_impl}](GLUEcode.jpeg){width=80%}
-<br />
+![\label{fig:glue_impl}](GLUEcode.jpeg){width=70%}
+
+<span class="img_caption" style="display: block; text-align: center;"><b>Figure 1:  </b>Sample of the GLUE Code implementation of our microscale-macroscale coupling. On the macroscale simulation (left) sending a request, the GLUE Code (center) uses the active learning algorithms (center purple) to determine if the model’s uncertainty quantification is such that a new fine grain simulation (right) needs to be called. Then either the result of the fine grain simulation or the model’s prediction is returned to the macroscale simulation. This figure is adapted from Fig. 2 in Diaw et al. [@diaw2020multiscale]. </span>
 <br />
 <br />
 
