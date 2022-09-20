@@ -141,7 +141,7 @@ overview of the `GLUE` Code implementation is shown in
 Fig. <a href="#fig:glue_impl" data-reference-type="ref"
 data-reference="fig:glue_impl">1</a>.
 
-![\label{fig:glue_impl}](GLUEcode.jpeg){width=70%}
+![\label{fig:glue_impl}](GLUEcode.jpeg){width=90%}
 
 <span class="img_caption" style="display: block; text-align: center;"><b>Figure 1:  </b>Sample of the GLUE Code implementation of our microscale-macroscale coupling. On the macroscale simulation (left) sending a request, the GLUE Code (center) uses the active learning algorithms (center purple) to determine if the model’s uncertainty quantification is such that a new fine grain simulation (right) needs to be called. Then either the result of the fine grain simulation or the model’s prediction is returned to the macroscale simulation. This figure is adapted from Fig. 2 in Diaw et al. [@diaw2020multiscale]. </span>
 <br />
