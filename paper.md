@@ -13,15 +13,15 @@ authors:
   - name: Aleksandra Pachalieva
     orcid: 
     equal-contrib: true
-    affiliation: "1, 2" # (Multiple affiliations must be quoted)
+    affiliation: "1, 2"
   - name: Robert S. Pavel 
-    equal-contrib: true # (This is how you can denote equal contributions between multiple authors) 
-    corresponding: true # (This is how to denote the corresponding author)
-    affiliation: 2
+    equal-contrib: true 
+    corresponding: true 
+    affiliation: 3
   - name: Javier E. Santos
-    affiliation: 3
+    affiliation: "1, 2"
   - name: Abdourahmane Diaw
-    affiliation: 3
+    affiliation: 4
   - name: Nicholas Lubbers
     affiliation: 3
   - name: Jeffrey R. Haack
@@ -31,9 +31,9 @@ authors:
   - name: Daniel Livescu
     affiliation: 3
   - name: Timothy C. Germann
-    affiliation: 3
+    affiliation: 5
   - name: Hari S. Viswanathan
-    affiliation: 3
+    affiliation: 2
 affiliations:
  - name: Center for Non-Linear Studies, Los Alamos National Laboratory, Los Alamos, 87545 NM, USA
    index: 1
@@ -248,3 +248,4 @@ LANL/LDRD Program and the Center for Non-Linear Studies for this work.
 LANL is operated by Triad National Security, LLC, for the National
 Nuclear Security Administration of U.S. Department of Energy (Contract
 No. 89233218CNA000001).
+
