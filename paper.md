@@ -109,8 +109,8 @@ effective at solving hard optimization problems.
 
 In this work, we propose the `G`eneric `L`earning `U`ser `E`nablement
 (`GLUE`) Code to facilitate the coupling between scales. The `GLUE` Code
-builds upon previous work on multiscale coupling [@haack2021enabling;
-@pavel2017using;@pavel2015database]. At its simplest, we
+builds upon previous work on multiscale coupling [@karra2022predictive;@haack2021enabling;
+@lubbers2020modeling;@pavel2017using;@pavel2015database]. At its simplest, we
 determine what physical properties must be exchanged between the various
 scales and derive application programming interfaces (APIs) from these.
 
@@ -186,7 +186,7 @@ Characteristics of the `GLUE` code:
     relational database is supported via SQL(ite), while the job
     scheduler has support for SLURM [@yoo2003slurm], Lawrence Livermore National
     Laboratory’s Flux scheduler [@ahn2018workflows], and a rudimentary serialization model
-    for debugging. Active learning is provided through PyTorch [@Neurips2019;@paszke2019pytorch] and
+    for debugging. Active learning is provided through PyTorch [@paszke2019pytorch] and
     Scikit-Learn [@pedregosa2011scikit].
 
 -   This approach relies on SQL(ite) for the communication as it is a
