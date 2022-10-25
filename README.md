@@ -27,4 +27,4 @@ This program was produced under U.S. Government contract 89233218CNA000001 for L
 
 ## Development and questions
 
-If you would like to contribute to the `GLUECode_Library`, please clone the repo and make a pull request. If you have any questions, please contact Aleksandra Pachalieva (apachalieva@lanl.gov) or Robert Pavel (rspavel@lanl.gov).
+If you would like to contribute to the project, please clone the repo and make a pull request. If you have any questions, please contact Aleksandra Pachalieva (apachalieva@lanl.gov) or Robert Pavel (rspavel@lanl.gov).
