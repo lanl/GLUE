@@ -163,198 +163,198 @@ typedef void * dbHandle_t;
 extern "C"
 {
 #endif
-    /**
-     * @brief C++ function that generates a single fine grain simulation request for ICF using BGK format
-     *
-     * @param input Array of request
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     * @return bgk_result_t single fine grain simulation result for ICF using BGK format
-     */
+	/**
+	 * @brief C++ function that generates a single fine grain simulation request for ICF using BGK format
+	 *
+	 * @param input Array of request
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @return bgk_result_t single fine grain simulation result for ICF using BGK format
+	 */
 	bgk_result_t bgk_req_single(bgk_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle);
 
 	/**
-     * @brief C++ function that generates a single fine grain simulation request for ICF using BGK format
-     * with specified request type
-     *
-     * @param input Array of request
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     * @param reqType ALInterfaceMode_e of request type
-     * @return bgk_result_t single fine grain simulation result for ICF using BGK format
-     */
+	 * @brief C++ function that generates a single fine grain simulation request for ICF using BGK format
+	 * with specified request type
+	 *
+	 * @param input Array of request
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @param reqType ALInterfaceMode_e of request type
+	 * @return bgk_result_t single fine grain simulation result for ICF using BGK format
+	 */
 	bgk_result_t bgk_req_single_with_reqtype(bgk_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
 
-    /**
-     * @brief C++ function that generates a batch of fine grain simulation requests for ICF using BGK format
-     *
-     * @param input Array of request of length numInputs
-     * @param numInputs Length of input array
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     * @return bgk_result_t array of length numInputs with fine grain simulation results for ICF using BGK format
-     */
+	/**
+	 * @brief C++ function that generates a batch of fine grain simulation requests for ICF using BGK format
+	 *
+	 * @param input Array of request of length numInputs
+	 * @param numInputs Length of input array
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @return bgk_result_t array of length numInputs with fine grain simulation results for ICF using BGK format
+	 */
 	bgk_result_t* bgk_req_batch(bgk_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle);
 
 	/**
-     * @brief C++ function that generates a batch of fine grain simulation requests for ICF using BGK format
-     * with specified request type
-     *
-     * @param input Array of request of length numInputs
-     * @param numInputs Length of input array
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     * @param reqType ALInterfaceMode_e of request type
-     * @return bgk_result_t array of length numInputs with fine grain simulation results for ICF using BGK format
-     */
+	 * @brief C++ function that generates a batch of fine grain simulation requests for ICF using BGK format
+	 * with specified request type
+	 *
+	 * @param input Array of request of length numInputs
+	 * @param numInputs Length of input array
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @param reqType ALInterfaceMode_e of request type
+	 * @return bgk_result_t array of length numInputs with fine grain simulation results for ICF using BGK format
+	 */
 	bgk_result_t* bgk_req_batch_with_reqtype(bgk_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
 
-    /**
-     * @brief C++ function that terminates the service for ICF simulation using BGK format
-     *
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     */
+	/**
+	 * @brief C++ function that terminates the service for ICF simulation using BGK format
+	 *
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 */
 	void bgk_stop_service(int mpiRank, char * tag, dbHandle_t dbHandle);
 
-    /**
-     * @brief C++ function that generates ICF fine grain simulation request for the BGK application
-     * where species are identified by mass
-     *
-     * @param input Array of request
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     * @return bgk_result_t single fine grain simulation result for ICF using BGK format
-     */
+	/**
+	 * @brief C++ function that generates ICF fine grain simulation request for the BGK application
+	 * where species are identified by mass
+	 *
+	 * @param input Array of request
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @return bgk_result_t single fine grain simulation result for ICF using BGK format
+	 */
 	bgkmasses_result_t bgkmasses_req_single(bgkmasses_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle);
 
-	 /**
-      * @brief C++ function that generates ICF fine grain simulation request for the BGK application
-      * where species are identified by mass with specified request type
-      *
-      * @param input Array of request
-      * @param mpiRank MPI Rank of requesting process
-      * @param tag Tag corresponding to set of requests
-      * @param dbHandle Database to write to
-      * @param reqType ALInterfaceMode_e of request type
-      * @return bgk_result_t single fine grain simulation result for ICF using BGK format
-      */
+	/**
+	 * @brief C++ function that generates ICF fine grain simulation request for the BGK application
+	 * where species are identified by mass with specified request type
+	 *
+	 * @param input Array of request
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @param reqType ALInterfaceMode_e of request type
+	 * @return bgk_result_t single fine grain simulation result for ICF using BGK format
+	 */
 	bgkmasses_result_t bgkmasses_req_single_with_reqtype(bgkmasses_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
 
 	/**
-     * @brief C++ function that generates a batch of ICF fine grain simulation request for the BGK application
-     * where species are identified by mass
-     *
-     * @param input Array of request of length numInputs
-     * @param numInputs Length of input array
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     * @return bgk_result_t array of length numInputs with fine grain simulation results for ICF using BGK format
-     */
+	 * @brief C++ function that generates a batch of ICF fine grain simulation request for the BGK application
+	 * where species are identified by mass
+	 *
+	 * @param input Array of request of length numInputs
+	 * @param numInputs Length of input array
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @return bgk_result_t array of length numInputs with fine grain simulation results for ICF using BGK format
+	 */
 	bgkmasses_result_t* bgkmasses_req_batch(bgkmasses_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle);
 
 	/**
-     * @brief C++ function that generates a batch of ICF fine grain simulation request for the BGK application
-     * where species are identified by mass with specified request type
-     *
-     * @param input Array of request of length numInputs
-     * @param numInputs Length of input array
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     * @param reqType ALInterfaceMode_e of request type
-     * @return bgk_result_t array of length numInputs with fine grain simulation results for ICF using BGK format
-     */
+	 * @brief C++ function that generates a batch of ICF fine grain simulation request for the BGK application
+	 * where species are identified by mass with specified request type
+	 *
+	 * @param input Array of request of length numInputs
+	 * @param numInputs Length of input array
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @param reqType ALInterfaceMode_e of request type
+	 * @return bgk_result_t array of length numInputs with fine grain simulation results for ICF using BGK format
+	 */
 	bgkmasses_result_t* bgkmasses_req_batch_with_reqtype(bgkmasses_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
 
 	/**
-     * @brief C++ function that terminates service for ICF fine grain simulation for the BGK application
-     * where species are identified by mass
-     *
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     */
+	 * @brief C++ function that terminates service for ICF fine grain simulation for the BGK application
+	 * where species are identified by mass
+	 *
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 */
 	void bgkmasses_stop_service(int mpiRank, char * tag, dbHandle_t dbHandle);
 
-    /**
-     * @brief C++ function that generates Shale simulation requests for LBM application in a 1-Dimensional Problem
-     *
-     * @param input Array of request
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     * @return bgk_result_t single fine grain simulation result for LBM application in a 1-Dimensional Problem
-     */
+	/**
+	 * @brief C++ function that generates Shale simulation requests for LBM application in a 1-Dimensional Problem
+	 *
+	 * @param input Array of request
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @return bgk_result_t single fine grain simulation result for LBM application in a 1-Dimensional Problem
+	 */
 	lbmToOneDMD_result_t lbmToOneDMD_req_single(lbmToOneDMD_request_t input, int mpiRank, char * tag, dbHandle_t  dbHandle);
 
-    /**
-     * @brief C++ function that generates Shale simulation requests for LBM application in a 1-Dimensional Problem
-     * with specified request type
-     *
-     * @param input Array of request
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     * @param reqType ALInterfaceMode_e of request type
-     * @return bgk_result_t single fine grain simulation result for LBM application in a 1-Dimensional Problem
-     */
+	/**
+	 * @brief C++ function that generates Shale simulation requests for LBM application in a 1-Dimensional Problem
+	 * with specified request type
+	 *
+	 * @param input Array of request
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @param reqType ALInterfaceMode_e of request type
+	 * @return bgk_result_t single fine grain simulation result for LBM application in a 1-Dimensional Problem
+	 */
 	lbmToOneDMD_result_t lbmToOneDMD_req_single_with_reqtype(lbmToOneDMD_request_t input, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
 
 	/**
-     * @brief C++ function that generates a batch of Shale simulation requests for the LBM application
-     * in a 1-Dimensional Problem
-     *
-     * @param input Array of request of length numInputs
-     * @param numInputs Length of input array
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     * @return bgk_result_t array of length numInputs with fine grain simulation results for LBM application in a 1-Dimensional Problem
-     */
+	 * @brief C++ function that generates a batch of Shale simulation requests for the LBM application
+	 * in a 1-Dimensional Problem
+	 *
+	 * @param input Array of request of length numInputs
+	 * @param numInputs Length of input array
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @return bgk_result_t array of length numInputs with fine grain simulation results for LBM application in a 1-Dimensional Problem
+	 */
 	lbmToOneDMD_result_t* lbmToOneDMD_req_batch(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle);
 
 	/**
-     * @brief C++ function that generates a batch of Shale simulation requests for LBM application
-     * in a 1-Dimensional Problem with request type specified
-     *
-     * @param input Array of request of length numInputs
-     * @param numInputs Length of input array
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     * @param reqType ALInterfaceMode_e of request type
-     * @return bgk_result_t array of length numInputs with fine grain simulation results for LBM application in a 1-Dimensional Problem
-     */
+	 * @brief C++ function that generates a batch of Shale simulation requests for LBM application
+	 * in a 1-Dimensional Problem with request type specified
+	 *
+	 * @param input Array of request of length numInputs
+	 * @param numInputs Length of input array
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 * @param reqType ALInterfaceMode_e of request type
+	 * @return bgk_result_t array of length numInputs with fine grain simulation results for LBM application in a 1-Dimensional Problem
+	 */
 	lbmToOneDMD_result_t* lbmToOneDMD_req_batch_with_reqtype(lbmToOneDMD_request_t *input, int numInputs, int mpiRank, char * tag, dbHandle_t dbHandle, unsigned int reqType);
 
 	/**
-     * @brief C++ function that terminates service for Shale simulation requests for the LBM application
-     * in a 1-Dimensional Problem
-     *
-     * @param mpiRank MPI Rank of requesting process
-     * @param tag Tag corresponding to set of requests
-     * @param dbHandle Database to write to
-     */
+	 * @brief C++ function that terminates service for Shale simulation requests for the LBM application
+	 * in a 1-Dimensional Problem
+	 *
+	 * @param mpiRank MPI Rank of requesting process
+	 * @param tag Tag corresponding to set of requests
+	 * @param dbHandle Database to write to
+	 */
 	void lbmToOneDMD_stop_service(int mpiRank, char * tag, dbHandle_t dbHandle);
 
-    /**
-     * @brief C++ wrapper to free memory allocated by the GLUE code
-     *
+	/**
+	 * @brief C++ wrapper to free memory allocated by the GLUE code
+	 *
 	 * @param buffer Pointer to memory allocated by the GLUE Code that is no longer needed by the host
 	 */
 	void resFreeWrapper(void * buffer);
 
-    /**
-     * @brief C++ function that is used to initialize the SQLite database to the Glue code
-     *
+	/**
+	 * @brief C++ function that is used to initialize the SQLite database to the Glue code
+	 *
 	 * @param mpiRank MPI Rank of requesting process
 	 * @param fName Field name
 	 * @return dbHandle Database to write to
@@ -362,8 +362,8 @@ extern "C"
 	dbHandle_t initDB(int mpiRank, char * fName);
 
 	/**
-     * @brief C++ function that is used to close the connection to the SQLite database
-     *
+	 * @brief C++ function that is used to close the connection to the SQLite database
+	 *
 	 * @return dbHandle Database to write to
 	 */
 	void closeDB(dbHandle_t dbHandle);
