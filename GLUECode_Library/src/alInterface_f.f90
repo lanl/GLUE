@@ -68,11 +68,11 @@ module alinterface_f
 		end function bgk_req_batch_internal_f
 	end interface
 
-    !> Fortran interface to initDB()
-    !! This is a Fortran function that is used to initialize the SQLite database to the Glue code
-    !!
-    !! @param mpiRank MPI Rank of requesting process
-    !! @param fName Field name
+	!> Fortran interface to initDB()
+	!! This is a Fortran function that is used to initialize the SQLite database to the Glue code
+	!!
+	!! @param mpiRank MPI Rank of requesting process
+	!! @param fName Field name
 	!! @return dbHandle Database to write to
 	interface
 		function initDB_f(mpiRank,fName) bind(c,name="initDB") result(dbhandle) 
@@ -83,11 +83,11 @@ module alinterface_f
 		end function initDB_f
 	end interface
 
-    !> Fortran interface to lbmToOneDMD_stop_service()
-    !! This is a Fortran function that is used to terminate service for Shale simulation
-    !!
-    !! @param mpiRank MPI Rank of requesting process
-    !! @param tag Tag corresponding to set of requests
+	!> Fortran interface to lbmToOneDMD_stop_service()
+	!! This is a Fortran function that is used to terminate service for Shale simulation
+	!!
+	!! @param mpiRank MPI Rank of requesting process
+	!! @param tag Tag corresponding to set of requests
 	!! @param dbHandle Database to write to
 	interface
 		subroutine lbmToOneDMD_stop_service_f(mpiRank, tag, dbHandle) bind(c, name="lbmToOneDMD_stop_service")
@@ -98,11 +98,11 @@ module alinterface_f
 		end subroutine lbmToOneDMD_stop_service_f
 	end interface
 
-    !> Fortran interface to bgk_stop_service()
-    !! This is a Fortran function that is used to terminate service for BGK simulation
-    !!
-    !! @param mpiRank MPI Rank of requesting process
-    !! @param tag Tag corresponding to set of requests
+	!> Fortran interface to bgk_stop_service()
+	!! This is a Fortran function that is used to terminate service for BGK simulation
+	!!
+	!! @param mpiRank MPI Rank of requesting process
+	!! @param tag Tag corresponding to set of requests
 	!! @param dbHandle Database to write to
 	interface
 		subroutine bgk_stop_service_f(mpiRank, tag, dbHandle) bind(c, name="bgk_stop_service")
@@ -113,9 +113,9 @@ module alinterface_f
 		end subroutine bgk_stop_service_f
 	end interface
 
-    !> Fortran interface to resFreeWrapper()
-    !! Fortran wrapper to free memory allocated on the C side
-    !!
+	!> Fortran interface to resFreeWrapper()
+	!! Fortran wrapper to free memory allocated on the C side
+	!!
 	!! @param buffer TODO
 	interface 
 		subroutine resFreeWrapper_internal_f(buffer) bind(c, name="resFreeWrapper")
@@ -124,9 +124,9 @@ module alinterface_f
 		end subroutine resFreeWrapper_internal_f
 	end interface
 
-    !> Fortran interface to closeDB()
-    !! This is a Fortran function that is used to close the connection to the SQLite database
-    !!
+	!> Fortran interface to closeDB()
+	!! This is a Fortran function that is used to close the connection to the SQLite database
+	!!
 	!! @param dbHandle Database to write to
 	interface
 		subroutine closeDB_f(dbHandle) bind(c, name="closeDB")
