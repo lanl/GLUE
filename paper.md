@@ -213,6 +213,30 @@ Characteristics of the `GLUE` code:
     back to calling the actual MD simulation and providing the data for
     the machine learning solution to retrain and generate a new
     surrogate model for future use.
+    
+## Concurrent multiscale simulations
+
+As depicted in Fig. <a href="#fig:glue_impl" data-reference-type="ref"
+data-reference="fig:glue_impl">1</a>, the parallelism of the Coarse Grain Solver is fully dependent on the solver of choice; however, the `GLUECode_Library` provides MPI interfaces to support distributed applications and all couplings thus far (barring hand-written tests for CI purposes) were with distributed coarse grain simulations. Initial efforts were made to make the `GLUECode_Library` calls non-blocking (similar to non-blocking communication in MPI), but this was given low priority as the coarse grain solvers considered thus far have comparatively fast time steps relative to the fine grain solvers and do not have a significant amount of work that can be overlapped with the cost of the `GLUE` Code. Similarly, there was work on providing a thread-safe interface for on-node parallelism (e.g. OpenMP), but this was similarly given low priority.
+
+A single `GLUECode_Service` is primarily a series of sequential operations that occur in a persistent service and is built around monitoring a task queue. Said task queue allows for parallelism via the use of HPC Job Schedulers, but the actual computation/generation of ML models, as well as processing of requests and results, is sequential. That said, multiple `GLUECode_Service` instances can be run in parallel, and this has been done as a way to lessen congestion for particularly large simulation.
+
+The Fine Grain Solver is once again dependent on the solver. We have worked with both GPU-enabled LAMMPS and MPI-enabled LAMMPS and the SlurmScheduler and FluxScheduler parts of our json schema https://github.com/lanl/GLUE/blob/1.0/docs/inputSchema.json are specifically set up to provide these configurations.
+
+The overall GLUECode has a high degree of concurrency and resembles fork-join parallelism/MapReduce in practice, even if it consists of sequential tasks/stages.
+
+## Load imbalance
+
+We have implemented traditional approaches for load balancing used by asynchronous task-based runtimes that rely on some form of a task queue and then various work-stealing algorithms. However, due to the granularity of our tasks, we offload these tasks to HPC job schedulers like Slurm and Flux. By putting this work into a job queue, we can use proven tools to schedule those in an efficient manner.
+
+To reduce the load that need to be balanced, we preprocess the requests prior to calling functions/subroutines like `bgk_req_batch_subr_f()`. Aspects of this can be found in the function `preprocess_icf()`. Future work will include better domain-aware scheduling and optimizations but, at this stage, we have minimized this so as to stress-test the overall GLUECode interface as well as evaluate the benefits of active learning-based models.
+
+
+## Multiple formats and parsing tools
+
+We only provide the interfaces required for the coupling that we are working on, as one of the primary goals of this project was to provide a minimally invasive tool. Domain experts are the most knowledgeable in terms of what they need from each level of the simulation; therefore, we largely use co-design to define interfaces (e.g. https://github.com/lanl/GLUE/blob/1.0/GLUECode_Library/src/include/alInterface.h) as well as using control variables in the overall system configuration to utilize the appropriate tools (e.g. https://github.com/lanl/GLUE/blob/1.0/GLUECode_Service/processBGKResult.py) to generate and post-process results.
+
+The existing tools will be generalized as necessary as new couplings are added. However, we aim to retain the interface relatively clean, allowing the domain experts to take advantage of their knowledge and experience of tools like LAMMPS rather than rely on us to provide all the interfaces they need.
 
 # Code structure
 
