@@ -90,7 +90,8 @@ inability of MD to reach engineering scales [@glosli2007extending;@marinak1998co
 One approach to resolve this issue is by coupling two MD simulations of different
 scales via force interpolation, e.g. the AdResS method [@krekeler2018adaptive;@nagarajan2013multiscale].
 Another approach, which we will pursue in the scope of this work, 
-is by enabling scale bridging between MD simulations and meso/macro-scale models.
+is by enabling scale bridging between MD simulations and meso/macro-scale models through the development and support of
+application programming interfaces that these different applications can interact through.
 
 # State of the art
 
