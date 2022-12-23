@@ -76,7 +76,7 @@ advances in machine learning have made computing these scale-bridging
 interactions and multiscale simulations more feasible.
 
 One driving application has been plasma modeling in inertial
-confinement fusion (ICF) which is fundamentally multiscale in nature.
+confinement fusion (ICF), which is fundamentally multiscale in nature.
 This requires deep understanding of how to extrapolate microscopic
 information into macroscopically relevant scales. For example, in ICF
 one needs an accurate understanding of the connection between
@@ -88,7 +88,7 @@ Instead of incorporating this information using reliable molecular dynamics
 (MD) simulations, one often needs to use theoretical models, due to the 
 inability of MD to reach engineering scales [@glosli2007extending;@marinak1998comparison]. 
 One approach to resolve this issue is by coupling two MD simulations of different
-scales via force interpolation, e.g. the AdResS method [@krekeler2018adaptive;@nagarajan2013multiscale].
+scales via force interpolation, e.g., the AdResS method [@krekeler2018adaptive;@nagarajan2013multiscale].
 Another approach, which we will pursue in the scope of this work, 
 is by enabling scale bridging between MD simulations and meso/macro-scale models through the development and support of
 application programming interfaces that these different applications can interact through.
@@ -145,7 +145,7 @@ BGK, CFDNS, and LBM are also defined.
 
 ![\label{fig:glue_impl}](GLUEcode.jpeg){width=90%}
 
-<span class="img_caption" style="display: block; text-align: center;"><b>Figure 1:  </b>Sample of the GLUE Code implementation of our microscale-macroscale coupling. On the macroscale simulation (left) sending a request, the GLUE Code (center) uses the active learning algorithms (center purple) to determine if the model’s uncertainty quantification is such that a new fine grain simulation (right) needs to be called. Then either the result of the fine grain simulation or the model’s prediction is returned to the macroscale simulation. This figure is adapted from Fig. 2 in Diaw et al. [@diaw2020multiscale]. </span>
+<span class="img_caption" style="display: block; text-align: center;"><b>Figure 1:  </b>Sample of the GLUE Code implementation of our microscale-macroscale coupling. On the macroscale simulation (left) sending a request, the GLUE Code (center) uses the active learning algorithms (center purple) to determine if the model’s uncertainty quantification is such that a new fine grain simulation (right) needs to be called. Then either the result of the fine grain simulation or the model’s prediction is returned to the macroscale simulation. This figure is adapted from Fig. 2 in @diaw2020multiscale. </span>
 <br />
 <br />
 
@@ -222,7 +222,7 @@ data-reference="fig:glue_impl">1</a>, the parallelism of the Coarse Grain Solver
 
 A single `GLUECode_Service` is primarily a series of sequential operations that occur in a persistent service and is built around monitoring a task queue. Said task queue allows for parallelism via the use of HPC Job Schedulers, but the actual computation/generation of ML models, as well as processing of requests and results, is sequential. That said, multiple `GLUECode_Service` instances can be run in parallel, and this has been done as a way to lessen congestion for particularly large simulation.
 
-The Fine Grain Solver is once again dependent on the solver. We have worked with both GPU-enabled LAMMPS and MPI-enabled LAMMPS and the SlurmScheduler and FluxScheduler parts of our json schema https://github.com/lanl/GLUE/blob/1.0/docs/inputSchema.json are specifically set up to provide these configurations.
+The Fine Grain Solver is once again dependent on the solver. We have worked with both GPU-enabled LAMMPS and MPI-enabled LAMMPS and the SlurmScheduler and FluxScheduler parts of our json schema (<https://github.com/lanl/GLUE/blob/1.0/docs/inputSchema.json>) are specifically set up to provide these configurations.
 
 The overall GLUECode has a high degree of concurrency and resembles fork-join parallelism/MapReduce in practice, even if it consists of sequential tasks/stages.
 
@@ -235,9 +235,9 @@ To reduce the load that need to be balanced, we preprocess the requests prior to
 
 ## Multiple formats and parsing tools
 
-We only provide the interfaces required for the coupling that we are working on, as one of the primary goals of this project was to provide a minimally invasive tool. Domain experts are the most knowledgeable in terms of what they need from each level of the simulation; therefore, we largely use co-design to define interfaces (e.g. https://github.com/lanl/GLUE/blob/1.0/GLUECode_Library/src/include/alInterface.h) as well as using control variables in the overall system configuration to utilize the appropriate tools (e.g. https://github.com/lanl/GLUE/blob/1.0/GLUECode_Service/processBGKResult.py) to generate and post-process results.
+We only provide the interfaces required for the coupling that we are working on, as one of the primary goals of this project was to provide a minimally invasive tool. Domain experts are the most knowledgeable in terms of what they need from each level of the simulation; therefore, we largely use co-design to define interfaces (e.g., <https://github.com/lanl/GLUE/blob/1.0/GLUECode_Library/src/include/alInterface.h>) as well as using control variables in the overall system configuration to utilize the appropriate tools (e.g., <https://github.com/lanl/GLUE/blob/1.0/GLUECode_Service/processBGKResult.py>) to generate and post-process results.
 
-The existing tools will be generalized as necessary as new couplings are added. However, we aim to retain the interface relatively clean, allowing the domain experts to take advantage of their knowledge and experience of tools like LAMMPS rather than rely on us to provide all the interfaces they need.
+The existing tools will be generalized as necessary as new couplings are added. However, we aim to keep the interface relatively clean, allowing domain experts to take advantage of their knowledge and experience with tools like LAMMPS rather than rely on us to provide all the interfaces they need.
 
 # Code structure
 
@@ -247,7 +247,7 @@ The `GLUE` code is organized as follows:
     linked to the coarse grain solver. This allows existing applications
     to couple to the `GLUECode_Service` with minimal code alterations.
 
--   `GLUECode_Service` contains the python scripts that the library
+-   `GLUECode_Service` contains the Python scripts that the library
     communicates with and uses a combination of active learning and
     spawning of fine grain simulation jobs to enable and accelerate
     multiscale scientific applications.
