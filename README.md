@@ -1,6 +1,10 @@
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.04822/status.svg)](https://doi.org/10.21105/joss.04822)
+
 # Generic Learning User Enablement Code
 
 The Generic Learning User Enablement Code (GLUE Code) is a modular framework designed to couple different scientific applications to support use cases including multiscale methods and various forms of machine learning. The workflow was initially designed around supporting active learning as an alternative to coupled applications to support multiscale methods but has been written in a sufficiently modular way that different machine learning methods can be utilized. Application programming interfaces (API) are available for C, C++, Fortran, and Python with support for various storage formats. The code also provides direct coupling with high performance computing job schedulers such as Slurm and Flux.
+
+
 
 ## Repository Structure
 
